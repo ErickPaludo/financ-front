@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import type { ConviteItem } from "../models/Convite/ConviteResponse";
+import type { ConviteItem } from "../models/convite/ConviteResponse";
 
 type ConviteContextType = {
   convite: ConviteItem | null;

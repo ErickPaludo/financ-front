@@ -2,11 +2,15 @@ import {
   createContext,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
-import api from "../services/api/api";
+import {
+  configurarSessao,
+  refreshToken,
+  setAccessToken,
+} from "../services/api/api";
+import { useNavigate } from "react-router-dom";
 
 export interface TokenData {
   token: string;
@@ -37,163 +41,48 @@ type AuthProviderProps = {
 
 export const AuthContext = createContext({} as AuthContextType);
 
-let refreshEmAndamento: Promise<string | null> | null = null;
-
 export function AuthProvider({ children }: AuthProviderProps) {
+  const navigate = useNavigate();
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
-  const [user, setUserObj] = useState<User | null>(null);
-  const [inicializando, setInicializando] = useState(true);
-
-  const tokenRef = useRef<string | null>(null);
+  const [user, setUserObj] = useState<User | null>(() => {
+    const salvo = localStorage.getItem("user");
+    return salvo ? JSON.parse(salvo) : null;
+  });
+  // sem usuário salvo não há sessão para restaurar
+  const [inicializando, setInicializando] = useState(user !== null);
 
   const authenticated =
     tokenData !== null && Date.now() < new Date(tokenData.expiration).getTime();
 
-  // Com HashRouter, a rota fica no hash (#/login, #/home...)
-  // O pathname nunca muda — só o hash muda entre as telas
-  function estaNaTelaDeLogin() {
-    const hash = window.location.hash;
-    return hash === "#/" || hash === "" || hash === "#";
+  function logout() {
+    setAccessToken(null);
+    setTokenData(null);
+    setUserObj(null);
+    localStorage.clear();
+
+    navigate("/login", { replace: true });
   }
 
-  const executarRefresh = async (): Promise<string | null> => {
-    // não faz refresh na tela de login
-    if (estaNaTelaDeLogin()) {
-      return null;
-    }
-
-    const temUsuario = !!localStorage.getItem("user");
-
-    if (!temUsuario) {
-      return null;
-    }
-
-    if (refreshEmAndamento) {
-      return refreshEmAndamento;
-    }
-
-    refreshEmAndamento = api
-      .post("/Autenticacao/refresh")
-      .then((resp) => {
-        const novoToken: string = resp.data.token;
-        const novaExpiracao: string = resp.data.expiracao;
-
-        tokenRef.current = novoToken;
-
-        setTokenData({
-          token: novoToken,
-          expiration: novaExpiracao,
-        });
-
-        return novoToken;
-      })
-      .catch(() => {
-        _logout();
-        return null;
-      })
-      .finally(() => {
-        refreshEmAndamento = null;
-      });
-
-    return refreshEmAndamento;
-  };
+  // Registrado no render (não em useEffect) para valer já nas primeiras requisições dos filhos.
+  configurarSessao({
+    onRefresh: (dados) =>
+      setTokenData({ token: dados.token, expiration: dados.expiracao }),
+    onExpirada: logout,
+  });
 
   useEffect(() => {
-    const userStorage = localStorage.getItem("user");
-
-    if (userStorage) {
-      setUserObj(JSON.parse(userStorage));
-    }
-
-    // evita refresh na tela de login
-    if (estaNaTelaDeLogin()) {
-      setInicializando(false);
-      return;
-    }
-
-    executarRefresh().finally(() => {
-      setInicializando(false);
-    });
-  }, []);
-
-  useEffect(() => {
-    const requestInterceptor = api.interceptors.request.use((config) => {
-      if (tokenRef.current) {
-        config.headers.Authorization = `Bearer ${tokenRef.current}`;
-      }
-
-      return config;
-    });
-
-    const responseInterceptor = api.interceptors.response.use(
-      (response) => response,
-      async (erro) => {
-        const requisicaoOriginal = erro.config;
-
-        const ehRotaDeRefresh = requisicaoOriginal.url?.includes(
-          "Autenticacao/refresh",
-        );
-
-        const ehRotaDeLogin =
-          requisicaoOriginal.url?.includes("Autenticacao/login");
-
-        const estaNaPaginaInicial = estaNaTelaDeLogin();
-
-        if (
-          erro.response?.status === 401 &&
-          !requisicaoOriginal._retry &&
-          !ehRotaDeRefresh &&
-          !ehRotaDeLogin &&
-          !estaNaPaginaInicial
-        ) {
-          requisicaoOriginal._retry = true;
-
-          const novoToken = await executarRefresh();
-
-          if (novoToken) {
-            requisicaoOriginal.headers.Authorization = `Bearer ${novoToken}`;
-
-            return api(requisicaoOriginal);
-          }
-
-          _logout();
-
-          // Com HashRouter, redireciona trocando apenas o hash
-          window.location.hash = "#/";
-
-          return Promise.reject(erro);
-        }
-
-        return Promise.reject(erro);
-      },
-    );
-
-    return () => {
-      api.interceptors.request.eject(requestInterceptor);
-      api.interceptors.response.eject(responseInterceptor);
-    };
+    if (!inicializando) return;
+    refreshToken()
+      .then((dados) => {
+        if (!dados) logout();
+      })
+      .finally(() => setInicializando(false));
   }, []);
 
   function login(novoTokenData: TokenData) {
-    tokenRef.current = novoTokenData.token;
+    setAccessToken(novoTokenData.token);
 
     setTokenData(novoTokenData);
-  }
-
-  function _logout() {
-    tokenRef.current = null;
-
-    setTokenData(null);
-    setUserObj(null);
-
-    localStorage.removeItem("user");
-  }
-
-  function logout() {
-    _logout();
-
-    // Com HashRouter, basta trocar o hash — o pathname (/financproject/) não muda
-    window.location.hash = "#/";
   }
 
   function setUser(u: User) {

@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Imagens soltas na raiz (capturas de tela etc.); as do app ficam em public/ e src/assets/
+/*.png
+/*.jpg
+/*.jpeg
+/*.gif
+/*.webp

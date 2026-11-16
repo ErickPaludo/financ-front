@@ -1,0 +1,133 @@
+import { useState } from "react";
+import type {
+  GetMovimentacoes,
+  Movimentacao,
+} from "../../../models/movimentacoes/GetMovimentacoes";
+import "./TabelaMovimentacao.css";
+import Modal from "../../../componentes/modal/Modal";
+import ConclusaoMovimentacao from "../confirmacao/ConclusaoMovimentacao";
+
+type PropMov = {
+  idConta: number;
+  movimentacao: GetMovimentacoes;
+  buscaMovimentacoes: () => void;
+};
+
+const TabelaMovimentacao: React.FC<PropMov> = ({
+  idConta,
+  movimentacao,
+  buscaMovimentacoes,
+}) => {
+  const [movSelecionada, setMovSelecionada] = useState<Movimentacao | null>();
+  const [isAlterMovOpen, setIsAlterMovOpen] = useState(false);
+
+  const formataMoeda = (valor: number, movTipo: number) => {
+    const moeda = new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(valor);
+
+    return (
+      <p className={movTipo === 0 ? "valor-positivo" : "valor-negativo"}>
+        {moeda}
+      </p>
+    );
+  };
+
+  const formataData = (data: string) =>
+    new Intl.DateTimeFormat("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(new Date(data));
+
+  function getTextColor(bgColor: string) {
+    const r = parseInt(bgColor.substr(1, 2), 16);
+    const g = parseInt(bgColor.substr(3, 2), 16);
+    const b = parseInt(bgColor.substr(5, 2), 16);
+    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+    return luminance > 186 ? "#000000" : "#FFFFFF";
+  }
+
+  return (
+    <div className="transacoes-container">
+      <div className="transacoes-header">
+        <h2 className="titulo-secao">Movimentações</h2>
+      </div>
+
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>TITULO</th>
+              <th>VALOR</th>
+              <th>CATEGORIA</th>
+              <th>STATUS</th>
+              <th>DATA MOV</th>
+              <th>OBSERVACAO</th>
+              <th>DATA CONCLUSÃO</th>
+              <th>USU CAD</th>
+              <th>USU EXE</th>
+              <th>AGENDADA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {movimentacao?.conteudo?.movimentacaos?.map((mov) => (
+              <tr
+                key={
+                  mov.id > 0 ? mov.id : `${mov.idFixo} ${mov.dthrMovimentacao}`
+                }
+                onClick={() => {
+                  setMovSelecionada(mov);
+                  setIsAlterMovOpen(true);
+                  console.log(mov);
+                }}
+              >
+                <td>{mov.titulo}</td>
+                <td>{formataMoeda(mov.valor, mov.tipo)}</td>
+                <td>
+                  <div className="fnc-cnt-cat-mov">
+                    {mov.categorias.map((cat) => (
+                      <div
+                        key={cat.idCategoria}
+                        className="categoria"
+                        style={{ background: cat.cor }}
+                      >
+                        <p style={{ color: getTextColor(cat.cor) }}>
+                          {cat.nome}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </td>
+                <td>{mov.concluido ? "Concluido" : "Pendente"}</td>
+                <td>{formataData(mov.dthrMovimentacao)}</td>
+                <td>{mov.observacao}</td>
+                <td>{mov.dthrConclusao && formataData(mov.dthrConclusao)}</td>
+                <td>{mov.usarioCriador?.email}</td>
+                <td>{mov.usuarioExecutor?.email}</td>
+                <td>{mov.idFixo ? "Sim" : "Não"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {isAlterMovOpen && movSelecionada && (
+        <Modal isOpen={isAlterMovOpen} onClose={() => setIsAlterMovOpen(false)}>
+          <ConclusaoMovimentacao
+            onClose={() => setIsAlterMovOpen(false)}
+            buscaMovimentacoes={buscaMovimentacoes}
+            idConta={idConta}
+            movimentacaoSelecionada={movSelecionada}
+          />
+        </Modal>
+      )}
+    </div>
+  );
+};
+
+export default TabelaMovimentacao;

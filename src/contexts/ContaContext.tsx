@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import type { ContaBancaria } from "../models/ContasUsuarios/GetContasBancarias";
-import type { ContaUsuario } from "../models/ContasUsuarios/GetContaUsuario";
+import type { ContaBancaria } from "../models/contas-usuarios/GetContasBancarias";
+import type { ContaUsuario } from "../models/contas-usuarios/GetContaUsuario";
 
 type ContaContextType = {
   conta: ContaBancaria | null;

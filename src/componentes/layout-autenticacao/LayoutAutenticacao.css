@@ -1,0 +1,285 @@
+/* Visual das telas de login e cadastro.
+   Cores vêm de cores.ts (CoresClaro/CoresEscuro.login) como variáveis --fnc-login-*.
+   Seletores com .fnc-login-page/.fnc-login-card na frente para vencer os estilos do tema MUI. */
+
+.fnc-login-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 48px 24px;
+  color-scheme: var(--fnc-login-esquemaCor);
+  font-family: "Inter", sans-serif;
+}
+
+/* Marca d'água decorativa como background (não <img>), invisível para leitores de tela.
+   A opacidade de 7% já vem no SVG. */
+.fnc-login-bg {
+  background-color: var(--fnc-login-pagina);
+  background-image: url("../../assets/pldprojects-marca-dagua.svg");
+  background-repeat: no-repeat;
+  /* maior que a tela e deslocada para fora pela direita: só parte da marca aparece */
+  background-position: right -180px center;
+  background-size: 1250px 1250px;
+}
+
+@media (max-width: 1100px) {
+  .fnc-login-bg {
+    background-position: center center;
+    background-size: 860px 860px;
+  }
+}
+
+@media (max-width: 600px) {
+  .fnc-login-bg {
+    background-image: none;
+  }
+}
+
+.fnc-login-page .fnc-login-theme {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  width: 44px;
+  height: 44px;
+  color: var(--fnc-login-rodape);
+}
+
+.fnc-login-card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 40px 36px;
+  background: var(--fnc-login-card);
+  border: 1px solid var(--fnc-login-cardBorda);
+  border-radius: 18px;
+  box-shadow: 0 24px 60px var(--fnc-login-sombra);
+}
+
+.fnc-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.fnc-login-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--fnc-login-divisoria);
+}
+
+.fnc-login-logo {
+  width: 80px;
+  height: 80px;
+}
+
+.fnc-login-brand-name {
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -0.01em;
+  color: var(--fnc-login-titulo);
+}
+
+.fnc-login-heading {
+  text-align: center;
+}
+
+.fnc-login-heading h1 {
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--fnc-login-titulo);
+}
+
+.fnc-login-heading p {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--fnc-login-subtitulo);
+}
+
+/* Alerta de erro da API (MUI Alert) */
+.fnc-login-card .fnc-login-alert {
+  font-size: 14px;
+  color: var(--fnc-login-erro);
+  background: var(--fnc-login-alertaFundo);
+  border: 1px solid var(--fnc-login-alertaBorda);
+  border-radius: 10px;
+}
+
+.fnc-login-card .fnc-login-alert .MuiAlert-icon {
+  color: var(--fnc-login-erro);
+}
+
+/* Campos (CampoTexto / MUI TextField) */
+.fnc-login-card .MuiInputLabel-root,
+.fnc-login-card .MuiInputLabel-root.Mui-focused,
+.fnc-login-card .MuiInputLabel-root.Mui-error {
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fnc-login-label);
+}
+
+.fnc-login-card .MuiOutlinedInput-root {
+  height: 48px;
+  font-size: 15px;
+  color: var(--fnc-login-campoTexto);
+  background: var(--fnc-login-campoFundo);
+  border: 1.5px solid var(--fnc-login-campoBorda);
+  border-radius: 10px;
+}
+
+.fnc-login-card .MuiOutlinedInput-root.Mui-focused {
+  border-color: var(--fnc-login-foco);
+  box-shadow: 0 0 0 3px var(--fnc-login-focoSombra);
+}
+
+.fnc-login-card .MuiOutlinedInput-root.Mui-error {
+  border-color: var(--fnc-login-erro);
+}
+
+.fnc-login-card .MuiOutlinedInput-root.Mui-error.Mui-focused {
+  box-shadow: 0 0 0 3px var(--fnc-login-focoSombra);
+}
+
+.fnc-login-card .MuiOutlinedInput-input {
+  padding: 0 14px;
+}
+
+.fnc-login-card .MuiInputAdornment-root,
+.fnc-login-card .MuiInputAdornment-root .MuiIconButton-root {
+  color: var(--fnc-login-subtitulo);
+  opacity: 1;
+}
+
+.fnc-login-card .MuiFormHelperText-root,
+.fnc-login-card .MuiFormHelperText-root.Mui-error {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--fnc-login-erro);
+}
+
+/* Lembrar de mim / Esqueceu a senha */
+.fnc-login-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  /* cancela o gap do formulário: cola no campo de senha sem reduzir a área de toque de 44px do link */
+  margin-top: -20px;
+}
+
+.fnc-login-card .fnc-login-remember {
+  margin-left: -9px; /* alinha o checkbox com a borda dos campos */
+}
+
+.fnc-login-card .fnc-login-remember .MuiFormControlLabel-label {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--fnc-login-label);
+}
+
+.fnc-login-card .fnc-login-remember .MuiCheckbox-root {
+  color: var(--fnc-login-campoBorda);
+}
+
+.fnc-login-card .fnc-login-remember .MuiCheckbox-root.Mui-checked {
+  color: var(--fnc-login-primaria);
+}
+
+.fnc-login-card .fnc-login-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fnc-login-link);
+  text-decoration: none;
+}
+
+.fnc-login-card .fnc-login-link:hover {
+  color: var(--fnc-login-linkHover);
+  text-decoration: underline;
+}
+
+/* Botão Entrar (MUI Button) */
+.fnc-login-card .fnc-login-submit {
+  height: 50px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--fnc-login-primaria);
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+.fnc-login-card .fnc-login-submit:hover {
+  background: var(--fnc-login-primariaHover);
+  box-shadow: none;
+}
+
+.fnc-login-card .fnc-login-submit.Mui-disabled {
+  color: #ffffff;
+  background: var(--fnc-login-primaria);
+  opacity: 0.85;
+}
+
+/* Divisor "ou" e botão Google (MUI Divider / Button) */
+.fnc-login-card .fnc-login-divider {
+  font-size: 13px;
+  color: var(--fnc-login-apagado);
+}
+
+.fnc-login-card .fnc-login-divider::before,
+.fnc-login-card .fnc-login-divider::after {
+  border-color: var(--fnc-login-divisoria);
+}
+
+.fnc-login-card .fnc-login-google {
+  height: 48px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--fnc-login-label);
+  background: var(--fnc-login-card);
+  border: 1.5px solid var(--fnc-login-campoBorda);
+  border-radius: 10px;
+}
+
+/* Rodapé fora do card */
+.fnc-login-signup {
+  font-size: 14px;
+  color: var(--fnc-login-rodape);
+}
+
+.fnc-login-signup .MuiLink-root {
+  font-weight: 600;
+  color: var(--fnc-login-rodapeLink);
+  text-decoration: none;
+}
+
+.fnc-login-signup .MuiLink-root:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 479px) {
+  .fnc-login-card {
+    padding: 28px 20px;
+  }
+
+  .fnc-login-logo {
+    width: 64px;
+    height: 64px;
+  }
+
+  .fnc-login-brand-name {
+    font-size: 20px;
+  }
+}

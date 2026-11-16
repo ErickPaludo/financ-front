@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
-import type { Movimentacao } from "../models/Movimentacoes/GetMovimentacoes";
+import type { Movimentacao } from "../models/movimentacoes/GetMovimentacoes";
 
 type MovimentacaoContextType = {
   movimentacao: Movimentacao | null;

@@ -39,5 +39,14 @@ export default defineConfig({
       },
     }),
   ],
-  base: "/financproject/",
+  server: {
+    // Em dev o app chama /api no próprio servidor do Vite: o cookie refreshToken fica first-party.
+    proxy: {
+      "/api": {
+        target: "https://localhost:7147",
+        changeOrigin: true,
+        secure: false, // certificado de desenvolvimento do .NET
+      },
+    },
+  },
 });

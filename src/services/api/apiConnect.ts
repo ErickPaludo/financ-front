@@ -1,54 +1,27 @@
 import type { ApiResult } from "../../models/interface/ApiResult";
 import api from "./api";
 
-// Essa função apenas executa a requisição e formata o resultado.
-// O refresh token é tratado automaticamente pelo interceptor
-// registrado no AuthProvider (AuthContext.tsx) — não precisa fazer nada aqui.
+type Metodo = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+// Executa a requisição e formata o resultado.
+// Bearer token e refresh (401) são tratados pelos interceptors em api.ts.
 export default async function Conecta<T>(
   rota: string,
-  metodo: string,
+  metodo: Metodo,
   objeto?: object,
 ): Promise<ApiResult<T>> {
   try {
-    let resposta;
-
-    switch (metodo) {
-      case "POST":
-        resposta = await api.post<T>(rota, objeto);
-        break;
-      case "GET":
-        resposta = await api.get<T>(rota);
-        break;
-      case "PATCH":
-        resposta = await api.patch<T>(rota, objeto);
-        break;
-      case "PUT":
-        resposta = await api.put<T>(rota, objeto);
-        break;
-      case "DELETE":
-        resposta = await api.delete<T>(rota);
-        break;
-      default:
-        throw new Error(`Método inválido: ${metodo}`);
-    }
-
-    return {
-      sucesso: true,
-      dados: resposta.data,
-    };
+    const resposta = await api.request<T>({ url: rota, method: metodo, data: objeto });
+    return { sucesso: true, dados: resposta.data };
   } catch (erro: any) {
-    // Se chegou aqui com 401, o interceptor do AuthContext já tentou
-    // o refresh e não conseguiu — o usuário foi deslogado automaticamente.
     const msgErro =
       typeof erro.response?.data === "string"
         ? erro.response.data
-        : erro.response?.data?.mensagem;
+        : (erro.response?.data?.mensagem ??
+          // sem resposta do servidor (offline, certificado, CORS): garante que `erro` nunca venha vazio
+          erro.message ??
+          "Falha na comunicação com o servidor");
 
-    console.log(msgErro);
-    return {
-      sucesso: false,
-      erro: msgErro,
-      status: erro.response?.status,
-    };
+    return { sucesso: false, erro: msgErro, status: erro.response?.status };
   }
 }
