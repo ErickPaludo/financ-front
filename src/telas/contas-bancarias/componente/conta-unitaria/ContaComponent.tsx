@@ -1,171 +1,170 @@
 import { useContext } from "react";
+import { useNavigate } from "react-router-dom";
+import { Box, Card, Icon, Stack, Tooltip, Typography } from "@mui/material";
+
 import { ContaContext } from "../../../../contexts/ContaContext";
 import type { ContaBancaria } from "../../../../models/contas-usuarios/GetContasBancarias";
-import api from "../../../../services/api/apiConnect";
-import "./ContaComponentStyle.css";
-import SubtitleText from "../../../../props/subtitle-text/SubtitleText";
+import { exibirMoeda } from "../../../../utils/formatacao";
+import Indicador from "../indicador/Indicador";
 
-type Props = {
-  setTelaAtual: React.Dispatch<React.SetStateAction<number>>;
-  conta: ContaBancaria;
-  buscaContas: () => void;
+const COR_SALDO_INATIVO = "#d6d6da";
+
+// Texto escuro em fundos claros e branco em fundos escuros (luminância simplificada).
+const corDoTexto = (corFundo: string) => {
+  const r = parseInt(corFundo.slice(1, 3), 16);
+  const g = parseInt(corFundo.slice(3, 5), 16);
+  const b = parseInt(corFundo.slice(5, 7), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 186 ? "#292a2b" : "#ffffff";
 };
 
-const ContaComponent: React.FC<Props> = ({
-  setTelaAtual,
-  conta,
-  buscaContas,
-}) => {
-  const formatarData = (dataUtc: string) => {
-    const data = new Date(dataUtc);
+const formatarDataHora = (dataUtc: string) =>
+  new Date(dataUtc)
+    .toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })
+    .replace(",", ""); // "16/11/2026 14:05", como antes
 
-    const dia = String(data.getDate()).padStart(2, "0");
-    const mes = String(data.getMonth() + 1).padStart(2, "0");
-    const ano = data.getFullYear();
+type Props = {
+  conta: ContaBancaria;
+  ocultarValores?: boolean;
+};
 
-    const hora = String(data.getHours()).padStart(2, "0");
-    const min = String(data.getMinutes()).padStart(2, "0");
-
-    return `${dia}/${mes}/${ano} ${hora}:${min}`;
-  };
-
-  function getTextColor(bgColor: string) {
-    const r = parseInt(bgColor.substr(1, 2), 16);
-    const g = parseInt(bgColor.substr(3, 2), 16);
-    const b = parseInt(bgColor.substr(5, 2), 16);
-
-    // fórmula de luminância simplificada
-    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    return luminance > 186 ? "#292a2b" : "#FFFFFF";
-  }
-  const formataMoeda = (valor: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(valor);
-  };
-
-  const retornaReceitas = () => {
-    return (
-      <div className="patrimonio-stats">
-        <div className="stat-item">
-          <div className="stat-icon">
-            <span
-              className="material-icons"
-              style={{ fontSize: "14px", color: getTextColor(conta.cor) }}
-            >
-              arrow_upward
-            </span>
-          </div>
-          <div className="stat-info">
-            <p style={{ color: getTextColor(conta.cor) }}>Receitas</p>
-            <h2 style={{ color: getTextColor(conta.cor) }}>
-              {formataMoeda(conta.entradaPendente)}
-            </h2>
-          </div>
-        </div>
-
-        <div className="stat-item">
-          <div className="stat-icon">
-            <span
-              className="material-icons"
-              style={{ fontSize: "14px", color: getTextColor(conta.cor) }}
-            >
-              arrow_downward
-            </span>
-          </div>
-          <div className="stat-info">
-            <p style={{ color: getTextColor(conta.cor) }}>Despesas</p>
-            <h2 style={{ color: getTextColor(conta.cor) }}>
-              {formataMoeda(conta.saidaPendente)}
-            </h2>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const favoritarConta = async () => {
-    await api<string>(`/ContasUsuarios/${conta?.idConta}/Favorita`, "POST");
-  };
-
+// Card de uma conta bancária na tela inicial. Clicar abre as movimentações (só contas ativas).
+const ContaComponent: React.FC<Props> = ({ conta, ocultarValores = false }) => {
   const { setConta } = useContext(ContaContext);
+  const navigate = useNavigate();
+
+  const ativa = conta.status === 0;
+  const corTexto = corDoTexto(conta.cor);
+
+  const abrirConta = () => {
+    if (!ativa) return;
+    setConta(conta);
+    navigate("/movimentacoes");
+  };
 
   return (
-    <>
-      <div
-        className="card-secundario-custom"
-        style={{ background: conta?.cor }}
-        onClick={() => {
-          if (conta?.status == 0) {
-            setTelaAtual(1);
-            setConta(conta);
-          }
-        }}
-      >
-        <div className="card-secundario__header">
-          <div className="fnc-ctn-icons icon-corrente">
-            <span
-              className="material-icons"
-              style={{ color: getTextColor(conta.cor) }}
+    <Card
+      elevation={0}
+      onClick={abrirConta}
+      role={ativa ? "button" : undefined}
+      tabIndex={ativa ? 0 : undefined}
+      aria-label={ativa ? `Abrir conta ${conta.titulo}` : undefined}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          abrirConta();
+        }
+      }}
+      sx={{
+        p: 2.5,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+        bgcolor: conta.cor,
+        backgroundImage: "none",
+        color: corTexto,
+        borderRadius: "16px",
+        border: "1px solid rgba(49, 65, 88, 0.5)",
+        cursor: ativa ? "pointer" : "default",
+        transition:
+          "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease",
+        "&:hover": {
+          transform: "scale(1.03)",
+          boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2)",
+        },
+        "&:focus-visible": {
+          outline: `2px solid ${corTexto}`,
+          outlineOffset: 2,
+        },
+      }}
+    >
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+        <Icon>account_balance_wallet</Icon>
+        <Typography
+          noWrap
+          title={conta.titulo}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            fontSize: 14,
+            fontWeight: 600,
+            color: "inherit",
+          }}
+        >
+          {conta.titulo}
+        </Typography>
+        {!conta.somaSaldo && (
+          <Tooltip title="Não contabilizado no patrimônio total">
+            {/* focável para quem usa teclado também ver a dica */}
+            <Box
+              component="span"
+              tabIndex={0}
+              role="img"
+              aria-label="Não contabilizado no patrimônio total"
+              sx={{ display: "flex", opacity: 0.85, cursor: "help" }}
             >
-              account_balance_wallet
-            </span>
-            <span
-              style={conta.contaFavorita ? { color: "#e2c20c" } : undefined}
-              className="material-icons icon-favorite"
-              onClick={async (e) => {
-                e.stopPropagation();
+              <Icon fontSize="small">money_off</Icon>
+            </Box>
+          </Tooltip>
+        )}
+      </Stack>
 
-                await favoritarConta();
-                await buscaContas();
+      {/* Saldo à esquerda; receitas e despesas empilhadas à direita */}
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ alignItems: "flex-end", justifyContent: "space-between" }}
+      >
+        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
+          <Box>
+            <Typography
+              sx={{
+                fontSize: 22,
+                fontWeight: 700,
+                color: ativa ? "inherit" : COR_SALDO_INATIVO,
+                textDecoration: ativa ? "none" : "line-through",
               }}
             >
-              star
-            </span>
-            {!conta.somaSaldo && (
-              <SubtitleText
-                text="Não contabilizado"
-                color={getTextColor(conta.cor)}
-              />
+              {exibirMoeda(conta.saldoAtual, ocultarValores)}
+            </Typography>
+            {conta.expiracao && (
+              <Typography sx={{ fontSize: 12, color: "inherit", opacity: 0.8 }}>
+                Válida até {formatarDataHora(conta.expiracao)}
+              </Typography>
             )}
-          </div>
-        </div>
-        <div className="card-secundario__label">
-          <p style={{ color: getTextColor(conta.cor) }}>{conta?.titulo}</p>
-          {conta.expiracao && (
-            <p style={{ color: getTextColor(conta.cor) }}>
-              Válida até {formatarData(conta.expiracao)}
-            </p>
-          )}
-        </div>
-        <div className="card-secundario__valor">
-          <p
-            style={{
-              textDecoration: conta?.status !== 0 ? "line-through" : "none",
-              color: conta?.status !== 0 ? "#d6d6da" : getTextColor(conta.cor),
-            }}
-          >
-            {formataMoeda(conta?.saldoAtual!)}
-          </p>
-        </div>
-        <div className="card-footer-info">
-          <div
-            className="footer-label"
-            style={{ color: getTextColor(conta.cor) }}
-          >
-            <span className="material-icons" style={{ fontSize: "12px" }}>
-              account_balance
-            </span>
-            Corrente
-          </div>
-          <div className="status-dot dot-blue"></div>
-        </div>
+          </Box>
 
-        {conta?.status === 0 && retornaReceitas()}
-      </div>
-    </>
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
+            <Icon sx={{ fontSize: 12 }}>account_balance</Icon>
+            <Typography sx={{ fontSize: 12, color: "inherit" }}>
+              Corrente
+            </Typography>
+          </Stack>
+        </Stack>
+
+        {ativa && (
+          <Stack spacing={1} sx={{ flexShrink: 0 }}>
+            <Indicador
+              icone="arrow_upward"
+              rotulo="Receitas"
+              valor={conta.entradaPendente}
+              oculto={ocultarValores}
+            />
+            <Indicador
+              icone="arrow_downward"
+              rotulo="Despesas"
+              valor={conta.saidaPendente}
+              oculto={ocultarValores}
+            />
+          </Stack>
+        )}
+      </Stack>
+    </Card>
   );
 };
 

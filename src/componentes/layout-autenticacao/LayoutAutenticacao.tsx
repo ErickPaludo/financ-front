@@ -44,7 +44,7 @@ const LayoutAutenticacao: React.FC<PropLayoutAutenticacao> = ({
 
   return (
     <ThemeProvider theme={tema}>
-      <main className="fnc-login-page fnc-login-bg" style={variaveis}>
+      <main className="fnc-login-page fnc-login-bg fnc-fundo-marca" style={variaveis}>
         <IconButton
           className="fnc-login-theme"
           onClick={alternarModo}

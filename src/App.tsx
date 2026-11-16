@@ -8,7 +8,16 @@ import { ConviteProvider } from "./contexts/ConviteContext";
 import { MovimentacaoProvider } from "./contexts/MovimentacaoContext";
 import { Login } from "./telas/login/Login";
 import { Registrar } from "./telas/registrar/Registrar";
-import { Home } from "./telas/home/Home";
+import { Inicial } from "./telas/inicial/Inicial";
+import LayoutPrincipal, {
+  ExigeConta,
+} from "./componentes/layout-principal/LayoutPrincipal";
+import Movimentacoes from "./telas/movimentacoes/Movimentacoes";
+import MovimentacaoFixa from "./telas/movimentacoes/fixas/MovimentacaoFixa";
+import Membros from "./telas/membros/Membros";
+import EditaConta from "./telas/contas-bancarias/edita-conta/EditaConta";
+import Convites from "./telas/convites/Convites";
+import OpcoesUsuario from "./telas/usuario/OpcoesUsuario";
 import ReloadPrompt from "./componentes/reload-prompt/ReloadPrompt";
 
 function App() {
@@ -23,7 +32,24 @@ function App() {
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/registrar" element={<Registrar />} />
-                  <Route path="/home" element={<Home />} />
+                  {/* Telas logadas: todas com a barra lateral */}
+                  <Route element={<LayoutPrincipal />}>
+                    <Route path="/inicial" element={<Inicial />} />
+                    <Route path="/convites" element={<Convites />} />
+                    <Route path="/usuario" element={<OpcoesUsuario />} />
+                    <Route element={<ExigeConta />}>
+                      <Route
+                        path="/movimentacoes"
+                        element={<Movimentacoes />}
+                      />
+                      <Route path="/agendadas" element={<MovimentacaoFixa />} />
+                      <Route path="/membros" element={<Membros />} />
+                      <Route
+                        path="/configuracoes-conta"
+                        element={<EditaConta />}
+                      />
+                    </Route>
+                  </Route>
                   <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
                 <ReloadPrompt />

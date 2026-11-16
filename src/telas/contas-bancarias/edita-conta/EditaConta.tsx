@@ -3,6 +3,7 @@ import ErrorText from "../../../props/error-text/ErrorText";
 import TitleText from "../../../props/title-text/TitleText";
 import InputTextAndColor from "../../../props/input-text-and-color/InputTextAndColor";
 import { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { ContaContext } from "../../../contexts/ContaContext";
 import "./EditaContaStyle.css";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
@@ -10,10 +11,9 @@ import api from "../../../services/api/apiConnect";
 import { ApiResult } from "../../../models/interface/ApiResult";
 import { ContaResponse } from "../../../models/contas-usuarios/GetContasBancarias";
 
-type Props = { setRetorno: (valor: number) => void };
-
-const EditaConta: React.FC<Props> = ({ setRetorno }) => {
+const EditaConta: React.FC = () => {
   const { conta, usuario } = useContext(ContaContext);
+  const navigate = useNavigate();
 
   const [titulo, setTitulo] = useState<string>(conta!.titulo);
   const [cor, setCor] = useState<string>(conta!.cor);
@@ -68,7 +68,7 @@ const EditaConta: React.FC<Props> = ({ setRetorno }) => {
         { titulo, cor },
       );
       if (resposta.sucesso) {
-        setRetorno(0);
+        navigate("/inicial");
       } else {
         setErroMsg(resposta!.erro);
       }
@@ -83,7 +83,6 @@ const EditaConta: React.FC<Props> = ({ setRetorno }) => {
 
       <div className="fnc-ctn-edit-conta">
         <div className="fnc-sub-edit-conta">
-
           {/* Controles disponíveis para qualquer permissão */}
           <span className="fnc-section-label">Preferências</span>
 

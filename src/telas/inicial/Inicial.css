@@ -1,0 +1,23 @@
+/* Tela inicial: resumo e cards das contas */
+.principal {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-height: min-content; /* Garante que o conteúdo não seja cortado */
+}
+
+/* Arrastar para reordenar as contas */
+.conta-arrastavel {
+  cursor: grab;
+}
+.conta-arrastavel:active {
+  cursor: grabbing;
+}
+.conta-arrastando {
+  opacity: 0.4;
+}
+
+/* Cards de conta mais largos: saldo e receitas/despesas lado a lado */
+.grid-contas {
+  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+}

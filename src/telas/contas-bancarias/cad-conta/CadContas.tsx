@@ -1,95 +1,149 @@
-import FncButton from "../../../props/fnc-button/FncButton";
-import { TypeButton } from "../../../props/fnc-button/TypeButton";
-import Conecta from "../../../services/api/apiConnect";
-import ErrorText from "../../../props/error-text/ErrorText";
-import TitleText from "../../../props/title-text/TitleText";
-import InputTextAndColor from "../../../props/input-text-and-color/InputTextAndColor";
-import "./CadContaStyle.css";
 import { useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Drawer,
+  Icon,
+  IconButton,
+  Stack,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
 
-type conta = {
-  titulo: string;
-  cor: string;
-};
+import { tema as temaEscuro } from "../../../tema";
+import { CoresClaro, CoresEscuro } from "../../../cores";
+
+import Conecta from "../../../services/api/apiConnect";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
+import SeletorCor from "../../../props/seletor-cor/SeletorCor";
+import { existeCampoVazio } from "../../../props/campo-texto/validacoes";
+import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
+
+const COR_INICIAL = "#314158";
+
+type NovaContaRequest = { titulo: string; cor: string };
 
 type Props = {
-  buscaContas: () => void;
+  aberto: boolean;
   onClose: () => void;
+  buscaContas: () => void;
 };
-function getTextColor(bgColor: string) {
-  const r = parseInt(bgColor.substr(1, 2), 16);
-  const g = parseInt(bgColor.substr(3, 2), 16);
-  const b = parseInt(bgColor.substr(5, 2), 16);
 
-  // fórmula de luminância simplificada
-  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-
-  return luminance > 186 ? "#000000" : "#FFFFFF";
-}
-const CadContas: React.FC<Props> = ({ buscaContas, onClose }) => {
-  const [inputTitulo, setInputTitulo] = useState<string>("");
-  const [color, setColor] = useState<string>("#314158");
-  const [erroMsg, setErroMsg] = useState<string | undefined>(undefined);
-
-  const criaConta = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const request: conta = {
-        titulo: inputTitulo,
-        cor: color,
-      };
-
-      var resposta = await Conecta<string>("Contas", "POST", request);
-      console.log(resposta.erro);
-      if (resposta.sucesso) {
-        onClose();
-        buscaContas();
-      } else
-        setErroMsg(
-          resposta.erro === undefined ? "Titulo invalido!" : resposta.erro,
-        );
-
-      console.log(resposta);
-
-      if (resposta.erro) {
-        console.log(resposta.erro);
-        setErroMsg(resposta.erro);
-        return;
-      }
-    } catch (erro: any) {
-      console.error(erro.message);
-      setErroMsg(erro.message);
-    }
-  };
+// Gaveta da direita para cadastrar uma conta bancária: nome, cor e prévia do card.
+// Mesmas cores da barra lateral (fundo escuro nos dois modos), por isso usa o tema escuro.
+// O conteúdo só existe com a gaveta aberta, então os campos voltam vazios a cada abertura.
+const CadContas: React.FC<Props> = ({ aberto, onClose, buscaContas }) => {
+  const barra = (useTheme().palette.mode === "dark" ? CoresEscuro : CoresClaro)
+    .barraLateral;
 
   return (
-    <>
-      <TitleText text="Nova Conta" />
+    <ThemeProvider theme={temaEscuro}>
+      <Drawer
+        anchor="right"
+        open={aberto}
+        onClose={onClose}
+        slotProps={{
+          paper: {
+            sx: {
+              width: { xs: "100%", sm: 400 },
+              bgcolor: barra.fundo,
+              backgroundImage: "none",
+              borderLeft: `1px solid ${barra.contorno}`,
+              color: barra.titulo,
+            },
+          },
+        }}
+      >
+        <FormularioNovaConta onClose={onClose} buscaContas={buscaContas} />
+      </Drawer>
+    </ThemeProvider>
+  );
+};
 
-      <div className="fnc-cad-conta">
-        {inputTitulo && (
-          <div className="fnc-name-conta" style={{ background: color }}>
-            <p style={{ color: getTextColor(color) }}>{inputTitulo}</p>
-          </div>
-        )}
+const FormularioNovaConta: React.FC<Omit<Props, "aberto">> = ({
+  onClose,
+  buscaContas,
+}) => {
+  const [titulo, setTitulo] = useState("");
+  const [cor, setCor] = useState(COR_INICIAL);
 
-        <InputTextAndColor
-          placeholder="Ex: Minha Conta"
-          text={inputTitulo}
-          setText={setInputTitulo}
-          color={color}
-          onChangeColor={setColor}
-        />
+  const cadastrar = async () => {
+    if (existeCampoVazio(titulo)) return "Informe o nome da conta";
 
-        {erroMsg && <ErrorText text={erroMsg} />}
+    const conta: NovaContaRequest = { titulo: titulo.trim(), cor };
+    const resposta = await Conecta<string>("Contas", "POST", conta);
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível criar a conta";
 
-        <FncButton
-          type={TypeButton.Submit}
-          title="Cadastrar"
-          onClick={criaConta}
-        />
-      </div>
-    </>
+    onClose();
+    buscaContas();
+  };
+
+  const envio = useEnvioFormulario(cadastrar);
+
+  return (
+    <Stack
+      component="form"
+      onSubmit={envio.enviar}
+      noValidate
+      spacing={2.5}
+      sx={{ p: 3, height: "100%" }}
+    >
+      <Stack
+        direction="row"
+        sx={{ alignItems: "center", justifyContent: "space-between" }}
+      >
+        <Typography component="h2" sx={{ fontSize: 20, fontWeight: 800 }}>
+          Nova conta
+        </Typography>
+        <IconButton onClick={onClose} aria-label="Fechar">
+          <Icon>close</Icon>
+        </IconButton>
+      </Stack>
+
+      {/* prévia de como o card vai ficar */}
+      <Box
+        sx={{
+          p: 2,
+          borderRadius: "16px",
+          bgcolor: cor,
+          color: (t) => t.palette.getContrastText(cor),
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+        }}
+      >
+        <Icon>account_balance_wallet</Icon>
+        <Typography noWrap sx={{ fontWeight: 600, color: "inherit" }}>
+          {titulo.trim() || "Minha conta"}
+        </Typography>
+      </Box>
+
+      <CampoTexto
+        label="Nome da conta"
+        placeholder="Ex: Minha Conta"
+        autoFocus
+        valor={titulo}
+        setValor={setTitulo}
+      />
+
+      <SeletorCor rotulo="Cor da conta" valor={cor} setValor={setCor} />
+
+      {envio.erro && <Alert severity="error">{envio.erro}</Alert>}
+
+      <Box sx={{ flex: 1 }} />
+
+      <Button
+        type="submit"
+        variant="contained"
+        fullWidth
+        disabled={envio.enviando}
+      >
+        {envio.enviando ? "Cadastrando..." : "Cadastrar"}
+      </Button>
+    </Stack>
   );
 };
 

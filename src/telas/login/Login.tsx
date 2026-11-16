@@ -26,7 +26,7 @@ export const Login: React.FC = () => {
 
   // Quem já está logado não precisa ver a tela de login.
   useEffect(() => {
-    if (user) navigate("/home");
+    if (user) navigate("/inicial");
   }, [user, navigate]);
 
   const entrar = async () => {
@@ -38,7 +38,7 @@ export const Login: React.FC = () => {
     }
 
     login({ token: resposta.dados.token, expiration: resposta.dados.expiracao });
-    navigate("/home");
+    navigate("/inicial");
   };
 
   const envio = useEnvioFormulario(entrar);
