@@ -1,27 +1,27 @@
 import { Checkbox, FormControlLabel } from "@mui/material";
 
 interface PropInputCheckBox {
-  label: string;
-  checked: boolean;
-  setChecked: (value: boolean) => void;
+  rotulo: string;
+  marcado: boolean;
+  setMarcado: (marcado: boolean) => void;
 }
 
-// Mantém a API antiga para as telas não mudarem; por dentro é o Checkbox do MUI.
+// Checkbox do MUI com o texto ao lado, na cor de apoio da tela.
 const InputCheckBox: React.FC<PropInputCheckBox> = ({
-  label,
-  checked,
-  setChecked,
+  rotulo,
+  marcado,
+  setMarcado,
 }) => (
   <FormControlLabel
     sx={{ width: "100%", m: 0 }}
-    label={label}
+    label={rotulo}
     control={
       <Checkbox
         size="small"
         // desmarcado na mesma cor do texto (legível sobre o fundo azul da página)
         sx={{ color: (t) => `var(--fnc-apoio, ${t.palette.text.secondary})` }}
-        checked={checked}
-        onChange={(e) => setChecked(e.target.checked)}
+        checked={marcado}
+        onChange={(e) => setMarcado(e.target.checked)}
       />
     }
   />

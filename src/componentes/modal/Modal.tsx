@@ -18,8 +18,8 @@ import {
   variaveisTelas,
 } from "../../cores";
 
-type ModalProps = {
-  isOpen: boolean;
+type PropModal = {
+  aberto: boolean;
   onClose: () => void;
   titulo?: string;
   children: React.ReactNode;
@@ -27,7 +27,7 @@ type ModalProps = {
 
 // Gaveta da direita (padrão dos formulários), nas mesmas cores da barra lateral:
 // branca com o tema claro no modo claro, escura no escuro. O conteúdo só existe com a gaveta aberta.
-const Modal: React.FC<ModalProps> = ({ isOpen, onClose, titulo, children }) => {
+const Modal: React.FC<PropModal> = ({ aberto, onClose, titulo, children }) => {
   const temaAtual = useTheme();
   const claro = temaAtual.palette.mode === "light";
   const barra = claro ? BarraLateralClara : CoresEscuro.barraLateral;
@@ -36,7 +36,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, titulo, children }) => {
     <ThemeProvider theme={claro ? temaAtual : temaEscuro}>
       <Drawer
         anchor="right"
-        open={isOpen}
+        open={aberto}
         onClose={onClose}
         slotProps={{
           paper: {

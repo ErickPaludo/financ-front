@@ -1,81 +1,64 @@
-import React, { useState, useContext } from "react";
-import api from "../../services/api/apiConnect";
+import React, { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Alert, Button } from "@mui/material";
+
+import Conecta from "../../services/api/apiConnect";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
-import { useNavigate } from "react-router-dom";
+import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
 import CampoTexto from "../../props/campo-texto/CampoTexto";
-import ErrorText from "../../props/error-text/ErrorText";
-import { Button } from "@mui/material";
+import { validarConfirmacaoSenha } from "../../props/campo-texto/validacoes";
 import "./OpcoesUsuarioStyle.css";
 
+const validarSenhaAtual = (senha: string) =>
+  senha.trim() ? null : "Informe a senha atual.";
+
+const validarSenhaNova = (senha: string) =>
+  !senha.trim()
+    ? "Informe a nova senha."
+    : senha.length < 6
+      ? "A nova senha deve ter pelo menos 6 caracteres."
+      : null;
+
+// Alteração de senha; depois de alterar, desloga.
 const OpcoesUsuario: React.FC = () => {
   const { logout } = useContext(AuthContext);
-  const { removeConta } = useContext(ContaContext);
+  const { limparConta } = useContext(ContaContext);
   const navigate = useNavigate();
 
   const [senhaAntiga, setSenhaAntiga] = useState("");
   const [senhaNova, setSenhaNova] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
-
-  const [erroSenhaAntiga, setErroSenhaAntiga] = useState<string | null>(null);
-  const [erroSenhaNova, setErroSenhaNova] = useState<string | null>(null);
-  const [erroConfirmar, setErroConfirmar] = useState<string | null>(null);
-  const [erroGeral, setErroGeral] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const validar = (): boolean => {
-    let valido = true;
-    setErroSenhaAntiga(null);
-    setErroSenhaNova(null);
-    setErroConfirmar(null);
-    setErroGeral(null);
+  const validarConfirmacao = (confirmacao: string) =>
+    confirmacao.trim()
+      ? validarConfirmacaoSenha(senhaNova)(confirmacao)
+      : "Confirme a nova senha.";
 
-    if (!senhaAntiga.trim()) {
-      setErroSenhaAntiga("Informe a senha atual.");
-      valido = false;
-    }
+  const alterarSenha = async () => {
+    // os erros aparecem nos próprios campos
+    if (
+      validarSenhaAtual(senhaAntiga) ||
+      validarSenhaNova(senhaNova) ||
+      validarConfirmacao(confirmarSenha)
+    )
+      return;
 
-    if (!senhaNova.trim()) {
-      setErroSenhaNova("Informe a nova senha.");
-      valido = false;
-    } else if (senhaNova.length < 6) {
-      setErroSenhaNova("A nova senha deve ter pelo menos 6 caracteres.");
-      valido = false;
-    }
-
-    if (!confirmarSenha.trim()) {
-      setErroConfirmar("Confirme a nova senha.");
-      valido = false;
-    } else if (confirmarSenha !== senhaNova) {
-      setErroConfirmar("As senhas não coincidem.");
-      valido = false;
-    }
-
-    return valido;
-  };
-
-  const handleAlterarSenha = async () => {
-    if (!validar()) return;
-
-    setLoading(true);
-    const resposta = await api<null>("/Usuarios/alterar_senha", "POST", {
+    const resposta = await Conecta<null>("/Usuarios/alterar_senha", "POST", {
       senhaAntiga,
       senhaNova,
     });
-    setLoading(false);
-
-    if (!resposta.sucesso) {
-      setErroGeral(resposta.erro ?? "Erro ao alterar senha.");
-      return;
-    }
+    if (!resposta.sucesso) return resposta.erro ?? "Erro ao alterar senha.";
 
     setSucesso(true);
-    await api<null>("/Autenticacao/revoke", "POST", undefined);
+    await Conecta<null>("/Autenticacao/revoke", "POST");
     logout();
-    removeConta();
+    limparConta();
     navigate("/login", { replace: true });
   };
+
+  const envio = useEnvioFormulario(alterarSenha);
 
   return (
     <div className="fnc-opcoes-usuario">
@@ -89,7 +72,11 @@ const OpcoesUsuario: React.FC = () => {
         </p>
       </div>
 
-      <div className="fnc-opcoes-usuario__card">
+      <form
+        className="fnc-opcoes-usuario__card"
+        onSubmit={envio.enviar}
+        noValidate
+      >
         <p className="fnc-opcoes-usuario__section-title">Senha atual</p>
 
         {/* o CampoTexto de senha já tem o botão de mostrar/ocultar */}
@@ -99,8 +86,9 @@ const OpcoesUsuario: React.FC = () => {
           setValor={setSenhaAntiga}
           type="password"
           placeholder="Digite sua senha atual"
+          validar={validarSenhaAtual}
+          mostrarErro={envio.tentouEnviar}
         />
-        {erroSenhaAntiga && <ErrorText text={erroSenhaAntiga} />}
 
         <hr className="fnc-opcoes-usuario__divider" />
         <p className="fnc-opcoes-usuario__section-title">Nova senha</p>
@@ -111,8 +99,9 @@ const OpcoesUsuario: React.FC = () => {
           setValor={setSenhaNova}
           type="password"
           placeholder="Digite a nova senha"
+          validar={validarSenhaNova}
+          mostrarErro={envio.tentouEnviar}
         />
-        {erroSenhaNova && <ErrorText text={erroSenhaNova} />}
 
         <CampoTexto
           label="Confirmar nova senha"
@@ -120,27 +109,24 @@ const OpcoesUsuario: React.FC = () => {
           setValor={setConfirmarSenha}
           type="password"
           placeholder="Confirme a nova senha"
+          validar={validarConfirmacao}
+          mostrarErro={envio.tentouEnviar}
         />
-        {erroConfirmar && <ErrorText text={erroConfirmar} />}
 
-        {erroGeral && <ErrorText text={erroGeral} />}
-
+        {envio.erro && <Alert severity="error">{envio.erro}</Alert>}
         {sucesso && (
-          <div className="fnc-opcoes-usuario__sucesso">
-            <span className="material-icons">check_circle</span>
-            <span>Senha alterada! Redirecionando...</span>
-          </div>
+          <Alert severity="success">Senha alterada! Redirecionando...</Alert>
         )}
 
         <Button
+          type="submit"
           variant="contained"
           fullWidth
-          disabled={loading}
-          onClick={handleAlterarSenha}
+          disabled={envio.enviando}
         >
-          {loading ? "Salvando..." : "Alterar Senha"}
+          {envio.enviando ? "Salvando..." : "Alterar Senha"}
         </Button>
-      </div>
+      </form>
     </div>
   );
 };

@@ -2,32 +2,32 @@ import { MenuItem } from "@mui/material";
 
 import CampoTexto from "../campo-texto/CampoTexto";
 
-interface OpcaoSelect {
-  label: string;
-  value: string;
+export interface OpcaoSelect {
+  rotulo: string;
+  valor: string;
 }
 
 interface PropInputSelect {
-  label?: string;
+  rotulo?: string;
   opcoes: OpcaoSelect[];
-  onChange: (value: string) => void;
+  valor?: string;
+  setValor: (valor: string) => void;
   placeholder?: string;
-  value?: string;
 }
 
-// Mantém a API antiga para as telas não mudarem; por dentro é o CampoTexto com select (tema do app).
+// Lista de escolha única: CampoTexto com select (tema do app).
 const InputSelect: React.FC<PropInputSelect> = ({
-  label,
+  rotulo,
   opcoes,
-  onChange,
+  valor,
+  setValor,
   placeholder,
-  value,
 }) => (
   <CampoTexto
     select
-    label={label}
-    valor={value ?? ""}
-    setValor={onChange}
+    label={rotulo}
+    valor={valor ?? ""}
+    setValor={setValor}
     // com placeholder, o valor vazio mostra o texto dele em vez de um campo em branco
     slotProps={placeholder ? { select: { displayEmpty: true } } : undefined}
   >
@@ -37,8 +37,8 @@ const InputSelect: React.FC<PropInputSelect> = ({
       </MenuItem>
     )}
     {opcoes.map((opcao) => (
-      <MenuItem key={opcao.value} value={opcao.value}>
-        {opcao.label}
+      <MenuItem key={opcao.valor} value={opcao.valor}>
+        {opcao.rotulo}
       </MenuItem>
     ))}
   </CampoTexto>

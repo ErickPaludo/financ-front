@@ -11,8 +11,7 @@ import ConclusaoMovimentacao from "../confirmacao/ConclusaoMovimentacao";
 import { coresChipCategoria } from "../../../utils/corCategoria";
 import { valorComSinal } from "../../../utils/formatacao";
 
-type PropMov = {
-  idConta: number;
+type PropTabelaMovimentacao = {
   movimentacao?: GetMovimentacoes; // sem dados ainda: tabela vazia (ou carregando)
   buscaMovimentacoes: () => void;
   filtros?: ReactNode; // barra de filtros no topo da tabela
@@ -225,8 +224,7 @@ const ESTILOS = {
   },
 };
 
-const TabelaMovimentacao: React.FC<PropMov> = ({
-  idConta,
+const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
   movimentacao,
   buscaMovimentacoes,
   filtros,
@@ -257,7 +255,6 @@ const TabelaMovimentacao: React.FC<PropMov> = ({
         <ConclusaoMovimentacao
           onClose={() => setMovSelecionada(null)}
           buscaMovimentacoes={buscaMovimentacoes}
-          idConta={idConta}
           movimentacaoSelecionada={movSelecionada}
         />
       )}

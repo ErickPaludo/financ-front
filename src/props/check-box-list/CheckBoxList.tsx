@@ -17,11 +17,11 @@ import CampoTexto from "../campo-texto/CampoTexto";
 
 interface PropCheckBoxList<T extends object> {
   itens: T[];
-  idKey: keyof T;
-  labelKey: keyof T;
+  chaveId: keyof T;
+  chaveTexto: keyof T;
   selecionados: number[];
-  onChange: (ids: number[]) => void;
-  label?: string;
+  setSelecionados: (ids: number[]) => void;
+  rotulo?: string;
   placeholder?: string;
   // o primeiro item (ex.: "Sem categoria") fica fora do "Selecionar tudo"
   ignorarPrimeiroItem?: boolean;
@@ -37,11 +37,11 @@ interface PropCheckBoxList<T extends object> {
 // Popover do MUI: segue o tema da página (claro/escuro) e o da gaveta, quando dentro dela.
 function CheckBoxList<T extends object>({
   itens,
-  idKey,
-  labelKey,
+  chaveId,
+  chaveTexto,
   selecionados,
-  onChange,
-  label,
+  setSelecionados,
+  rotulo,
   placeholder = "Selecione...",
   ignorarPrimeiroItem = false,
   gatilho,
@@ -55,15 +55,15 @@ function CheckBoxList<T extends object>({
     setBusca(""); // ao fechar, a busca volta vazia
   };
 
-  const toggle = (id: number) =>
-    onChange(
+  const alternar = (id: number) =>
+    setSelecionados(
       selecionados.includes(id)
         ? selecionados.filter((s) => s !== id)
         : [...selecionados, id],
     );
 
   const idsSelecionaveis = (ignorarPrimeiroItem ? itens.slice(1) : itens).map(
-    (item) => item[idKey] as number,
+    (item) => item[chaveId] as number,
   );
   const todosSelecionados =
     idsSelecionaveis.length > 0 &&
@@ -72,21 +72,21 @@ function CheckBoxList<T extends object>({
     idsSelecionaveis.includes(id),
   );
 
-  const toggleTodos = () => onChange(todosSelecionados ? [] : idsSelecionaveis);
+  const alternarTodos = () => setSelecionados(todosSelecionados ? [] : idsSelecionaveis);
 
   const resumo = () => {
     if (selecionados.length === 0) return "";
     if (todosSelecionados) return "Todos selecionados";
     const nomes = itens
-      .filter((item) => selecionados.includes(item[idKey] as number))
-      .map((item) => String(item[labelKey]));
+      .filter((item) => selecionados.includes(item[chaveId] as number))
+      .map((item) => String(item[chaveTexto]));
     return nomes.length <= 2
       ? nomes.join(", ")
       : `${nomes[0]}, ${nomes[1]} +${nomes.length - 2}`;
   };
 
   const itensFiltrados = itens.filter((item) =>
-    String(item[labelKey]).toLowerCase().includes(busca.toLowerCase()),
+    String(item[chaveTexto]).toLowerCase().includes(busca.toLowerCase()),
   );
 
   return (
@@ -99,7 +99,7 @@ function CheckBoxList<T extends object>({
         })
       ) : (
       <CampoTexto
-        label={label}
+        label={rotulo}
         placeholder={placeholder}
         valor={resumo()}
         setValor={() => {}} // só leitura: o valor vem da seleção
@@ -116,7 +116,7 @@ function CheckBoxList<T extends object>({
                     aria-label="Limpar seleção"
                     onClick={(e) => {
                       e.stopPropagation(); // não abre a lista
-                      onChange([]);
+                      setSelecionados([]);
                     }}
                   >
                     <Icon fontSize="small">close</Icon>
@@ -172,7 +172,7 @@ function CheckBoxList<T extends object>({
 
         <List dense disablePadding role="listbox" aria-multiselectable>
           {!busca && itens.length > 0 && (
-            <ListItemButton onClick={toggleTodos}>
+            <ListItemButton onClick={alternarTodos}>
               <ListItemIcon sx={{ minWidth: 36 }}>
                 <Checkbox
                   edge="start"
@@ -197,7 +197,7 @@ function CheckBoxList<T extends object>({
           )}
 
           {itensFiltrados.map((item) => {
-            const id = item[idKey] as number;
+            const id = item[chaveId] as number;
             const marcado = selecionados.includes(id);
             return (
               <ListItemButton
@@ -205,7 +205,7 @@ function CheckBoxList<T extends object>({
                 role="option"
                 aria-selected={marcado}
                 selected={marcado}
-                onClick={() => toggle(id)}
+                onClick={() => alternar(id)}
               >
                 <ListItemIcon sx={{ minWidth: 36 }}>
                   <Checkbox
@@ -216,7 +216,7 @@ function CheckBoxList<T extends object>({
                     disableRipple
                   />
                 </ListItemIcon>
-                <ListItemText primary={String(item[labelKey])} />
+                <ListItemText primary={String(item[chaveTexto])} />
               </ListItemButton>
             );
           })}

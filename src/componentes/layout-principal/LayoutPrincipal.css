@@ -1,13 +1,3 @@
-body {
-  font-family: "Inter", sans-serif;
-  background: #0a0a0a;
-  color: white;
-  margin: 0;
-  padding: 0;
-  height: 100vh;
-  overflow: hidden;
-}
-
 .layout-principal {
   display: flex;
   width: 100%;
@@ -79,10 +69,6 @@ body {
 * {
   scrollbar-width: thin;
   scrollbar-color: #314158 transparent;
-}
-.pagina-central::-webkit-scrollbar {
-  height: 8px;
-  width: 8px;
 }
 .pagina-central::-webkit-scrollbar-track {
   background: transparent;

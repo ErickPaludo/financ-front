@@ -1,8 +1,4 @@
-import api from "../../../services/api/apiConnect";
-import type { ApiResult } from "../../../models/interface/ApiResult";
-import type { Movimentacao } from "../../../models/movimentacoes/GetMovimentacoes";
-import type { CategoriaResponse } from "../../../models/categorias/Categorias";
-import { useContext, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Button,
@@ -15,177 +11,91 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+
+import Conecta from "../../../services/api/apiConnect";
+import { materializarMovimentacao } from "../../../services/movimentacoes/movimentacaoService";
+import type { Movimentacao } from "../../../models/movimentacoes/GetMovimentacoes";
+import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
 import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import Modal from "../../../componentes/modal/Modal";
-import { MovimentacaoContext } from "../../../contexts/MovimentacaoContext";
 import CadMov from "../cad-mov/CadMov";
+import {
+  dataHoraLocal,
+  formatarMoeda,
+  paraIsoUtc,
+} from "../../../utils/formatacao";
 
-// "YYYY-MM-DDTHH:mm" (horário local do browser) → UTC ISO global
-const toUTCISOString = (data: string): string => new Date(data).toISOString();
-
-interface PropAlteraMov {
+interface PropConclusaoMovimentacao {
   onClose: () => void;
-  idConta: number;
   buscaMovimentacoes: () => void;
   movimentacaoSelecionada: Movimentacao;
 }
 
-const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
+// Popup da linha da tabela: concluir/extornar, deletar ou alterar (abre o CadMov na gaveta).
+const ConclusaoMovimentacao: React.FC<PropConclusaoMovimentacao> = ({
   onClose,
   buscaMovimentacoes,
   movimentacaoSelecionada,
 }) => {
-  // Hora atual no horário local do browser, formato "YYYY-MM-DDTHH:mm"
-  const getNow = () => {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-  };
-
-  // UTC ISO → "YYYY-MM-DDTHH:mm" no horário local do browser
-  const utcISOParaInput = (data: string) => {
-    const d = new Date(data);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  };
-
-  const { setMovimentacao } = useContext(MovimentacaoContext);
   const [usarDataMovimentacao, setUsarDataMovimentacao] = useState(false);
-  const [dataConclusao, setDataConclusao] = useState(getNow);
-  const [erroMsg, setErroMsg] = useState<string | undefined>(undefined);
-  const [isLoading, setIsLoading] = useState(false);
+  const [dataConclusao, setDataConclusao] = useState(() => dataHoraLocal());
+  // depois de materializar, a movimentação virtual vira a real (id novo)
+  const [movAtual, setMovAtual] = useState(movimentacaoSelecionada);
+  const [alterando, setAlterando] = useState(false);
 
-  const toggleUsarDataMovimentacao = () => {
-    const novo = !usarDataMovimentacao;
-    setUsarDataMovimentacao(novo);
+  const alternarUsarDataMovimentacao = (usar: boolean) => {
+    setUsarDataMovimentacao(usar);
     setDataConclusao(
-      novo
-        ? utcISOParaInput(movimentacaoSelecionada.dthrMovimentacao)
-        : getNow(),
+      dataHoraLocal(usar ? movimentacaoSelecionada.dthrMovimentacao : undefined),
     );
   };
 
-  const [idMovAtual, setIdMovAtual] = useState<number>(
-    movimentacaoSelecionada.id,
+  // Concluir e deletar materializam a movimentação virtual antes; alterar não (o CadMov cuida disso).
+  // Devolve o erro, ou nada quando deu certo.
+  const executar = async (
+    rota: (idMov: number) => string,
+    metodo: "POST" | "DELETE",
+    corpo?: object,
+  ) => {
+    let idMov = movAtual.id;
+    if (idMov === 0) {
+      const resposta = await materializarMovimentacao(movimentacaoSelecionada);
+      if (!resposta.sucesso || !resposta.dados)
+        return resposta.erro ?? "Erro ao materializar movimentação.";
+      setMovAtual(resposta.dados.valor);
+      idMov = resposta.dados.valor.id;
+    }
+
+    const resposta = await Conecta<string>(rota(idMov), metodo, corpo);
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível alterar a movimentação.";
+    buscaMovimentacoes();
+    onClose();
+  };
+
+  const conclusao = useEnvioFormulario(() =>
+    executar(
+      (id) =>
+        `/Contas/Movimentacoes/${id}/${movAtual.concluido ? "Extornar" : "Concluir"}`,
+      "POST",
+      movAtual.concluido
+        ? undefined
+        : { dthrConclusao: paraIsoUtc(dataConclusao) },
+    ),
   );
-  const [movAtual, setMovAtual] = useState<Movimentacao>(
-    movimentacaoSelecionada,
+  const exclusao = useEnvioFormulario(() =>
+    executar((id) => `/Contas/Movimentacoes/${id}/Remover`, "DELETE"),
   );
-
-  const [alterarMovimentacao, setAlterarMovimentacao] = useState(false);
-
-  const formataMoeda = (valor: number) =>
-    new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(valor);
-
-  // Materializa apenas para Concluir e Deletar — nunca para Alterar
-  const materializar = async (): Promise<number | null> => {
-    if (idMovAtual > 0) return idMovAtual;
-    try {
-      const resposta = await api<{ valor: Movimentacao }>(
-        `/Contas/${movimentacaoSelecionada.idConta}/Movimentacoes/Fixa/${movimentacaoSelecionada.idFixo}/Materializa`,
-        "POST",
-        {
-          dataMovimentacao: toUTCISOString(
-            movimentacaoSelecionada.dthrMovimentacao,
-          ),
-        },
-      );
-      if (resposta.sucesso && resposta.dados) {
-        const mov: Movimentacao = resposta.dados.valor;
-        setIdMovAtual(mov.id);
-        setMovAtual(mov);
-        return mov.id;
-      } else {
-        setErroMsg(resposta.erro || "Erro ao materializar movimentação.");
-        return null;
-      }
-    } catch (error) {
-      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
-      return null;
-    }
-  };
-
-  // ── concluir / extornar ───────────────────────────────────────────────────
-
-  const ExecutarMovRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErroMsg(undefined);
-    setIsLoading(true);
-    try {
-      const idMov = await materializar();
-      if (idMov === null) return;
-
-      const resposta = await api<ApiResult<CategoriaResponse>>(
-        `/Contas/Movimentacoes/${idMov}/${movAtual.concluido ? "Extornar" : "Concluir"}`,
-        "POST",
-        movAtual.concluido
-          ? undefined
-          : { dthrConclusao: toUTCISOString(dataConclusao) },
-      );
-
-      if (resposta.sucesso) {
-        buscaMovimentacoes();
-        onClose();
-      } else {
-        setErroMsg(resposta.erro);
-      }
-    } catch (error) {
-      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ── deletar ───────────────────────────────────────────────────────────────
-
-  const DeletarMovRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErroMsg(undefined);
-    setIsLoading(true);
-    try {
-      const idMov = await materializar();
-      if (idMov === null) return;
-
-      const resposta = await api<ApiResult<CategoriaResponse>>(
-        `/Contas/Movimentacoes/${idMov}/Remover`,
-        "DELETE",
-        undefined,
-      );
-
-      if (resposta.sucesso) {
-        buscaMovimentacoes();
-        onClose();
-      } else {
-        setErroMsg(resposta.erro);
-      }
-    } catch (error) {
-      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // ── alterar — NÃO materializa; o CadMov cuida disso se necessário ─────────
-
-  const AlterarMovimentacao = () => {
-    // Passa a movimentação original para o contexto (com id=0 se for virtual)
-    // O CadMov em modo edição detecta idFixo > 0 && id === 0 e materializa antes do PATCH
-    setMovimentacao(movimentacaoSelecionada);
-    setAlterarMovimentacao(true);
-  };
-
-  // ── render ────────────────────────────────────────────────────────────────
+  const ocupado = conclusao.enviando || exclusao.enviando;
+  const erro = conclusao.erro ?? exclusao.erro;
 
   return (
     <>
       <Dialog
         // "Alterar" troca o popup pela gaveta (o componente segue montado por causa dela)
-        open={!alterarMovimentacao}
-        onClose={isLoading ? undefined : onClose}
+        open={!alterando}
+        onClose={ocupado ? undefined : onClose}
         fullWidth
         maxWidth="xs"
         aria-labelledby="titulo-conclusao-mov"
@@ -193,13 +103,13 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
         <DialogTitle id="titulo-conclusao-mov" sx={{ pr: 6 }}>
           {movimentacaoSelecionada.titulo}
           <Typography sx={{ fontSize: 22, fontWeight: 700 }}>
-            {formataMoeda(movimentacaoSelecionada.valor)}
+            {formatarMoeda(movimentacaoSelecionada.valor)}
           </Typography>
         </DialogTitle>
         <IconButton
           onClick={onClose}
           aria-label="Fechar"
-          disabled={isLoading}
+          disabled={ocupado}
           sx={{ position: "absolute", top: 8, right: 8 }}
         >
           <Icon>close</Icon>
@@ -207,16 +117,16 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
 
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            {erroMsg && <Alert severity="error">{erroMsg}</Alert>}
+            {erro && <Alert severity="error">{erro}</Alert>}
             {!movAtual.concluido && (
               <>
                 <InputCheckBox
-                  checked={usarDataMovimentacao}
-                  label="Usar data da movimentação"
-                  setChecked={toggleUsarDataMovimentacao}
+                  rotulo="Usar data da movimentação"
+                  marcado={usarDataMovimentacao}
+                  setMarcado={alternarUsarDataMovimentacao}
                 />
                 <CampoDataHora
-                  label="Data conclusão"
+                  rotulo="Data conclusão"
                   valor={dataConclusao}
                   setValor={setDataConclusao}
                 />
@@ -238,8 +148,8 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
             variant="contained"
             color="error"
             disableElevation
-            onClick={DeletarMovRequest}
-            disabled={isLoading}
+            onClick={exclusao.enviar}
+            disabled={ocupado}
             sx={{ mr: "auto" }}
           >
             Deletar
@@ -248,35 +158,33 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
             variant="contained"
             color="warning" // laranja do tema
             disableElevation
-            onClick={AlterarMovimentacao}
-            disabled={isLoading}
+            onClick={() => setAlterando(true)}
+            disabled={ocupado}
           >
             Alterar
           </Button>
           <Button
             variant="contained"
-            onClick={ExecutarMovRequest}
-            disabled={isLoading}
+            onClick={conclusao.enviar}
+            disabled={ocupado}
           >
             {movAtual.concluido ? "Extornar" : "Concluir"}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* o formulário de edição continua na gaveta, como os demais */}
-      {alterarMovimentacao && (
-        // fechar a gaveta sem salvar encerra tudo (não volta ao popup)
-        <Modal isOpen={true} onClose={onClose}>
-          <CadMov
-            onClose={() => {
-              setAlterarMovimentacao(false);
-              buscaMovimentacoes();
-              onClose();
-            }}
-            edit={true}
-          />
-        </Modal>
-      )}
+      {/* o formulário de edição continua na gaveta, como os demais;
+          fechar a gaveta sem salvar encerra tudo (não volta ao popup) */}
+      <Modal aberto={alterando} titulo="Editar transação" onClose={onClose}>
+        <CadMov
+          // a original (id 0 se for virtual): o CadMov materializa antes do PATCH
+          movimentacao={movimentacaoSelecionada}
+          onClose={() => {
+            buscaMovimentacoes();
+            onClose();
+          }}
+        />
+      </Modal>
     </>
   );
 };

@@ -28,9 +28,10 @@ import type {
   ContaBancaria,
   ContaResponse,
 } from "../../models/contas-usuarios/GetContasBancarias";
-import api from "../../services/api/apiConnect";
+import Conecta from "../../services/api/apiConnect";
 import MsgBox from "../../props/msg-box/MsgBox";
-import { TypeMsgBox } from "../../props/msg-box/TypeMsgBox";
+import { iniciais } from "../../utils/formatacao";
+import { PERMISSAO } from "../../utils/permissao";
 import APP_VERSION from "../../version";
 import { BarraLateralClara, CoresClaro, CoresEscuro } from "../../cores";
 import type { ModoCor } from "../../tema";
@@ -73,15 +74,9 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const barra = cores === CoresClaro ? BarraLateralClara : cores.barraLateral;
 
   const nomeUsuario = user?.nomeCompleto || "Usuário";
-  // Iniciais do primeiro e do último nome: "Erick Augusto Paludo" -> "EP".
-  const palavrasNome = nomeUsuario.trim().split(/\s+/);
-  const iniciais = (
-    palavrasNome[0][0] +
-    (palavrasNome.length > 1 ? palavrasNome[palavrasNome.length - 1][0] : "")
-  ).toUpperCase();
   const { conta, usuario, setConta, versaoContas } = useContext(ContaContext);
   const navigate = useNavigate();
-  const isMobile = useMediaQuery("(max-width:768px)");
+  const ehCelular = useMediaQuery("(max-width:768px)");
   const [recolhida, setRecolhida] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
@@ -91,12 +86,12 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
 
   const [favoritas, setFavoritas] = useState<ContaBancaria[]>([]);
 
-  const compacta = recolhida && !isMobile;
+  const compacta = recolhida && !ehCelular;
 
   // Rebusca ao navegar e ao trocar a conta: favoritar acontece em outras telas.
   useEffect(() => {
     let ativo = true;
-    api<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
+    Conecta<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
       if (ativo && resposta.sucesso && resposta.dados)
         setFavoritas(
           // só ativas: inativas não abrem (igual ao card da tela inicial)
@@ -135,10 +130,10 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   ];
 
   const opcoesConta: Item[] = [
-    ...(usuario?.permissao !== 2
+    ...(usuario?.permissao !== PERMISSAO.Visualizador
       ? [{ rota: "/agendadas", titulo: "Agendadas", icone: "browse_gallery" }]
       : []),
-    { rota: "/membros", titulo: "Membros da Conta", icone: "group" }
+    { rota: "/membros", titulo: "Membros da Conta", icone: "group" },
   ];
 
   const titulo = (texto: string) =>
@@ -348,7 +343,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
                 height: TAMANHO_AVATAR,
               }}
             >
-              {iniciais}
+              {iniciais(nomeUsuario)}
             </Avatar>
             {!compacta && (
               <>
@@ -445,10 +440,10 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
 
       {confirmarSaida && (
         <MsgBox
-          title="Sair da Conta"
-          description="Deseja realmente sair da conta?"
-          type={TypeMsgBox.Question}
-          onQuestion={(confirmou: boolean) => {
+          titulo="Sair da Conta"
+          descricao="Deseja realmente sair da conta?"
+          tipo="pergunta"
+          aoResponder={(confirmou) => {
             if (confirmou) onSairDaConta();
             setConfirmarSaida(false);
           }}
@@ -464,7 +459,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     borderRight: `1px solid ${barra.contorno}`,
   };
 
-  if (isMobile) {
+  if (ehCelular) {
     return (
       <>
         <AppBar

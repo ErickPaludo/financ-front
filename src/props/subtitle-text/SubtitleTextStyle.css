@@ -1,9 +1,0 @@
-.fnc-subtitle-text {
-  color: var(--fnc-apoio, #90a1b9);
-  font-family: Inter;
-  margin: 0;
-  width: 100%;
-}
-.fnc-subtitle-text:hover {
-  cursor: pointer;
-}

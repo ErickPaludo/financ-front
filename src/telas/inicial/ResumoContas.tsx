@@ -4,6 +4,8 @@ import { Box, Icon, IconButton, Stack, Tooltip, Typography } from "@mui/material
 import type { ConteudoContas } from "../../models/contas-usuarios/GetContasBancarias";
 import { AuthContext } from "../../contexts/AuthContext";
 import { exibirMoeda } from "../../utils/formatacao";
+import { estiloBotaoSecundario } from "../../estilos";
+import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
 
 const saudacao = () => {
   const hora = new Date().getHours();
@@ -15,7 +17,7 @@ const saudacao = () => {
   return "Boa noite";
 };
 
-type Props = {
+type PropResumoContas = {
   conteudo?: ConteudoContas; // sem dados ainda: mostra só o cabeçalho
   onNovaConta: () => void;
   ocultarValores: boolean;
@@ -46,7 +48,7 @@ const Coluna: React.FC<{ children: ReactNode }> = ({ children }) => (
 );
 
 // Topo da tela inicial: saudação, "Minhas contas", botões e o card de resumo do patrimônio.
-const ResumoContas: React.FC<Props> = ({
+const ResumoContas: React.FC<PropResumoContas> = ({
   conteudo,
   ocultarValores,
   onAlternarOcultar,
@@ -73,17 +75,7 @@ const ResumoContas: React.FC<Props> = ({
             {saudacao()}
             {user?.primeiroNome && `, ${user.primeiroNome}`}
           </Typography>
-          <Typography
-            component="h1"
-            sx={{
-              fontSize: 28,
-              fontWeight: 700,
-              letterSpacing: "-0.02em",
-              color: "var(--fnc-tx-texto)",
-            }}
-          >
-            Minhas contas
-          </Typography>
+          <TituloPagina titulo="Minhas contas" />
         </Box>
 
         <Stack direction="row" spacing={1.5}>
@@ -92,15 +84,7 @@ const ResumoContas: React.FC<Props> = ({
               onClick={onAlternarOcultar}
               aria-label={textoOlho}
               aria-pressed={ocultarValores}
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: "10px",
-                bgcolor: "var(--fnc-tx-superficie)",
-                border: "1px solid var(--fnc-tx-botao-borda)",
-                color: "var(--fnc-tx-chip-texto)",
-                "&:hover": { bgcolor: "var(--fnc-tx-chip-fundo)" },
-              }}
+              sx={{ ...estiloBotaoSecundario, width: 44 }}
             >
               <Icon>{ocultarValores ? "visibility_off" : "visibility"}</Icon>
             </IconButton>
@@ -145,24 +129,6 @@ const ResumoContas: React.FC<Props> = ({
             >
               {exibirMoeda(conteudo.saldoProjetado, ocultarValores)}
             </Typography>
-            {conteudo.saldoProjetado < 0 && !ocultarValores && (
-              <Box
-                component="span"
-                sx={{
-                  display: "inline-block",
-                  mt: 0.75,
-                  px: 1.25,
-                  py: 0.25,
-                  borderRadius: 999,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  bgcolor: "var(--fnc-tx-despesa-fundo)",
-                  color: "var(--fnc-tx-despesa-badge)",
-                }}
-              >
-                Negativo no fim do mês
-              </Box>
-            )}
           </Coluna>
 
           <Coluna>

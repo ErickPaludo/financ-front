@@ -1,336 +1,207 @@
-import React, { useEffect, useState, useContext } from "react";
-import api from "../../../services/api/apiConnect";
-import type { ApiResult } from "../../../models/interface/ApiResult";
-import type { MovimentacaoPost } from "../../../models/movimentacoes/MovimentacaoPost";
-import type {
-  Categoria,
-  Movimentacao,
+import { useContext, useState } from "react";
+import { Alert, Button, Stack } from "@mui/material";
+
+import Conecta from "../../../services/api/apiConnect";
+import {
+  alterarCategoriasMovimentacao,
+  materializarMovimentacao,
+  mesmasCategorias,
+} from "../../../services/movimentacoes/movimentacaoService";
+import {
+  TIPO_MOVIMENTACAO,
+  type Categoria,
+  type Movimentacao,
 } from "../../../models/movimentacoes/GetMovimentacoes";
-import type { CategoriaResponse } from "../../../models/categorias/Categorias";
-import "./CadMovStyle.css";
-import TitleText from "../../../props/title-text/TitleText";
+import type { MovimentacaoPost } from "../../../models/movimentacoes/MovimentacaoPost";
+import type { MovimentacaoPatch } from "../../../models/movimentacoes/MovimentacaoPatch";
+import { ContaContext } from "../../../contexts/ContaContext";
+import { useCategorias } from "../../../hooks/useCategorias";
+import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
 import CampoTexto from "../../../props/campo-texto/CampoTexto";
+import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
 import InputPrice from "../../../props/input-price/InputPrice";
-import { Button } from "@mui/material";
-import ErrorText from "../../../props/error-text/ErrorText";
-import InputDate from "../../../props/input-date/InputDate";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
-import { MovimentacaoContext } from "../../../contexts/MovimentacaoContext";
-import { ContaContext } from "../../../contexts/ContaContext";
-import type { MovimentacaoPatch } from "../../../models/movimentacoes/MovimentacaoPatch";
+import SeletorTipoMovimentacao from "../../../props/seletor-tipo-movimentacao/SeletorTipoMovimentacao";
+import { dataHoraLocal, paraIsoUtc } from "../../../utils/formatacao";
 
 interface PropCadMov {
   onClose: () => void;
-  edit?: boolean;
+  // com movimentação: edita; sem: cadastra
+  movimentacao?: Movimentacao;
 }
 
-// UTC ISO → "YYYY-MM-DDTHH:mm" no horário local do browser (America/Sao_Paulo)
-const utcISOParaInputLocal = (data: string): string => {
-  const d = new Date(data);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-};
-
-// "YYYY-MM-DDTHH:mm" (horário local do browser) → UTC ISO global
-const inputParaUTCISO = (data: string): string => new Date(data).toISOString();
-
-// Hora atual no horário local do browser, formato "YYYY-MM-DDTHH:mm"
-const getNowLocal = (): string => {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
-};
-
-const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
+// Formulário de transação na gaveta. A gaveta o monta de novo a cada abertura,
+// então o estado já começa com os dados da movimentação editada.
+const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
   const { conta } = useContext(ContaContext);
-  const { movimentacao } = useContext(MovimentacaoContext);
+  const { categorias } = useCategorias(conta!.idConta);
+  const edicao = Boolean(mov);
 
-  // Na edição o formulário já começa com os dados da movimentação:
-  // a gaveta monta o CadMov de novo a cada abertura.
-  const mov = edit ? movimentacao : null;
-
-  const [type, setType] = useState(
-    mov && mov.tipo !== 0 ? "despesa" : "receita",
+  const [tipo, setTipo] = useState<number>(
+    mov?.tipo ?? TIPO_MOVIMENTACAO.Receita,
   );
   const [titulo, setTitulo] = useState(mov?.titulo ?? "");
   const [descricao, setDescricao] = useState(mov?.observacao ?? "");
-  const [valorFormatado, setValorFormatado] = useState(
-    mov
-      ? mov.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-      : "",
-  );
   const [valor, setValor] = useState(mov?.valor ?? 0);
   const [dataMovimentacao, setDataMovimentacao] = useState(() =>
-    mov ? utcISOParaInputLocal(mov.dthrMovimentacao) : getNowLocal(),
+    dataHoraLocal(mov?.dthrMovimentacao),
   );
   // sem data de conclusão, a conclusão parte da data da movimentação
   const [dataConclusao, setDataConclusao] = useState(() =>
-    mov
-      ? utcISOParaInputLocal(mov.dthrConclusao ?? mov.dthrMovimentacao)
-      : getNowLocal(),
+    dataHoraLocal(mov?.dthrConclusao ?? mov?.dthrMovimentacao),
   );
   const [concluido, setConcluido] = useState(mov?.concluido ?? false);
-  const [categorias, setCategorias] = useState<CategoriaResponse>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [erroMsg, setErroMsg] = useState<string | undefined>(undefined);
-
-  const dataMovOriginal = mov?.dthrMovimentacao ?? "";
-  const dataConclusaoOriginal = mov?.dthrConclusao ?? "";
-
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<
     number[]
   >(() => mov?.categorias.map((cat) => cat.idCategoria) ?? []);
 
-  const setDateMov = (value: string) => {
-    setDataMovimentacao(value);
-    setDataConclusao(value);
+  const alterarDataMovimentacao = (data: string) => {
+    setDataMovimentacao(data);
+    setDataConclusao(data);
   };
 
-  const idConta = conta?.idConta;
-  useEffect(() => {
-    api<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
-      (resposta) => {
-        if (resposta.sucesso && resposta.dados) setCategorias(resposta.dados);
-      },
+  const cadastrar = async () => {
+    const corpo: MovimentacaoPost = {
+      tipo,
+      valor,
+      concluido,
+      titulo,
+      observacao: descricao,
+      dthrMovimentacao: paraIsoUtc(dataMovimentacao),
+      dthrConclusao: concluido ? paraIsoUtc(dataConclusao) : null,
+      idsCategoria: categoriasSelecionadas,
+    };
+    const resposta = await Conecta<string>(
+      `/Contas/${conta!.idConta}/Movimentacoes`,
+      "POST",
+      corpo,
     );
-  }, [idConta]);
-
-  // Materializa a movimentação virtual (id=0 com idFixo) antes de editar.
-  // Retorna o id real, ou null em caso de erro.
-  const materializarSeNecessario = async (): Promise<number | null> => {
-    if (!movimentacao) return null;
-
-    // Movimentação real — usa o id direto
-    if (movimentacao.id > 0) return movimentacao.id;
-
-    // Movimentação virtual gerada por agendamento — precisa materializar antes do PATCH
-    if (movimentacao.idFixo && movimentacao.id === 0) {
-      try {
-        const resposta = await api<{ valor: Movimentacao }>(
-          `/Contas/${movimentacao.idConta}/Movimentacoes/Fixa/${movimentacao.idFixo}/Materializa`,
-          "POST",
-          {
-            dataMovimentacao: new Date(
-              movimentacao.dthrMovimentacao,
-            ).toISOString(),
-          },
-        );
-        if (resposta.sucesso && resposta.dados) {
-          return resposta.dados.valor.id;
-        } else {
-          setErroMsg(resposta.erro || "Erro ao materializar movimentação.");
-          return null;
-        }
-      } catch (error) {
-        setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
-        return null;
-      }
-    }
-
-    return null;
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Erro ao cadastrar movimentação.";
+    onClose();
   };
 
-  const reqMov = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErroMsg(undefined);
-
-    try {
-      if (!edit) {
-        const request: MovimentacaoPost = {
-          tipo: type === "receita" ? 0 : 1,
-          valor: valor,
-          concluido: concluido,
-          titulo: titulo,
-          observacao: descricao,
-          dthrMovimentacao: inputParaUTCISO(dataMovimentacao),
-          dthrConclusao: concluido ? inputParaUTCISO(dataConclusao) : null,
-          idsCategoria: categoriasSelecionadas,
-        };
-
-        const resposta = await api<ApiResult<Movimentacao>>(
-          `/Contas/${conta?.idConta}/Movimentacoes`,
-          "POST",
-          request,
-        );
-
-        if (resposta.sucesso) {
-          onClose();
-        } else {
-          setErroMsg(resposta.erro || "Erro ao cadastrar movimentação.");
-        }
-      } else {
-        // Se for movimentação virtual (id=0 + idFixo), materializa agora
-        const idMov = await materializarSeNecessario();
-        if (idMov === null) return;
-
-        const dataMovAtualUTC = inputParaUTCISO(dataMovimentacao);
-        const dataConclusaoAtualUTC = inputParaUTCISO(dataConclusao);
-
-        const request: MovimentacaoPatch = {
-          tipo: concluido ? null : type === "receita" ? 0 : 1,
-          valor: movimentacao?.valor !== valor ? valor : null,
-          titulo: movimentacao?.titulo !== titulo ? titulo : null,
-          observacao: movimentacao?.observacao !== descricao ? descricao : null,
-          dthrMovimentacao:
-            dataMovAtualUTC !== dataMovOriginal ? dataMovAtualUTC : null,
-          dthrConclusao: movimentacao?.concluido
-            ? dataConclusaoAtualUTC !== dataConclusaoOriginal
-              ? dataConclusaoAtualUTC
-              : null
-            : null,
-        };
-
-        console.log(request);
-
-        const resposta = await api<ApiResult<Movimentacao>>(
-          `Contas/Movimentacoes/${idMov}/Alterar`,
-          "PATCH",
-          request,
-        );
-
-        if (!resposta.sucesso) {
-          setErroMsg(resposta.erro || "Erro ao editar movimentação.");
-          return;
-        }
-
-        const catMov = movimentacao!.categorias.map((cat) => cat.idCategoria);
-
-        if (
-          JSON.stringify(catMov.sort()) !==
-          JSON.stringify(categoriasSelecionadas.sort())
-        ) {
-          const respostaCat = await api<ApiResult<Movimentacao>>(
-            `Contas/Movimentacoes/${idMov}/Alterar/Categoria`,
-            "PUT",
-            { categorias: categoriasSelecionadas },
-          );
-
-          if (respostaCat.sucesso) {
-            onClose();
-          } else {
-            setErroMsg(respostaCat.erro || "Erro ao alterar categorias.");
-          }
-        } else {
-          onClose();
-        }
-      }
-    } catch (error) {
-      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
-    } finally {
-      setIsLoading(false);
+  const editar = async (mov: Movimentacao) => {
+    // movimentação virtual (gerada por agendamento) precisa existir antes do PATCH
+    let idMov = mov.id;
+    if (idMov === 0) {
+      const materializada = await materializarMovimentacao(mov);
+      if (!materializada.sucesso || !materializada.dados)
+        return materializada.erro ?? "Erro ao materializar movimentação.";
+      idMov = materializada.dados.valor.id;
     }
+
+    // só vai o que mudou
+    const dataMovUtc = paraIsoUtc(dataMovimentacao);
+    const dataConclusaoUtc = paraIsoUtc(dataConclusao);
+    const corpo: MovimentacaoPatch = {
+      tipo: concluido ? null : tipo,
+      valor: mov.valor !== valor ? valor : null,
+      titulo: mov.titulo !== titulo ? titulo : null,
+      observacao: mov.observacao !== descricao ? descricao : null,
+      dthrMovimentacao:
+        dataMovUtc !== mov.dthrMovimentacao ? dataMovUtc : null,
+      dthrConclusao:
+        mov.concluido && dataConclusaoUtc !== mov.dthrConclusao
+          ? dataConclusaoUtc
+          : null,
+    };
+    const resposta = await Conecta<string>(
+      `Contas/Movimentacoes/${idMov}/Alterar`,
+      "PATCH",
+      corpo,
+    );
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Erro ao editar movimentação.";
+
+    const categoriasOriginais = mov.categorias.map((cat) => cat.idCategoria);
+    if (!mesmasCategorias(categoriasOriginais, categoriasSelecionadas)) {
+      const respostaCategorias = await alterarCategoriasMovimentacao(
+        idMov,
+        categoriasSelecionadas,
+      );
+      if (!respostaCategorias.sucesso)
+        return respostaCategorias.erro ?? "Erro ao alterar categorias.";
+    }
+    onClose();
   };
+
+  const envio = useEnvioFormulario(() => (mov ? editar(mov) : cadastrar()));
 
   return (
-    <>
-      <TitleText text={edit ? "Editar Transação" : "Nova Transação"} />
+    <Stack component="form" onSubmit={envio.enviar} noValidate spacing={1.5}>
+      <SeletorTipoMovimentacao
+        valor={tipo}
+        setValor={setTipo}
+        bloqueado={mov?.concluido}
+      />
 
-      <div className="fnc-transaction-type">
-        <button
-          type="button"
-          className={`type-btn ${type === "receita" ? "active" : ""}`}
-          data-type="receita"
-          onClick={() => (!movimentacao?.concluido ? setType("receita") : null)}
-        >
-          Receita
-        </button>
+      <CampoTexto
+        label="Título"
+        valor={titulo}
+        placeholder="Ex: Mercado"
+        setValor={setTitulo}
+      />
 
-        <button
-          type="button"
-          className={`type-btn ${type === "despesa" ? "active" : ""}`}
-          data-type="despesa"
-          onClick={() => (!movimentacao?.concluido ? setType("despesa") : null)}
-        >
-          Despesa
-        </button>
-      </div>
+      <CampoTexto
+        label="Descrição"
+        valor={descricao}
+        placeholder="Ex: Compra do mês"
+        setValor={setDescricao}
+        slotProps={{ htmlInput: { maxLength: 255 } }}
+      />
 
-      <form onSubmit={reqMov}>
-        <div className="fnc-ctn-cad">
-          <CampoTexto
-            label="Título"
-            valor={titulo}
-            placeholder="Ex: Mercado"
-            setValor={setTitulo}
-          />
+      <InputPrice rotulo="Valor (R$)" valor={valor} setValor={setValor} />
 
-          <CampoTexto
-            label="Descrição"
-            valor={descricao}
-            placeholder="Ex: Compra do mês"
-            setValor={setDescricao}
-            slotProps={{ htmlInput: { maxLength: 255 } }}
-          />
+      <CheckBoxList<Categoria>
+        itens={categorias}
+        chaveId="idCategoria"
+        chaveTexto="nome"
+        selecionados={categoriasSelecionadas}
+        setSelecionados={setCategoriasSelecionadas}
+        rotulo="Categorias"
+      />
 
-          <InputPrice
-            label="Valor (R$)"
-            formattedValue={valorFormatado}
-            setValue={setValor}
-            setFormattedValue={setValorFormatado}
-          />
+      <CampoDataHora
+        rotulo="Data movimentação"
+        valor={dataMovimentacao}
+        setValor={alterarDataMovimentacao}
+      />
 
-          <CheckBoxList<Categoria>
-            itens={categorias?.conteudo ?? []}
-            idKey="idCategoria"
-            labelKey="nome"
-            selecionados={categoriasSelecionadas}
-            onChange={setCategoriasSelecionadas}
-            label="Categorias"
-          />
+      {!edicao && (
+        <InputCheckBox
+          rotulo="Movimentação concluída"
+          marcado={concluido}
+          setMarcado={setConcluido}
+        />
+      )}
 
-          <InputDate
-            label="Data Movimentação"
-            text={dataMovimentacao}
-            setText={setDateMov}
-          />
+      {concluido && (
+        <CampoDataHora
+          rotulo="Data conclusão"
+          valor={dataConclusao}
+          setValor={setDataConclusao}
+        />
+      )}
 
-          {edit && movimentacao && concluido && (
-            <InputDate
-              label="Data Conclusão"
-              text={dataConclusao}
-              setText={setDataConclusao}
-            />
-          )}
+      {envio.erro && <Alert severity="error">{envio.erro}</Alert>}
 
-          {!edit && (
-            <>
-              <InputCheckBox
-                label="Movimentação concluída"
-                checked={concluido}
-                setChecked={setConcluido}
-              />
-
-              {concluido && (
-                <InputDate
-                  label="Data Conclusão"
-                  text={dataConclusao}
-                  setText={setDataConclusao}
-                />
-              )}
-            </>
-          )}
-
-          {erroMsg && <ErrorText text={erroMsg} />}
-
-          <Button
-            type="submit"
-            variant="contained"
-            fullWidth
-            disabled={isLoading}
-          >
-            {edit
-              ? isLoading
-                ? "Editando..."
-                : "Editar"
-              : isLoading
-                ? "Cadastrando..."
-                : "Cadastrar"}
-          </Button>
-        </div>
-      </form>
-    </>
+      <Button
+        type="submit"
+        variant="contained"
+        fullWidth
+        disabled={envio.enviando}
+      >
+        {edicao
+          ? envio.enviando
+            ? "Editando..."
+            : "Editar"
+          : envio.enviando
+            ? "Cadastrando..."
+            : "Cadastrar"}
+      </Button>
+    </Stack>
   );
 };
 

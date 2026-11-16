@@ -1,585 +1,382 @@
 import { useCallback, useContext, useEffect, useState } from "react";
+import { Alert, Button } from "@mui/material";
+
+import Conecta from "../../../services/api/apiConnect";
+import {
+  alterarCategoriasMovimentacao,
+  mesmasCategorias,
+} from "../../../services/movimentacoes/movimentacaoService";
+import {
+  TIPO_MOVIMENTACAO,
+  type Categoria,
+  type Movimentacao,
+} from "../../../models/movimentacoes/GetMovimentacoes";
 import { ContaContext } from "../../../contexts/ContaContext";
-import { MovimentacaoContext } from "../../../contexts/MovimentacaoContext";
-import TitleText from "../../../props/title-text/TitleText";
-import InputSelect from "../../../props/input-select/InputSelect";
-import InputDate from "../../../props/input-date/InputDate";
-import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
-import CampoTexto from "../../../props/campo-texto/CampoTexto";
-import InputPrice from "../../../props/input-price/InputPrice";
+import { useCategorias } from "../../../hooks/useCategorias";
+import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
 import TabelaDados, {
   type ColunaTabela,
 } from "../../../componentes/tabela-dados/TabelaDados";
+import TituloPagina from "../../../componentes/titulo-pagina/TituloPagina";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
+import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
+import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
+import InputPrice from "../../../props/input-price/InputPrice";
+import InputSelect from "../../../props/input-select/InputSelect";
+import SeletorTipoMovimentacao from "../../../props/seletor-tipo-movimentacao/SeletorTipoMovimentacao";
 import {
-  Categoria,
-  Movimentacao,
-} from "../../../models/movimentacoes/GetMovimentacoes";
-import { CategoriaResponse } from "../../../models/categorias/Categorias";
-import api from "../../../services/api/apiConnect";
+  formatarMoeda,
+  paraIsoUtc,
+  periodoDoMes,
+} from "../../../utils/formatacao";
 import "./MovimentacaoFixa.css";
-import { Button } from "@mui/material";
-import { ApiResult } from "../../../models/interface/ApiResult";
-import ErrorText from "../../../props/error-text/ErrorText";
-
-// ── tipos ─────────────────────────────────────────────────────────────────────
 
 export type MovimentacaoFixaItem = {
   id: number;
-  tipo: number;
+  tipo: number; // tipo de ocorrência (OCORRENCIA)
   dataInicio: string;
   dataFim: string;
   dataOcorrencia: string;
-  ocorrenciaDiaria: number[]; // dias da semana (chaves de diasSemanaMap)
+  ocorrenciaDiaria: number[]; // dias da semana (ids de DIAS_SEMANA)
   expirado: boolean;
-  movimentacaoBase: import("../../../models/movimentacoes/GetMovimentacoes").Movimentacao;
+  movimentacaoBase: Movimentacao;
 };
 
-// ── constantes ────────────────────────────────────────────────────────────────
-
-const diasSemana = [
-  { id: 0, nome: "Domingo" },
-  { id: 1, nome: "Segunda-feira" },
-  { id: 2, nome: "Terça-feira" },
-  { id: 3, nome: "Quarta-feira" },
-  { id: 4, nome: "Quinta-feira" },
-  { id: 5, nome: "Sexta-feira" },
-  { id: 6, nome: "Sábado" },
-];
-
-const meses = [
-  { label: "Janeiro", value: "1" },
-  { label: "Fevereiro", value: "2" },
-  { label: "Março", value: "3" },
-  { label: "Abril", value: "4" },
-  { label: "Maio", value: "5" },
-  { label: "Junho", value: "6" },
-  { label: "Julho", value: "7" },
-  { label: "Agosto", value: "8" },
-  { label: "Setembro", value: "9" },
-  { label: "Outubro", value: "10" },
-  { label: "Novembro", value: "11" },
-  { label: "Dezembro", value: "12" },
-];
-
-const diasPorMes: Record<string, number> = {
-  "1": 31,
-  "2": 28,
-  "3": 31,
-  "4": 30,
-  "5": 31,
-  "6": 30,
-  "7": 31,
-  "8": 31,
-  "9": 30,
-  "10": 31,
-  "11": 30,
-  "12": 31,
-};
-
-const tipoOcorrenciaLabel: Record<number, string> = {
+const OCORRENCIA = { Semanal: "0", Mensal: "1", Anual: "2" };
+const NOME_OCORRENCIA: Record<number, string> = {
   0: "Semanal",
   1: "Mensal",
   2: "Anual",
 };
 
-const diasSemanaMap: Record<number, string> = {
-  0: "Domingo",
-  1: "Segunda-feira",
-  2: "Terça-feira",
-  3: "Quarta-feira",
-  4: "Quinta-feira",
-  5: "Sexta-feira",
-  6: "Sábado",
-};
+const DIAS_SEMANA = [
+  "Domingo",
+  "Segunda-feira",
+  "Terça-feira",
+  "Quarta-feira",
+  "Quinta-feira",
+  "Sexta-feira",
+  "Sábado",
+].map((nome, id) => ({ id, nome }));
 
-// ── helpers ───────────────────────────────────────────────────────────────────
+const MESES = [
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+].map((rotulo, i) => ({ rotulo, valor: String(i + 1) }));
 
-/**
- * Converte uma data ISO Universal (UTC) vinda da API para local (UTC-3).
- * Formato retornado: YYYY-MM-DDTHH:mm
- */
-const fromIsoToLocalStr = (iso: string) => {
-  if (!iso) return "";
-  const date = new Date(iso);
-  // Ajuste manual de -3 horas para o fuso de Brasília
-  const localDate = new Date(date.getTime() - 3 * 60 * 60 * 1000);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${localDate.getFullYear()}-${pad(localDate.getMonth() + 1)}-${pad(localDate.getDate())}T${pad(localDate.getHours())}:${pad(localDate.getMinutes())}`;
-};
+// fevereiro com 28: a data de ocorrência é gravada num ano fixo (ANO_OCORRENCIA)
+const DIAS_POR_MES = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+const ANO_OCORRENCIA = 2026;
+const STATUS_ATIVA = 0;
+const STATUS_EXCLUIDA = 1;
 
-const toUtc3 = (iso: string) =>
+// A API devolve as datas das agendadas 3h à frente: volta para o horário de Brasília.
+const paraHorarioBrasilia = (iso: string) =>
   new Date(new Date(iso).getTime() - 3 * 60 * 60 * 1000);
 
-const formatDate = (iso: string) => {
-  if (!iso) return "-";
-  const d = toUtc3(iso);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${d.getFullYear()}`;
+const doisDigitos = (n: number) => String(n).padStart(2, "0");
+
+// "YYYY-MM-DDTHH:mm" para os campos de data
+const dataParaCampo = (iso: string) => {
+  if (!iso) return "";
+  const d = paraHorarioBrasilia(iso);
+  return `${d.getFullYear()}-${doisDigitos(d.getMonth() + 1)}-${doisDigitos(d.getDate())}T${doisDigitos(d.getHours())}:${doisDigitos(d.getMinutes())}`;
 };
 
-const formatDateAnual = (iso: string) => {
+// "16/11/2026"; com anual, sem o ano ("16/11")
+const formatarData = (iso: string, comAno = true) => {
   if (!iso) return "-";
-  const d = toUtc3(iso);
-  return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  const d = paraHorarioBrasilia(iso);
+  const diaMes = `${doisDigitos(d.getDate())}/${doisDigitos(d.getMonth() + 1)}`;
+  return comAno ? `${diaMes}/${d.getFullYear()}` : diaMes;
 };
 
-const formatDatemes = (iso: string) => {
-  if (!iso) return "-";
-  return `Dia ${toUtc3(iso).getDate()}`;
+const descreverOcorrencia = (fixa: MovimentacaoFixaItem) => {
+  if (fixa.tipo === 0)
+    return fixa.ocorrenciaDiaria.map((d) => DIAS_SEMANA[d]?.nome).join(", ");
+  if (!fixa.dataOcorrencia) return "-";
+  return fixa.tipo === 1
+    ? `Dia ${paraHorarioBrasilia(fixa.dataOcorrencia).getDate()}`
+    : formatarData(fixa.dataOcorrencia, false);
 };
 
-// ── componente ────────────────────────────────────────────────────────────────
+const linhaDaTabela = (fixa: MovimentacaoFixaItem) => ({
+  fixa,
+  titulo: fixa.movimentacaoBase.titulo,
+  tipoMov:
+    fixa.movimentacaoBase.tipo === TIPO_MOVIMENTACAO.Receita
+      ? "Receita"
+      : "Despesa",
+  valor: formatarMoeda(fixa.movimentacaoBase.valor),
+  tipo: NOME_OCORRENCIA[fixa.tipo] ?? fixa.tipo,
+  dataOcorrencia: descreverOcorrencia(fixa),
+  dataInicio: formatarData(fixa.dataInicio),
+  dataFim: formatarData(fixa.dataFim),
+});
 
+type LinhaFixa = ReturnType<typeof linhaDaTabela>;
+
+const COLUNAS: ColunaTabela<LinhaFixa>[] = [
+  { titulo: "Titulo", chave: "titulo" },
+  { titulo: "Tipo Mov", chave: "tipoMov" },
+  { titulo: "Valor", chave: "valor" },
+  { titulo: "Tipo", chave: "tipo" },
+  { titulo: "Ocorrência", chave: "dataOcorrencia" },
+  { titulo: "Início", chave: "dataInicio" },
+  { titulo: "Fim", chave: "dataFim" },
+];
+
+// Tela "Agendadas": lista as movimentações fixas; clicar numa linha carrega o formulário para edição.
 const MovimentacaoFixa: React.FC = () => {
-  const getNow = (isEnd: boolean = false) => {
-    const now = new Date();
-    let date: Date;
-    if (!isEnd) {
-      date = new Date(now.getFullYear(), now.getMonth(), 1);
-      date.setHours(0, 0, 0, 0);
-    } else {
-      date = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      date.setHours(23, 59, 59, 999);
-    }
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  };
-
   const { conta } = useContext(ContaContext);
-  const { setMovimentacao } = useContext(MovimentacaoContext);
+  const idConta = conta!.idConta;
+  const { categorias } = useCategorias(idConta);
 
-  // ── estados ───────────────────────────────────────────────────────────────
+  const [fixas, setFixas] = useState<MovimentacaoFixaItem[]>([]);
+  const [fixasCarregadas, setFixasCarregadas] = useState(false);
+  // agendada em edição; null = cadastro
+  const [emEdicao, setEmEdicao] = useState<MovimentacaoFixaItem | null>(null);
 
-  const [dataInicial, setDataInicial] = useState(getNow(false));
-  const [dataFinal, setDataFinal] = useState(getNow(true));
-  const [ocorrencia, setOcorrencia] = useState("1");
+  const [dataInicial, setDataInicial] = useState(() => periodoDoMes().inicio);
+  const [dataFinal, setDataFinal] = useState(() => periodoDoMes().fim);
+  const [ocorrencia, setOcorrencia] = useState(OCORRENCIA.Mensal);
   const [mes, setMes] = useState("1");
   const [dia, setDia] = useState("1");
-  const [diasSemanaSelecionados, setDiasSemanaSelecionados] = useState<
-    number[]
-  >([1]);
-  const [tipo, setTipo] = useState<string>("receita");
-  const [categorias, setCategorias] = useState<CategoriaResponse>();
+  const [diasSemana, setDiasSemana] = useState<number[]>([1]);
+  const [tipo, setTipo] = useState<number>(TIPO_MOVIMENTACAO.Receita);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<
     number[]
   >([]);
   const [titulo, setTitulo] = useState("");
-  const [obs, setObservacao] = useState("");
-  const [preco, setPreco] = useState<number>(0);
-  const [precoFormatado, setPrecoFormatado] = useState<string>("");
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [erroMsg, setErroMsg] = useState<string | undefined>(undefined);
-  const [idFixo, setIdFixo] = useState<number>();
-  const [idMov, setIdMov] = useState<number>();
-  const [fixas, setFixas] = useState<MovimentacaoFixaItem[]>([]);
-  const [fixasCarregadas, setFixasCarregadas] = useState(false);
-  const [habilitaEdicao, setHabilitaEdicao] = useState(false);
-  const [status] = useState(0);
+  const [observacao, setObservacao] = useState("");
+  const [valor, setValor] = useState(0);
 
-  const dias = Array.from({ length: diasPorMes[mes] }, (_, i) => ({
-    label: String(i + 1),
-    value: String(i + 1),
-  }));
+  const diasDoMes = Array.from(
+    { length: DIAS_POR_MES[Number(mes) - 1] },
+    (_, i) => ({ rotulo: String(i + 1), valor: String(i + 1) }),
+  );
+  const semanal = ocorrencia === OCORRENCIA.Semanal;
+  const rotaFixas = `/Contas/${idConta}/Movimentacoes/Fixa`;
 
-  // ── buscas ────────────────────────────────────────────────────────────────
-
-  // Conecta nunca lança erro: falhas vêm em resposta.sucesso
-  const idConta = conta!.idConta;
-  const buscaFixas = useCallback(
+  const buscarFixas = useCallback(
     () =>
-      api<{ conteudo: MovimentacaoFixaItem[] }>(
-        `/Contas/${idConta}/Movimentacoes/Fixa`,
-        "GET",
-      ).then((resposta) => {
-        if (resposta.sucesso && resposta.dados)
-          setFixas(resposta.dados.conteudo ?? []);
-        setFixasCarregadas(true);
-      }),
-    [idConta],
+      Conecta<{ conteudo: MovimentacaoFixaItem[] }>(rotaFixas, "GET").then(
+        (resposta) => {
+          if (resposta.sucesso && resposta.dados)
+            setFixas(resposta.dados.conteudo ?? []);
+          setFixasCarregadas(true);
+        },
+      ),
+    [rotaFixas],
   );
 
   useEffect(() => {
-    api<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
-      (resposta) => {
-        if (resposta.sucesso && resposta.dados) setCategorias(resposta.dados);
-      },
-    );
-    buscaFixas();
-  }, [idConta, buscaFixas]);
+    buscarFixas();
+  }, [buscarFixas]);
 
   // trocar o mês ajusta o dia quando ele não existe no mês novo (ex.: 31 -> fevereiro)
   const alterarMes = (novoMes: string) => {
     setMes(novoMes);
-    if (Number(dia) > diasPorMes[novoMes]) setDia(String(diasPorMes[novoMes]));
+    const ultimoDia = DIAS_POR_MES[Number(novoMes) - 1];
+    if (Number(dia) > ultimoDia) setDia(String(ultimoDia));
   };
 
-  // ── row click ─────────────────────────────────────────────────────────────
-
-  const handleRowClick = (row: Record<string, unknown>) => {
-    const fixa = row._raw as MovimentacaoFixaItem;
-    setOcorrencia(fixa.tipo.toString());
-
-    // CORREÇÃO: Converter as datas ISO da API para o formato local (Brasil/SP)
-    setDataInicial(fromIsoToLocalStr(fixa.dataInicio));
-    setDataFinal(fromIsoToLocalStr(fixa.dataFim));
-
-    setMovimentacao(fixa.movimentacaoBase);
-    setTitulo(fixa.movimentacaoBase.titulo);
-    setPreco(fixa.movimentacaoBase.valor);
-    setPrecoFormatado(
-      fixa.movimentacaoBase.valor.toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-      }),
-    );
-    setObservacao(fixa.movimentacaoBase.observacao ?? "");
-    setCategoriasSelecionadas(
-      fixa.movimentacaoBase.categorias.map((c) => c.idCategoria),
-    );
-    setTipo(fixa.movimentacaoBase.tipo === 0 ? "receita" : "despesa");
-
-    // CORREÇÃO: Usar toUtc3 para pegar dia e mês corretos da ocorrência
-    const dOcorrencia = toUtc3(fixa.dataOcorrencia);
-    setDia(String(dOcorrencia.getDate()));
-    setMes(String(dOcorrencia.getMonth() + 1));
-
-    // CORREÇÃO: Carregar os dias da semana selecionados para o tipo 0
-    if (fixa.tipo === 0) {
-      setDiasSemanaSelecionados(fixa.ocorrenciaDiaria || []);
-    }
-
-    setIdFixo(fixa.id);
-    setIdMov(fixa.movimentacaoBase.id);
-    setErroMsg(undefined);
-    setHabilitaEdicao(true);
+  const editar = ({ fixa }: LinhaFixa) => {
+    const base = fixa.movimentacaoBase;
+    const ocorre = paraHorarioBrasilia(fixa.dataOcorrencia);
+    setEmEdicao(fixa);
+    setOcorrencia(String(fixa.tipo));
+    setDataInicial(dataParaCampo(fixa.dataInicio));
+    setDataFinal(dataParaCampo(fixa.dataFim));
+    setTitulo(base.titulo);
+    setValor(base.valor);
+    setObservacao(base.observacao ?? "");
+    setCategoriasSelecionadas(base.categorias.map((c) => c.idCategoria));
+    setTipo(base.tipo);
+    setDia(String(ocorre.getDate()));
+    setMes(String(ocorre.getMonth() + 1));
+    if (fixa.tipo === 0) setDiasSemana(fixa.ocorrenciaDiaria || []);
   };
 
-  // ── tabela ────────────────────────────────────────────────────────────────
-
-  const tabelaDados = fixas.map((f) => ({
-    _raw: f,
-    titulo: f.movimentacaoBase.titulo,
-    valor: f.movimentacaoBase.valor.toLocaleString("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }),
-    tipoMov: f.movimentacaoBase.tipo === 0 ? "Receita" : "Despesa",
-    tipo: tipoOcorrenciaLabel[f.tipo] ?? f.tipo,
-    dataInicio: formatDate(f.dataInicio),
-    dataFim: formatDate(f.dataFim),
-    dataOcorrencia:
-      f.tipo !== 0
-        ? f.tipo === 1
-          ? formatDatemes(f.dataOcorrencia)
-          : formatDateAnual(f.dataOcorrencia)
-        : f.ocorrenciaDiaria.map((d) => diasSemanaMap[d]).join(", "),
-  }));
-
-  const tabelaColunas: ColunaTabela<(typeof tabelaDados)[number]>[] = [
-    { titulo: "Titulo", chave: "titulo" },
-    { titulo: "Tipo Mov", chave: "tipoMov" },
-    { titulo: "Valor", chave: "valor" },
-    { titulo: "Tipo", chave: "tipo" },
-    { titulo: "Ocorrência", chave: "dataOcorrencia" },
-    { titulo: "Início", chave: "dataInicio" },
-    { titulo: "Fim", chave: "dataFim" },
-  ];
-
-  // ── limpar ────────────────────────────────────────────────────────────────
-
-  function limparCampos() {
+  const limparCampos = () => {
+    const { inicio, fim } = periodoDoMes();
+    setEmEdicao(null);
     setCategoriasSelecionadas([]);
     setTitulo("");
     setObservacao("");
-    setPrecoFormatado("");
-    setPreco(0);
-    setOcorrencia("1");
-    setTipo("receita");
-    setDataInicial(getNow(false));
-    setDataFinal(getNow(true));
-    setIdFixo(undefined);
-    setIdMov(undefined);
+    setValor(0);
+    setOcorrencia(OCORRENCIA.Mensal);
+    setTipo(TIPO_MOVIMENTACAO.Receita);
+    setDataInicial(inicio);
+    setDataFinal(fim);
     setMes("1");
     setDia("1");
-    setDiasSemanaSelecionados([1]);
-    setErroMsg(undefined);
-  }
-
-  // ── excluir ───────────────────────────────────────────────────────────────
-
-  const reqRemovMovFixa = async () => {
-    let erro: string | undefined = undefined;
-    setIsLoading(true);
-    setErroMsg(undefined);
-    try {
-      const resposta = await api<ApiResult<Movimentacao>>(
-        `/Contas/${conta?.idConta}/Movimentacoes/Fixa/${idFixo}/Alterar${ocorrencia === "0" ? "/Diario" : ""}`,
-        "PATCH",
-        { status: 1 },
-      );
-      if (resposta.sucesso) {
-        await buscaFixas();
-        limparCampos();
-        setHabilitaEdicao(false);
-      } else {
-        erro = resposta!.erro || "Erro ao excluir.";
-        setErroMsg(erro);
-      }
-    } catch (error) {
-      erro = error instanceof Error ? error.message : "Erro inesperado.";
-      setErroMsg(erro);
-    } finally {
-      setIsLoading(false);
-    }
+    setDiasSemana([1]);
   };
 
-  // ── cadastrar / editar ────────────────────────────────────────────────────
-
-  const reqMovFixa = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    setIsLoading(true);
-    setErroMsg(undefined);
-    let erro: string | undefined = undefined;
-
-    const toISOString = (data: string) => new Date(data).toISOString();
-
-    try {
-      if (!habilitaEdicao) {
-        // ── cadastro ──────────────────────────────────────────────────────
-        if (ocorrencia !== "0") {
-          const request = {
-            tipo: parseInt(ocorrencia),
-            dataInicio: toISOString(dataInicial),
-            dataFim: toISOString(dataFinal),
-            dataOcorrencia: new Date(
-              2026,
-              Number(mes) - 1,
-              Number(dia),
-              12,
-              0,
-              0,
-            ).toISOString(),
-            movimentacao: {
-              tipo: tipo === "receita" ? 0 : 1,
-              valor: preco,
-              titulo,
-              observacao: obs,
-              idsCategoria: categoriasSelecionadas,
-            },
-          };
-          const resposta = await api<ApiResult<Movimentacao>>(
-            `/Contas/${conta?.idConta}/Movimentacoes/Fixa`,
-            "POST",
-            request,
-          );
-          if (!resposta.sucesso) {
-            erro = resposta!.erro || "Erro ao cadastrar movimentação.";
-            setErroMsg(erro);
-            return;
-          }
-        } else {
-          const request = {
-            dataInicio: toISOString(dataInicial),
-            dataFim: toISOString(dataFinal),
-            ocorrenciaDiaria: diasSemanaSelecionados,
-            movimentacao: {
-              tipo: tipo === "receita" ? 0 : 1,
-              valor: preco,
-              titulo,
-              observacao: obs,
-              idsCategoria: categoriasSelecionadas,
-            },
-          };
-          const resposta = await api<ApiResult<Movimentacao>>(
-            `/Contas/${conta?.idConta}/Movimentacoes/Fixa/Diarias`,
-            "POST",
-            request,
-          );
-          if (!resposta.sucesso) {
-            erro = resposta!.erro || "Erro ao cadastrar movimentação.";
-            setErroMsg(erro);
-            return;
-          }
-        }
-        await buscaFixas();
-      } else {
-        // ── edição: recorrência ───────────────────────────────────────────
-        if (ocorrencia !== "0") {
-          const request = {
-            tipo: parseInt(ocorrencia),
-            dataInicio: toISOString(dataInicial),
-            dataFim: toISOString(dataFinal),
-            dataOcorrencia: new Date(
-              2026,
-              Number(mes) - 1,
-              Number(dia),
-              12,
-              0,
-              0,
-            ).toISOString(),
-            status: status,
-          };
-          const resposta = await api<ApiResult<Movimentacao>>(
-            `/Contas/${conta?.idConta}/Movimentacoes/Fixa/${idFixo}/Alterar`,
-            "PATCH",
-            request,
-          );
-          if (!resposta.sucesso) {
-            erro = resposta!.erro || "Erro ao editar movimentação.";
-            setErroMsg(erro);
-            return;
-          }
-        } else {
-          const request = {
-            dataInicio: toISOString(dataInicial),
-            dataFim: toISOString(dataFinal),
-            ocorrenciaDiaria: diasSemanaSelecionados,
-          };
-          const resposta = await api<ApiResult<Movimentacao>>(
-            `/Contas/${conta?.idConta}/Movimentacoes/Fixa/${idFixo}/Alterar/Diario`,
-            "PATCH",
-            request,
-          );
-          if (!resposta.sucesso) {
-            erro = resposta!.erro || "Erro ao editar movimentação.";
-            setErroMsg(erro);
-            return;
-          }
-        }
-
-        // ── edição: movimentação base ─────────────────────────────────────
-        const requestEdit = {
-          tipo: tipo === "receita" ? 0 : 1,
-          valor: preco,
-          titulo,
-          observacao: obs,
+  // Devolve o erro, ou nada quando deu certo (useEnvioFormulario).
+  const salvar = async () => {
+    const datas = {
+      dataInicio: paraIsoUtc(dataInicial),
+      dataFim: paraIsoUtc(dataFinal),
+    };
+    // semanal: dias da semana; mensal/anual: tipo + dia (e mês) da ocorrência
+    const recorrencia = semanal
+      ? { ...datas, ocorrenciaDiaria: diasSemana }
+      : {
+          ...datas,
+          tipo: parseInt(ocorrencia),
+          dataOcorrencia: new Date(
+            ANO_OCORRENCIA,
+            Number(mes) - 1,
+            Number(dia),
+            12,
+          ).toISOString(),
         };
-        const respostaEdit = await api<ApiResult<Movimentacao>>(
-          `Contas/Movimentacoes/${idMov}/Alterar`,
-          "PATCH",
-          requestEdit,
+    const movimentacao = { tipo, valor, titulo, observacao };
+
+    if (!emEdicao) {
+      const resposta = await Conecta<string>(
+        semanal ? `${rotaFixas}/Diarias` : rotaFixas,
+        "POST",
+        {
+          ...recorrencia,
+          movimentacao: {
+            ...movimentacao,
+            idsCategoria: categoriasSelecionadas,
+          },
+        },
+      );
+      if (!resposta.sucesso)
+        return resposta.erro ?? "Erro ao cadastrar movimentação.";
+    } else {
+      const respostaRecorrencia = await Conecta<string>(
+        `${rotaFixas}/${emEdicao.id}/Alterar${semanal ? "/Diario" : ""}`,
+        "PATCH",
+        semanal ? recorrencia : { ...recorrencia, status: STATUS_ATIVA },
+      );
+      if (!respostaRecorrencia.sucesso)
+        return respostaRecorrencia.erro ?? "Erro ao editar movimentação.";
+
+      const idMov = emEdicao.movimentacaoBase.id;
+      const respostaBase = await Conecta<string>(
+        `Contas/Movimentacoes/${idMov}/Alterar`,
+        "PATCH",
+        movimentacao,
+      );
+      if (!respostaBase.sucesso)
+        return respostaBase.erro ?? "Erro ao editar movimentação.";
+
+      const categoriasOriginais = emEdicao.movimentacaoBase.categorias.map(
+        (c) => c.idCategoria,
+      );
+      if (!mesmasCategorias(categoriasOriginais, categoriasSelecionadas)) {
+        const respostaCategorias = await alterarCategoriasMovimentacao(
+          idMov,
+          categoriasSelecionadas,
         );
-        if (!respostaEdit.sucesso) {
-          erro = respostaEdit.erro || "Erro ao editar movimentação.";
-          setErroMsg(erro);
-          return;
-        }
-
-        // ── edição: categorias (só se mudaram) ────────────────────────────
-        const fixa = fixas.find((f) => f.id === idFixo);
-        const catOriginal =
-          fixa?.movimentacaoBase.categorias.map((c) => c.idCategoria) ?? [];
-        if (
-          JSON.stringify([...catOriginal].sort()) !==
-          JSON.stringify([...categoriasSelecionadas].sort())
-        ) {
-          const respostaCat = await api<ApiResult<Movimentacao>>(
-            `Contas/Movimentacoes/${idMov}/Alterar/Categoria`,
-            "PUT",
-            { categorias: categoriasSelecionadas },
-          );
-          if (!respostaCat.sucesso) {
-            erro = respostaCat.erro || "Erro ao atualizar categorias.";
-            setErroMsg(erro);
-            return;
-          }
-        }
-
-        await buscaFixas();
-      }
-    } catch (error) {
-      erro = error instanceof Error ? error.message : "Erro inesperado.";
-      setErroMsg(erro);
-    } finally {
-      setIsLoading(false);
-      if (erro === undefined) {
-        limparCampos();
-        setHabilitaEdicao(false);
+        if (!respostaCategorias.sucesso)
+          return respostaCategorias.erro ?? "Erro ao atualizar categorias.";
       }
     }
+
+    await buscarFixas();
+    limparCampos();
   };
 
-  // ── render ────────────────────────────────────────────────────────────────
+  const excluir = async () => {
+    const resposta = await Conecta<string>(
+      `${rotaFixas}/${emEdicao!.id}/Alterar${semanal ? "/Diario" : ""}`,
+      "PATCH",
+      { status: STATUS_EXCLUIDA },
+    );
+    if (!resposta.sucesso) return resposta.erro ?? "Erro ao excluir.";
+    await buscarFixas();
+    limparCampos();
+  };
+
+  const envio = useEnvioFormulario(salvar);
+  const exclusao = useEnvioFormulario(excluir);
+  const ocupado = envio.enviando || exclusao.enviando;
+  const erro = envio.erro ?? exclusao.erro;
 
   return (
     <div className="mf-root">
-      <TitleText text={`Movimentações Agendadas - ${conta!.titulo}`} />
+      <TituloPagina titulo={`Movimentações Agendadas - ${conta!.titulo}`} />
 
       <section className="mf-section">
         <TabelaDados
           idPreferencias="movimentacoes-fixas"
-          linhas={tabelaDados}
+          linhas={fixas.map(linhaDaTabela)}
           carregando={!fixasCarregadas}
-          colunas={tabelaColunas}
-          onClicarLinha={handleRowClick}
+          colunas={COLUNAS}
+          onClicarLinha={editar}
         />
       </section>
 
       <section className="mf-section">
         <h2 className="mf-section-title">Recorrência</h2>
         <div className="mf-group">
+          {/* só mensal por enquanto: semanal e anual estavam comentadas (o resto da tela já trata as três) */}
           <InputSelect
-            label="Tipo de Ocorrência"
-            opcoes={
-              [{ label: "Mensal", value: "1" }]
-              // ocorrencia === "0"
-              //   ? [{ label: "Semanal", value: "0" }]
-              //   : [
-              //       ...((habilitaEdicao
-              //         ? []
-              //         : [{ label: "Semanal", value: "0" }]) as {
-              //         label: string;
-              //         value: string;
-              //       }[]),
-              //       { label: "Mensal", value: "1" },
-              //       { label: "Anual", value: "2" },
-              //     ]
-            }
-            value={ocorrencia}
-            onChange={setOcorrencia}
+            rotulo="Tipo de Ocorrência"
+            opcoes={[{ rotulo: "Mensal", valor: OCORRENCIA.Mensal }]}
+            valor={ocorrencia}
+            setValor={setOcorrencia}
           />
-          <InputDate
-            label="Data Inicial"
-            text={dataInicial}
-            setText={setDataInicial}
+          <CampoDataHora
+            rotulo="Data Inicial"
+            valor={dataInicial}
+            setValor={setDataInicial}
           />
-          <InputDate
-            label="Data Final"
-            text={dataFinal}
-            setText={setDataFinal}
+          <CampoDataHora
+            rotulo="Data Final"
+            valor={dataFinal}
+            setValor={setDataFinal}
           />
         </div>
 
-        {ocorrencia === "0" && (
+        {ocorrencia === OCORRENCIA.Semanal && (
           <CheckBoxList
-            itens={diasSemana}
-            idKey="id"
-            labelKey="nome"
-            selecionados={diasSemanaSelecionados}
-            onChange={setDiasSemanaSelecionados}
-            label="Dias da Semana"
+            itens={DIAS_SEMANA}
+            chaveId="id"
+            chaveTexto="nome"
+            selecionados={diasSemana}
+            setSelecionados={setDiasSemana}
+            rotulo="Dias da Semana"
           />
         )}
-        {ocorrencia === "1" && (
+        {ocorrencia === OCORRENCIA.Mensal && (
           <InputSelect
-            label="Dia em que ocorrerá a movimentação"
-            opcoes={dias}
-            value={dia}
-            onChange={setDia}
+            rotulo="Dia em que ocorrerá a movimentação"
+            opcoes={diasDoMes}
+            valor={dia}
+            setValor={setDia}
           />
         )}
-        {ocorrencia === "2" && (
+        {ocorrencia === OCORRENCIA.Anual && (
           <div className="mf-group">
             <InputSelect
-              label="Mês"
-              opcoes={meses}
-              value={mes}
-              onChange={alterarMes}
+              rotulo="Mês"
+              opcoes={MESES}
+              valor={mes}
+              setValor={alterarMes}
             />
             <InputSelect
-              label="Dia"
-              opcoes={dias}
-              value={dia}
-              onChange={setDia}
+              rotulo="Dia"
+              opcoes={diasDoMes}
+              valor={dia}
+              setValor={setDia}
             />
           </div>
         )}
@@ -588,24 +385,7 @@ const MovimentacaoFixa: React.FC = () => {
       <section className="mf-section">
         <h2 className="mf-section-title">Movimentação</h2>
 
-        <div className="fnc-transaction-type">
-          <button
-            type="button"
-            className={`type-btn ${tipo === "receita" ? "active" : ""}`}
-            data-type="receita"
-            onClick={() => setTipo("receita")}
-          >
-            Receita
-          </button>
-          <button
-            type="button"
-            className={`type-btn ${tipo === "despesa" ? "active" : ""}`}
-            data-type="despesa"
-            onClick={() => setTipo("despesa")}
-          >
-            Despesa
-          </button>
-        </div>
+        <SeletorTipoMovimentacao valor={tipo} setValor={setTipo} />
 
         <div className="mf-group">
           <CampoTexto
@@ -614,53 +394,45 @@ const MovimentacaoFixa: React.FC = () => {
             setValor={setTitulo}
             placeholder="Ex: Salário"
           />
-          <InputPrice
-            label="Valor"
-            formattedValue={precoFormatado}
-            setFormattedValue={setPrecoFormatado}
-            setValue={setPreco}
-          />
+          <InputPrice rotulo="Valor" valor={valor} setValor={setValor} />
         </div>
 
-        <CampoTexto label="Observação" valor={obs} setValor={setObservacao} />
-
-        <CheckBoxList<Categoria>
-          itens={[...(categorias?.conteudo ?? [])]}
-          idKey="idCategoria"
-          labelKey="nome"
-          selecionados={categoriasSelecionadas}
-          onChange={setCategoriasSelecionadas}
-          label="Categorias"
+        <CampoTexto
+          label="Observação"
+          valor={observacao}
+          setValor={setObservacao}
         />
 
-        {erroMsg && <ErrorText text={erroMsg} />}
+        <CheckBoxList<Categoria>
+          itens={categorias}
+          chaveId="idCategoria"
+          chaveTexto="nome"
+          selecionados={categoriasSelecionadas}
+          setSelecionados={setCategoriasSelecionadas}
+          rotulo="Categorias"
+        />
+
+        {erro && <Alert severity="error">{erro}</Alert>}
 
         <Button
           variant="contained"
           fullWidth
-          onClick={reqMovFixa}
-          disabled={isLoading}
+          onClick={envio.enviar}
+          disabled={ocupado}
         >
-          {habilitaEdicao ? "Editar Movimentação" : "Cadastrar"}
+          {emEdicao ? "Editar Movimentação" : "Cadastrar"}
         </Button>
 
-        {habilitaEdicao && (
+        {emEdicao && (
           <>
-            <Button
-              variant="outlined"
-              onClick={() => {
-                setHabilitaEdicao(false);
-                limparCampos();
-              }}
-              disabled={isLoading}
-            >
+            <Button variant="outlined" onClick={limparCampos} disabled={ocupado}>
               Cancelar Edição
             </Button>
             <Button
               variant="contained"
               color="error"
-              onClick={reqRemovMovFixa}
-              disabled={isLoading}
+              onClick={exclusao.enviar}
+              disabled={ocupado}
             >
               Excluir
             </Button>

@@ -2,7 +2,7 @@ import type {
   ContaBancaria,
   ContaResponse,
 } from "../../models/contas-usuarios/GetContasBancarias";
-import api from "../../services/api/apiConnect";
+import Conecta from "../../services/api/apiConnect";
 
 import { useCallback, useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
@@ -12,17 +12,17 @@ import { useOrdemContas } from "./useOrdemContas";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
 
 import CadContas from "../contas-bancarias/cad-conta/CadContas";
-import ContaComponent from "../contas-bancarias/componente/conta-unitaria/ContaComponent";
+import CardConta from "../contas-bancarias/card-conta/CardConta";
 import Carregamento from "../../componentes/carregamento/Carregamento";
 import ResumoContas from "./ResumoContas";
 import "./Inicial.css";
 
 // Tela inicial: patrimônio total e as contas bancárias do usuário.
 export const Inicial: React.FC = () => {
-  const [contasObtidas, setcontasObtidas] = useState<ContaResponse | null>(
+  const [contasObtidas, setContasObtidas] = useState<ContaResponse | null>(
     null,
   );
-  const [loading, setLoading] = useState<boolean>(true);
+  const [carregando, setCarregando] = useState(true);
   // a conta continua guardada ao fechar para o título não trocar durante a animação
   const [gaveta, setGaveta] = useState<{
     aberta: boolean;
@@ -51,13 +51,13 @@ export const Inicial: React.FC = () => {
       ),
     );
   };
-  // a tela de carregamento só aparece na primeira busca (loading começa true); depois atualiza sem piscar
+  // a tela de carregamento só aparece na primeira busca (carregando começa true); depois atualiza sem piscar
   const buscaContas = useCallback(
     () =>
-      api<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
+      Conecta<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
         if (resposta.sucesso && resposta.dados)
-          setcontasObtidas(resposta.dados);
-        setLoading(false);
+          setContasObtidas(resposta.dados);
+        setCarregando(false);
       }),
     [],
   );
@@ -75,7 +75,7 @@ export const Inicial: React.FC = () => {
 
   return (
     <>
-      {loading ? (
+      {carregando ? (
         <Carregamento />
       ) : (
         <>
@@ -103,7 +103,7 @@ export const Inicial: React.FC = () => {
                   onDrop={(e) => e.preventDefault()}
                   onDragEnd={() => setIdArrastando(null)}
                 >
-                  <ContaComponent
+                  <CardConta
                     conta={conta}
                     ocultarValores={valoresOcultos}
                     onEditar={() => setGaveta({ aberta: true, conta })}

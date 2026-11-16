@@ -13,7 +13,7 @@ const COR_INICIAL = "#314158";
 
 type NovaContaRequest = { titulo: string; cor: string };
 
-type Props = {
+type PropCadContas = {
   aberto: boolean;
   onClose: () => void;
   buscaContas: () => void;
@@ -23,14 +23,14 @@ type Props = {
 
 // Gaveta da direita para cadastrar ou editar uma conta bancária: nome, cor e prévia do card.
 // O conteúdo só existe com a gaveta aberta, então os campos voltam vazios a cada abertura.
-const CadContas: React.FC<Props> = ({
+const CadContas: React.FC<PropCadContas> = ({
   aberto,
   onClose,
   buscaContas,
   conta,
 }) => (
   <Modal
-    isOpen={aberto}
+    aberto={aberto}
     onClose={onClose}
     titulo={conta ? "Editar conta" : "Nova conta"}
   >
@@ -38,7 +38,7 @@ const CadContas: React.FC<Props> = ({
   </Modal>
 );
 
-const FormularioConta: React.FC<Omit<Props, "aberto">> = ({
+const FormularioConta: React.FC<Omit<PropCadContas, "aberto">> = ({
   onClose,
   buscaContas,
   conta,

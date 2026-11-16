@@ -1,8 +1,8 @@
 import dayjs from "dayjs";
-import { Box, Button, ButtonGroup, Icon, Stack, Tooltip } from "@mui/material";
+import { Box, Button, ButtonGroup, Icon, Tooltip } from "@mui/material";
 
 import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
-import { FORMATO_DATA_HORA } from "../../../utils/formatacao";
+import { periodoDoMes } from "../../../utils/formatacao";
 
 type PropFiltroPeriodo = {
   dataInicial: string; // FORMATO_DATA_HORA
@@ -21,17 +21,25 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
 }) => {
   // do dia 1 às 00:00 ao último dia às 23:59, partindo do mês da data inicial
   const moverMes = (meses: number) => {
-    const mes = dayjs(dataInicial).add(meses, "month");
-    setDataInicial(mes.startOf("month").format(FORMATO_DATA_HORA));
-    setDataFinal(mes.endOf("month").format(FORMATO_DATA_HORA));
+    const { inicio, fim } = periodoDoMes(dayjs(dataInicial).add(meses, "month"));
+    setDataInicial(inicio);
+    setDataFinal(fim);
   };
 
   return (
-    <Stack
-      direction="row"
-      spacing={1}
+    <Box
       sx={{
-        flexWrap: "wrap",
+        // grade: as duas datas ficam em colunas 1fr, sempre com a mesma largura.
+        // Celular: uma data por linha, setas ao lado da final. Maior: tudo numa linha.
+        display: "grid",
+        gridTemplateColumns: { xs: "1fr auto", sm: "1fr 1fr auto" },
+        gridTemplateAreas: {
+          xs: '"inicial ." "final setas"',
+          sm: '"inicial final setas"',
+        },
+        alignItems: "end", // pelo pé: os rótulos ficam acima dos campos, as setas não têm rótulo
+        gap: 1,
+        width: { xs: "100%", sm: "auto" },
         // versão compacta do campo do tema (que tem ~48px de altura)
         "& .MuiPickersOutlinedInput-root": {
           height: 36, // os chips de filtro usam a mesma altura
@@ -44,56 +52,54 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
         "& .MuiPickersInputBase-root .MuiSvgIcon-root": { fontSize: 18 },
       }}
     >
-      {/* largura do conteúdo: sem sobra entre a data e o ícone */}
-      <Box sx={{ width: "fit-content" }}>
+      <Box sx={{ gridArea: "inicial", minWidth: 0 }}>
         <CampoDataHora
-          label="Data inicial"
+          rotulo="Data inicial"
           valor={dataInicial}
           setValor={setDataInicial}
           maximo={dataFinal}
         />
       </Box>
-      <Box sx={{ width: "fit-content" }}>
-        {/* com acoes, o rótulo fica por fora e os botões ficam da altura do campo */}
+      <Box sx={{ gridArea: "final", minWidth: 0 }}>
         <CampoDataHora
-          label="Data final"
+          rotulo="Data final"
           valor={dataFinal}
           setValor={setDataFinal}
           minimo={dataInicial}
-          acoes={
-            <ButtonGroup
-              variant="outlined"
-              aria-label="Navegar entre meses"
-              sx={{
-                "& .MuiButton-root": {
-                  height: "auto", // o tema fixa 40px; aqui acompanha o campo
-                  minWidth: 34,
-                  px: 0.5,
-                  bgcolor: "var(--fnc-tx-superficie)",
-                  borderColor: "var(--fnc-tx-botao-borda)",
-                  color: "var(--fnc-tx-chip-texto)",
-                  "&:hover": {
-                    bgcolor: "var(--fnc-tx-chip-fundo)",
-                    borderColor: "var(--fnc-tx-botao-borda)",
-                  },
-                },
-              }}
-            >
-              <Tooltip title="Mês anterior">
-                <Button aria-label="Mês anterior" onClick={() => moverMes(-1)}>
-                  <Icon>chevron_left</Icon>
-                </Button>
-              </Tooltip>
-              <Tooltip title="Próximo mês">
-                <Button aria-label="Próximo mês" onClick={() => moverMes(1)}>
-                  <Icon>chevron_right</Icon>
-                </Button>
-              </Tooltip>
-            </ButtonGroup>
-          }
         />
       </Box>
-    </Stack>
+      <ButtonGroup
+        variant="outlined"
+        aria-label="Navegar entre meses"
+        sx={{
+          gridArea: "setas",
+          height: 36, // a altura dos campos compactos
+          "& .MuiButton-root": {
+            height: "100%",
+            minWidth: 34,
+            px: 0.5,
+            bgcolor: "var(--fnc-tx-superficie)",
+            borderColor: "var(--fnc-tx-botao-borda)",
+            color: "var(--fnc-tx-chip-texto)",
+            "&:hover": {
+              bgcolor: "var(--fnc-tx-chip-fundo)",
+              borderColor: "var(--fnc-tx-botao-borda)",
+            },
+          },
+        }}
+      >
+        <Tooltip title="Mês anterior">
+          <Button aria-label="Mês anterior" onClick={() => moverMes(-1)}>
+            <Icon>chevron_left</Icon>
+          </Button>
+        </Tooltip>
+        <Tooltip title="Próximo mês">
+          <Button aria-label="Próximo mês" onClick={() => moverMes(1)}>
+            <Icon>chevron_right</Icon>
+          </Button>
+        </Tooltip>
+      </ButtonGroup>
+    </Box>
   );
 };
 

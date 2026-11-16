@@ -22,7 +22,7 @@ const estiloCampo = (Cores: Paleta, theme: Theme) => ({
   },
 });
 
-// Tema do MUI com o visual dos componentes antigos (InputText / LabelText), no modo claro ou escuro.
+// Tema do MUI do app, no modo claro ou escuro.
 export const criarTema = (modo: ModoCor) => {
   const Cores = modo === "claro" ? CoresClaro : CoresEscuro;
 
@@ -51,7 +51,7 @@ export const criarTema = (modo: ModoCor) => {
           },
         },
       },
-      // Label fixo acima do campo, como o LabelText.
+      // Label fixo acima do campo (13px, cor de apoio).
       MuiInputLabel: {
         defaultProps: { shrink: true },
         styleOverrides: {
@@ -95,7 +95,7 @@ export const criarTema = (modo: ModoCor) => {
           sectionsContainer: { padding: "13px 0" },
         },
       },
-      // Texto do checkbox com o visual do LabelText.
+      // Texto do checkbox com o mesmo visual do label dos campos.
       MuiFormControlLabel: {
         styleOverrides: {
           label: {

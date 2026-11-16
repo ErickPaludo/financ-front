@@ -1,73 +1,52 @@
-import React, { useContext, useState } from "react";
-import TitleText from "../../../props/title-text/TitleText";
-import CampoTexto from "../../../props/campo-texto/CampoTexto";
-import InputSelect from "../../../props/input-select/InputSelect";
-import { Button } from "@mui/material";
-import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
-import api from "../../../services/api/apiConnect";
+import { useContext, useState } from "react";
+import { Alert, Button, Stack } from "@mui/material";
+
+import Conecta from "../../../services/api/apiConnect";
 import { ContaContext } from "../../../contexts/ContaContext";
-import ErrorText from "../../../props/error-text/ErrorText";
-
-type ConviteCadastroResponse = {
-  valor: ConviteCadastroValor;
-};
-
-type ConviteCadastroValor = {
-  idConvite: number;
-  permissao: number;
-};
+import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
+import CampoExpiracao from "../../../props/campo-expiracao/CampoExpiracao";
+import InputSelect from "../../../props/input-select/InputSelect";
+import { OPCOES_PERMISSAO, PERMISSAO } from "../../../utils/permissao";
 
 type ConviteCadastroRequest = {
   idConta: number;
   emailDestinatario: string;
   acesso: number;
-  expiracaoContaUsuario?: number | null;
+  expiracaoContaUsuario: number | null;
 };
 
 type PropCadConvite = {
-  setIsCadInvite: (value: boolean) => void;
+  onClose: () => void;
 };
 
-const CadConvite: React.FC<PropCadConvite> = ({ setIsCadInvite }) => {
+// Convite para outro usuário entrar na conta selecionada (gaveta da tela da conta).
+const CadConvite: React.FC<PropCadConvite> = ({ onClose }) => {
   const { conta } = useContext(ContaContext);
   const [email, setEmail] = useState("");
-  const [acesso, setAcesso] = useState<number>(1);
-  const [checkExpiracao, setCheckExpiracao] = useState(false);
-  const [tempoExpiracao, setTempoExpiracao] = useState<string>("15");
-  const [msgError, setMsgError] = useState<string | null>(null);
+  const [acesso, setAcesso] = useState<number>(PERMISSAO.Administrador);
+  const [expira, setExpira] = useState(false);
+  const [minutosExpiracao, setMinutosExpiracao] = useState("15");
 
-  const cadastrarConvite = async () => {
-    try {
-      if (!email) {
-        setMsgError("O email é obrigatório.");
-        return;
-      }
-      const request: ConviteCadastroRequest = {
-        acesso: acesso,
-        emailDestinatario: email,
-        idConta: conta!.idConta,
-        expiracaoContaUsuario:
-          checkExpiracao === true ? parseInt(tempoExpiracao) : null,
-      };
+  const cadastrar = async () => {
+    if (!email) return "O email é obrigatório.";
 
-      const resposta = await api<ConviteCadastroResponse>(
-        `/Convites`,
-        "POST",
-        request,
-      );
-      if (resposta.sucesso && resposta.dados) {
-        setIsCadInvite(false);
-      } else {
-        setMsgError(resposta!.erro!);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
-    }
+    const corpo: ConviteCadastroRequest = {
+      idConta: conta!.idConta,
+      emailDestinatario: email,
+      acesso,
+      expiracaoContaUsuario: expira ? parseInt(minutosExpiracao) : null,
+    };
+    const resposta = await Conecta<unknown>("/Convites", "POST", corpo);
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível enviar o convite.";
+    onClose();
   };
 
+  const envio = useEnvioFormulario(cadastrar);
+
   return (
-    <>
-      <TitleText text="Cadastro de Convite" />
+    <Stack component="form" onSubmit={envio.enviar} noValidate spacing={2}>
       <CampoTexto
         label="Email do usuário"
         valor={email}
@@ -78,36 +57,30 @@ const CadConvite: React.FC<PropCadConvite> = ({ setIsCadInvite }) => {
       />
 
       <InputSelect
-        label="Permissão"
-        opcoes={[
-          { label: "Administrador", value: "1" },
-          { label: "Visualizador", value: "2" },
-          { label: "Mestre", value: "0" },
-        ]}
-        onChange={(valor) => setAcesso(parseInt(valor))}
-        value={String(acesso)}
+        rotulo="Permissão"
+        opcoes={OPCOES_PERMISSAO}
+        valor={String(acesso)}
+        setValor={(valor) => setAcesso(parseInt(valor))}
       />
 
-      <InputCheckBox
-        label="Tempo de expiração"
-        checked={checkExpiracao}
-        setChecked={setCheckExpiracao}
+      <CampoExpiracao
+        ativo={expira}
+        setAtivo={setExpira}
+        minutos={minutosExpiracao}
+        setMinutos={setMinutosExpiracao}
       />
 
-      {checkExpiracao && (
-        <CampoTexto
-          label="Tempo de expiração em minutos"
-          valor={tempoExpiracao}
-          setValor={setTempoExpiracao}
-          type="number"
-        />
-      )}
-      {msgError && <ErrorText text={msgError} />}
+      {envio.erro && <Alert severity="error">{envio.erro}</Alert>}
 
-      <Button variant="contained" fullWidth onClick={cadastrarConvite}>
-        Cadastrar
+      <Button
+        type="submit"
+        variant="contained"
+        fullWidth
+        disabled={envio.enviando}
+      >
+        {envio.enviando ? "Cadastrando..." : "Cadastrar"}
       </Button>
-    </>
+    </Stack>
   );
 };
 

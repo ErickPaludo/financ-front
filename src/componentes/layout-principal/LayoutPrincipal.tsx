@@ -8,7 +8,7 @@ import {
 } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 
-import api from "../../services/api/apiConnect";
+import Conecta from "../../services/api/apiConnect";
 import type { UsuarioResponse3 } from "../../models/usuario/UsuarioResponse";
 import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
 import { AuthContext } from "../../contexts/AuthContext";
@@ -16,7 +16,6 @@ import { ContaContext } from "../../contexts/ContaContext";
 import Carregamento from "../carregamento/Carregamento";
 import BarraLateral from "../barra-lateral/BarraLateral";
 import MsgBox from "../../props/msg-box/MsgBox";
-import { TypeMsgBox } from "../../props/msg-box/TypeMsgBox";
 import { criarTema, tema as temaEscuro } from "../../tema";
 import { CoresClaro, CoresEscuro, variaveisTelas } from "../../cores";
 import { useModoCor } from "../../hooks/useModoCor";
@@ -33,7 +32,7 @@ const temFundoDesfocado = (rota: string) =>
 // Estrutura das telas logadas: barra lateral + a tela da rota atual (Outlet).
 const LayoutPrincipal: React.FC = () => {
   const { user, logout, setUser, inicializando } = useContext(AuthContext);
-  const { conta, removeConta } = useContext(ContaContext);
+  const { conta, limparConta } = useContext(ContaContext);
   const navigate = useNavigate();
   const rotaAtual = useLocation().pathname;
 
@@ -56,24 +55,24 @@ const LayoutPrincipal: React.FC = () => {
   const [erroMsg, setErroMsg] = useState<string | null>(null);
 
   const buscarUsuario = async () => {
-    const resposta = await api<UsuarioResponse3>("/Usuarios/me", "GET");
+    const resposta = await Conecta<UsuarioResponse3>("/Usuarios/me", "GET");
     if (resposta.sucesso && resposta.dados) setUser(resposta.dados);
   };
 
   const deslogar = async () => {
-    await api("/Autenticacao/revoke", "POST");
+    await Conecta("/Autenticacao/revoke", "POST");
     logout();
-    removeConta();
+    limparConta();
     navigate("/login", { replace: true });
   };
 
   const sairDaContaBancaria = async () => {
-    const resposta = await api<string>(
+    const resposta = await Conecta<string>(
       `/ContasUsuarios/${conta?.idConta}/sair`,
       "POST",
     );
     if (resposta.sucesso) {
-      removeConta();
+      limparConta();
       navigate("/inicial");
     } else {
       setErroMsg(resposta.erro ?? "Não foi possível sair da conta");
@@ -108,10 +107,10 @@ const LayoutPrincipal: React.FC = () => {
       <div className="layout-principal">
         {erroMsg && (
           <MsgBox
-            title="Ocorreu um problema!"
-            description={erroMsg}
-            type={TypeMsgBox.Ok}
-            centerlize={true}
+            titulo="Ocorreu um problema!"
+            descricao={erroMsg}
+            tipo="aviso"
+            centralizar
           />
         )}
 
@@ -155,7 +154,7 @@ export const ContaDaRota: React.FC = () => {
   useEffect(() => {
     if (carregada || !Number.isInteger(id)) return;
     let ativo = true;
-    api<ContaResponse>(`/ContasUsuarios?id=${id}`, "GET").then((resposta) => {
+    Conecta<ContaResponse>(`/ContasUsuarios?id=${id}`, "GET").then((resposta) => {
       if (!ativo) return;
       const encontrada = resposta.dados?.conteudo.contas[0];
       if (encontrada?.idConta === id && encontrada.status === 0)

@@ -22,33 +22,18 @@ import {
   Typography,
 } from "@mui/material";
 
-import { AuthContext } from "../../../../contexts/AuthContext";
-import { ContaContext } from "../../../../contexts/ContaContext";
-import type { ContaBancaria } from "../../../../models/contas-usuarios/GetContasBancarias";
-import type { GetContaUsuario } from "../../../../models/contas-usuarios/GetContaUsuario";
-import api from "../../../../services/api/apiConnect";
-import { exibirMoeda } from "../../../../utils/formatacao";
-import { corParaTextoBranco } from "../../../../utils/corCategoria";
-
-const formatarDataHora = (dataUtc: string) =>
-  new Date(dataUtc)
-    .toLocaleString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    })
-    .replace(",", ""); // "16/11/2026 14:05", como antes
-
-// "Conta Nubank Pessoal" -> "CP"; uma palavra só -> a primeira letra
-const iniciais = (nome: string) => {
-  const palavras = nome.trim().split(/\s+/);
-  return (
-    (palavras[0]?.[0] ?? "") +
-    (palavras.length > 1 ? palavras[palavras.length - 1][0] : "")
-  ).toUpperCase();
-};
+import { AuthContext } from "../../../contexts/AuthContext";
+import { ContaContext } from "../../../contexts/ContaContext";
+import type { ContaBancaria } from "../../../models/contas-usuarios/GetContasBancarias";
+import Conecta from "../../../services/api/apiConnect";
+import { buscarContaUsuario } from "../../../services/contas/contaUsuarioService";
+import {
+  exibirMoeda,
+  formatarDataHora,
+  iniciais,
+} from "../../../utils/formatacao";
+import { corParaTextoBranco } from "../../../utils/corCategoria";
+import { PERMISSAO } from "../../../utils/permissao";
 
 type PropBloco = {
   seta: string;
@@ -115,17 +100,15 @@ const Bloco: React.FC<PropBloco> = ({
   );
 };
 
-type Props = {
+type PropCardConta = {
   conta: ContaBancaria;
   ocultarValores?: boolean;
   onEditar: () => void; // abre a edição de nome e cor
   onAlterada: () => void; // depois de favoritar ou mudar a soma do saldo
 };
 
-const PERMISSAO_ADMIN = 0;
-
 // Card de uma conta bancária na tela inicial. Clicar abre as movimentações (só contas ativas).
-const ContaComponent: React.FC<Props> = ({
+const CardConta: React.FC<PropCardConta> = ({
   conta,
   ocultarValores = false,
   onEditar,
@@ -143,17 +126,14 @@ const ContaComponent: React.FC<Props> = ({
 
   const abrirMenu = async (elemento: HTMLElement) => {
     setAncoraMenu(elemento);
-    // a permissão não vem na lista de contas; só admin edita nome e cor
-    const resposta = await api<GetContaUsuario>(
-      `/ContasUsuarios/${conta.idConta}/associados?IdUsuario=${user?.id}`,
-      "GET",
-    );
-    setAdmin(resposta.dados?.conteudo[0]?.permissao === PERMISSAO_ADMIN);
+    // a permissão não vem na lista de contas; só o mestre edita nome e cor
+    const resposta = await buscarContaUsuario(conta.idConta, user?.id);
+    setAdmin(resposta.dados?.conteudo[0]?.permissao === PERMISSAO.Mestre);
   };
 
   const executar = async (rota: string, mensagemErro: string) => {
     setAncoraMenu(null);
-    const resposta = await api<string>(rota, "POST");
+    const resposta = await Conecta<string>(rota, "POST");
     if (resposta.sucesso) onAlterada();
     else setErro(resposta.erro ?? mensagemErro);
   };
@@ -437,4 +417,4 @@ const ContaComponent: React.FC<Props> = ({
   );
 };
 
-export default ContaComponent;
+export default CardConta;

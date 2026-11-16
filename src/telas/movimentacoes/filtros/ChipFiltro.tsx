@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button, Icon, Menu, MenuItem } from "@mui/material";
 
+import type { OpcaoSelect } from "../../../props/input-select/InputSelect";
+
 type PropChipFiltro = {
   texto: string;
   aberto: boolean;
@@ -36,13 +38,11 @@ export const ChipFiltro: React.FC<PropChipFiltro> = ({
   </Button>
 );
 
-type Opcao = { label: string; value: string };
-
 type PropChipSelect = {
   rotulo: string;
   valor: string;
-  opcoes: Opcao[];
-  onChange: (valor: string) => void;
+  opcoes: OpcaoSelect[];
+  setValor: (valor: string) => void;
 };
 
 // Chip + menu de escolha única (Status, Tipo).
@@ -50,10 +50,10 @@ export const ChipSelect: React.FC<PropChipSelect> = ({
   rotulo,
   valor,
   opcoes,
-  onChange,
+  setValor,
 }) => {
   const [ancora, setAncora] = useState<HTMLElement | null>(null);
-  const atual = opcoes.find((o) => o.value === valor)?.label ?? valor;
+  const atual = opcoes.find((o) => o.valor === valor)?.rotulo ?? valor;
 
   return (
     <>
@@ -70,15 +70,15 @@ export const ChipSelect: React.FC<PropChipSelect> = ({
       >
         {opcoes.map((o) => (
           <MenuItem
-            key={o.value}
-            selected={o.value === valor}
+            key={o.valor}
+            selected={o.valor === valor}
             onClick={() => {
-              onChange(o.value);
+              setValor(o.valor);
               setAncora(null);
             }}
             sx={{ minHeight: 44 }}
           >
-            {o.label}
+            {o.rotulo}
           </MenuItem>
         ))}
       </Menu>

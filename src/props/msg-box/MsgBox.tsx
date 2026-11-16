@@ -7,28 +7,28 @@ import {
   DialogContentText,
   DialogTitle,
 } from "@mui/material";
-import { TypeMsgBox } from "./TypeMsgBox";
 
 interface PropMsgBox {
-  title: string;
-  description?: string;
-  type: TypeMsgBox;
-  centerlize?: boolean;
-  onQuestion?: (value: boolean) => void;
+  titulo: string;
+  descricao?: string;
+  // "pergunta": Sim/Não; "aviso": só Ok
+  tipo: "pergunta" | "aviso";
+  centralizar?: boolean;
+  aoResponder?: (sim: boolean) => void;
 }
 
 // Aviso (Ok) ou pergunta (Sim/Não). Fechar sem responder conta como "Não".
 const MsgBox: React.FC<PropMsgBox> = ({
-  title,
-  description,
-  type,
-  centerlize = false,
-  onQuestion,
+  titulo,
+  descricao,
+  tipo,
+  centralizar = false,
+  aoResponder,
 }) => {
   const [aberto, setAberto] = useState(true);
 
-  const responder = (valor: boolean) => {
-    onQuestion?.(valor);
+  const responder = (sim: boolean) => {
+    aoResponder?.(sim);
     setAberto(false);
   };
 
@@ -39,16 +39,18 @@ const MsgBox: React.FC<PropMsgBox> = ({
       fullWidth
       maxWidth="xs"
     >
-      <DialogTitle sx={{ fontWeight: 700 }}>{title}</DialogTitle>
-      {description && (
+      <DialogTitle sx={{ fontWeight: 700 }}>{titulo}</DialogTitle>
+      {descricao && (
         <DialogContent>
-          <DialogContentText sx={{ textAlign: centerlize ? "center" : "left" }}>
-            {description}
+          <DialogContentText
+            sx={{ textAlign: centralizar ? "center" : "left" }}
+          >
+            {descricao}
           </DialogContentText>
         </DialogContent>
       )}
       <DialogActions sx={{ px: 3, pb: 2 }}>
-        {type === TypeMsgBox.Question ? (
+        {tipo === "pergunta" ? (
           <>
             <Button color="inherit" onClick={() => responder(false)}>
               Não

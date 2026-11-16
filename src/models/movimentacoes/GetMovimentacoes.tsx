@@ -24,15 +24,16 @@ export type UsuarioCriador = {
   nomeCompleto: string;
 };
 
-export type Categoria = {
-  idCategoria: number;
-  nome: string;
-  cor: string;
-};
+import type { Categoria } from "../categorias/Categorias";
+
+export type { Categoria };
+
+// tipo da movimentação como vem da API
+export const TIPO_MOVIMENTACAO = { Receita: 0, Despesa: 1 } as const;
 
 export type Movimentacao = {
   id: number;
-  tipo: number; // ideal: enum depois
+  tipo: number; // TIPO_MOVIMENTACAO
   idConta: number;
   idFixo: number;
   concluido: boolean;
@@ -57,29 +58,3 @@ export type GetMovimentacoes = {
   metadados: unknown;
 };
 
-type MovimentacaoDash = {
-  entrada: number;
-  saida: number;
-};
-
-type DashboardItem = {
-  ano: number;
-  mes: number;
-  movimentacao: MovimentacaoDash;
-};
-
-type Conta = {
-  idConta: number;
-  titulo: string;
-  cor: string;
-};
-
-type Conteudo = {
-  conta: Conta;
-  dashboard: DashboardItem[];
-};
-
-export type DashboardResponse = {
-  conteudo: Conteudo;
-  metadados: unknown | null;
-};

@@ -1,141 +1,110 @@
 import { useContext, useState } from "react";
+import { Alert, Button, Stack } from "@mui/material";
+
+import Conecta from "../../../services/api/apiConnect";
+import type { ContaUsuario } from "../../../models/contas-usuarios/GetContaUsuario";
 import { ContaContext } from "../../../contexts/ContaContext";
-import TitleText from "../../../props/title-text/TitleText";
+import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
 import InputSelect from "../../../props/input-select/InputSelect";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
-import { Button } from "@mui/material";
-import CampoTexto from "../../../props/campo-texto/CampoTexto";
-import api from "../../../services/api/apiConnect";
-import ErrorText from "../../../props/error-text/ErrorText";
-import "./EditMembro.css";
+import CampoExpiracao from "../../../props/campo-expiracao/CampoExpiracao";
+import { OPCOES_PERMISSAO } from "../../../utils/permissao";
+
+const OPCOES_STATUS = [
+  { rotulo: "Ativo", valor: "0" },
+  { rotulo: "Inativo", valor: "1" },
+];
+
 type PropEditMembro = {
-  setOpen: (value: boolean) => void;
+  membro: ContaUsuario;
+  onClose: () => void;
 };
 
-const EditMembro: React.FC<PropEditMembro> = ({ setOpen }) => {
-  const { conta, membro } = useContext(ContaContext);
+// Gaveta do mestre para mudar permissão, status e expiração de um membro, ou expulsá-lo.
+// A gaveta monta o formulário de novo a cada abertura, já com o membro escolhido.
+const EditMembro: React.FC<PropEditMembro> = ({ membro, onClose }) => {
+  const { conta } = useContext(ContaContext);
+  const [acesso, setAcesso] = useState(membro.permissao);
+  const [status, setStatus] = useState(membro.status);
+  const [removerExpiracao, setRemoverExpiracao] = useState(false);
+  const [expira, setExpira] = useState(false);
+  const [minutosExpiracao, setMinutosExpiracao] = useState("15");
+  const [expulsar, setExpulsar] = useState(false);
+  const rotaConta = `/ContasUsuarios/${conta!.idConta}`;
 
-  // a gaveta monta o formulário de novo a cada abertura, já com o membro escolhido
-  const [acesso, setAcesso] = useState<number>(membro?.permissao ?? 0);
-  const [status, setStatus] = useState<number>(membro?.status ?? 0);
-
-  const [expirarAcesso, setExpirarAcesso] = useState<boolean>(false);
-
-  const [checkExpiracao, setCheckExpiracao] = useState<boolean>(false);
-  const [tempoExpiracao, setTempoExpiracao] = useState<string>("15");
-
-  const [expulsar, setExpulsar] = useState<boolean>(false);
-  const [erroMsg, setErroMsg] = useState<string | null>(null);
-
-  const alteraUsuario = async () => {
-    try {
-      if (expulsar) {
-        const resposta = await api<{
-          idConta: number;
-          acesso: number;
-          idUsuario: string;
-        }>(`/ContasUsuarios/${conta?.idConta}/expurgo`, "POST", {
-          idUsuarioDestinatario: membro!.idUsuario,
-        });
-        if (resposta.sucesso && resposta.dados) {
-          setOpen(false);
-          return;
-        }
-      }
-
-      const request = {
-        idUsuarioAlterado: membro!.idUsuario,
-        acesso: acesso,
-        status: status,
-        expiracao: checkExpiracao === true ? parseInt(tempoExpiracao) : null,
-        removerExpiracao: membro?.expiracao
-          ? expirarAcesso
-            ? true
-            : false
-          : false,
-      };
-
-      console.log(request);
-
-      const resposta = await api<{
-        idConta: number;
-        acesso: number;
-        idUsuario: string;
-      }>(`/ContasUsuarios/${conta?.idConta}/alterar`, "PATCH", request);
-
-      if (resposta.sucesso && resposta.dados) {
-        setOpen(false);
-      } else {
-        setErroMsg(resposta!.erro!);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
+  const salvar = async () => {
+    if (expulsar) {
+      const resposta = await Conecta<unknown>(`${rotaConta}/expurgo`, "POST", {
+        idUsuarioDestinatario: membro.idUsuario,
+      });
+      if (!resposta.sucesso)
+        return resposta.erro ?? "Não foi possível expulsar o usuário.";
+      onClose();
+      return;
     }
+
+    const resposta = await Conecta<unknown>(`${rotaConta}/alterar`, "PATCH", {
+      idUsuarioAlterado: membro.idUsuario,
+      acesso,
+      status,
+      expiracao: expira ? parseInt(minutosExpiracao) : null,
+      removerExpiracao: Boolean(membro.expiracao) && removerExpiracao,
+    });
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível alterar o usuário.";
+    onClose();
   };
 
+  const envio = useEnvioFormulario(salvar);
+
   return (
-    <>
-      <div className="fnc-edit-user">
-        <TitleText text="Alterar Usuario"></TitleText>
+    <Stack component="form" onSubmit={envio.enviar} noValidate spacing={2}>
+      <InputSelect
+        rotulo="Permissão"
+        opcoes={OPCOES_PERMISSAO}
+        valor={String(acesso)}
+        setValor={(valor) => setAcesso(parseInt(valor))}
+      />
 
-        <InputSelect
-          label="Permissão"
-          opcoes={[
-            { label: "Administrador", value: "1" },
-            { label: "Visualizador", value: "2" },
-            { label: "Mestre", value: "0" },
-          ]}
-          value={String(acesso)} // ← aqui
-          onChange={(valor) => setAcesso(parseInt(valor))}
-        />
+      <InputCheckBox
+        rotulo="Expulsar usuário"
+        marcado={expulsar}
+        setMarcado={setExpulsar}
+      />
 
+      <InputSelect
+        rotulo="Status"
+        opcoes={OPCOES_STATUS}
+        valor={String(status)}
+        setValor={(valor) => setStatus(parseInt(valor))}
+      />
+
+      {membro.expiracao ? (
         <InputCheckBox
-          label="Expulsar usuário"
-          checked={expulsar}
-          setChecked={setExpulsar}
+          rotulo="Remover expiração"
+          marcado={removerExpiracao}
+          setMarcado={setRemoverExpiracao}
         />
-
-        <InputSelect
-          label="Status"
-          opcoes={[
-            { label: "Ativo", value: "0" },
-            { label: "Inativo", value: "1" },
-          ]}
-          onChange={(valor) => setStatus(parseInt(valor))}
-          value={String(status)}
+      ) : (
+        <CampoExpiracao
+          ativo={expira}
+          setAtivo={setExpira}
+          minutos={minutosExpiracao}
+          setMinutos={setMinutosExpiracao}
         />
+      )}
 
-        {membro?.expiracao && (
-          <InputCheckBox
-            checked={expirarAcesso}
-            label="Remover expiração"
-            setChecked={setExpirarAcesso}
-          />
-        )}
-        {!membro?.expiracao && (
-          <>
-            <InputCheckBox
-              label="Tempo de expiração"
-              checked={checkExpiracao}
-              setChecked={setCheckExpiracao}
-            />
+      {envio.erro && <Alert severity="error">{envio.erro}</Alert>}
 
-            {checkExpiracao && (
-              <CampoTexto
-                label="Tempo de expiração em minutos"
-                valor={tempoExpiracao}
-                setValor={setTempoExpiracao}
-                type="number"
-              />
-            )}
-          </>
-        )}
-        {erroMsg && <ErrorText text={erroMsg} />}
-        <Button variant="contained" fullWidth onClick={alteraUsuario}>
-          Alterar Usuário
-        </Button>
-      </div>
-    </>
+      <Button
+        type="submit"
+        variant="contained"
+        fullWidth
+        disabled={envio.enviando}
+      >
+        Alterar Usuário
+      </Button>
+    </Stack>
   );
 };
 

@@ -157,24 +157,6 @@
   margin-top: -20px;
 }
 
-.fnc-login-card .fnc-login-remember {
-  margin-left: -9px; /* alinha o checkbox com a borda dos campos */
-}
-
-.fnc-login-card .fnc-login-remember .MuiFormControlLabel-label {
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--fnc-login-label);
-}
-
-.fnc-login-card .fnc-login-remember .MuiCheckbox-root {
-  color: var(--fnc-login-campoBorda);
-}
-
-.fnc-login-card .fnc-login-remember .MuiCheckbox-root.Mui-checked {
-  color: var(--fnc-login-primaria);
-}
-
 .fnc-login-card .fnc-login-link {
   display: inline-flex;
   align-items: center;

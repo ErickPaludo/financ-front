@@ -28,13 +28,9 @@ export type CoresTelas = Record<
   | "apoioSuperficie"
   | "superficie"
   | "cabecalho" // cabeçalho das tabelas
-  | "borda"
   | "bordaSuave"
   | "apagado"
-  | "linhaHover"
-  | "positivo"
-  | "negativo"
-  | "neutro",
+  | "linhaHover",
   string
 >;
 
@@ -175,13 +171,9 @@ export const CoresEscuro: Paleta = {
     apoioSuperficie: "#90a1b9",
     superficie: "rgba(29, 41, 61, 0.7)",
     cabecalho: "#314158",
-    borda: "#45556c",
     bordaSuave: "rgba(49, 65, 88, 0.5)",
     apagado: "#62748e",
     linhaHover: "rgba(255, 255, 255, 0.03)",
-    positivo: "#00d492",
-    negativo: "#ff4b4b",
-    neutro: "#2b7fff",
   },
   // o layout "Azul claro" adaptado ao escuro: mesmas superfícies das outras telas escuras
   transacoes: {
@@ -269,7 +261,7 @@ export const CoresClaro: Paleta = {
   // Como o card de resumo da tela inicial: cards, tabelas e seções na cor primária sólida,
   // texto branco e rótulos azul-claro. Os campos são do MUI (CampoTexto) e seguem o tema.
   telas: {
-    pagina: "#f4f7fb", // branco gelo: os cards brancos se destacam do fundo
+    pagina: "#eaf0f7", // branco gelo (puxado para o azul): os cards brancos se destacam do fundo
     // texto direto sobre a página branca; cards e tabelas usam textoSuperficie
     texto: "#0f172b",
     apoio: "#475569",
@@ -278,14 +270,9 @@ export const CoresClaro: Paleta = {
     superficie: primaria.principal,
     // sólido (= branco 12% sobre a primária): o cabeçalho fixo não pode deixar ver as linhas rolando por baixo
     cabecalho: "#3170fc",
-    borda: "#cbd5e1",
     bordaSuave: "rgba(255, 255, 255, 0.2)",
     apagado: "#bedbff",
     linhaHover: "rgba(255, 255, 255, 0.08)",
-    // verde e vermelho claros: legíveis sobre o azul primário
-    positivo: "#7bf1a8",
-    negativo: "#ffa2a2",
-    neutro: "#ffffff",
   },
   transacoes: {
     // sem camada, como no escuro: a 85% ela apagava a logo da marca d'água
@@ -345,6 +332,3 @@ export const variaveisTelas = (paleta: Paleta) =>
     ...variaveis("", paleta.telas),
     ...variaveis("tx-", paleta.transacoes),
   ]) as CSSProperties;
-
-// As telas fora do login ainda só existem no modo escuro.
-export const Cores = CoresEscuro;

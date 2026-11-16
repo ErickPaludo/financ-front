@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Alert,
   Box,
@@ -12,14 +12,12 @@ import {
 import TabelaPesquisa from "../../componentes/tabela-pesquisa/TabelaPesquisa";
 
 import Conecta from "../../services/api/apiConnect";
-import type {
-  Categoria,
-  CategoriaResponse,
-} from "../../models/categorias/Categorias";
+import type { Categoria } from "../../models/categorias/Categorias";
 import CampoTexto from "../../props/campo-texto/CampoTexto";
 import SeletorCor from "../../props/seletor-cor/SeletorCor";
 import { existeCampoVazio } from "../../props/campo-texto/validacoes";
 import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
+import { useCategorias } from "../../hooks/useCategorias";
 
 const COR_INICIAL = "#314158";
 
@@ -35,26 +33,11 @@ const Categorias: React.FC<PropCategorias> = ({
   idConta,
   buscaMovimentacoes,
 }) => {
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const { categorias, buscarCategorias } = useCategorias(idConta);
   const [selecionada, setSelecionada] = useState<Categoria | null>(null);
   const [nome, setNome] = useState("");
   const [cor, setCor] = useState(COR_INICIAL);
   const [aba, setAba] = useState<Aba>("nova");
-
-  const buscaCategorias = useCallback(
-    () =>
-      Conecta<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
-        (resposta) => {
-          if (resposta.sucesso && resposta.dados)
-            setCategorias(resposta.dados.conteudo);
-        },
-      ),
-    [idConta],
-  );
-
-  useEffect(() => {
-    buscaCategorias();
-  }, [buscaCategorias]);
 
   const selecionar = (categoria: Categoria | null) => {
     setSelecionada(categoria);
@@ -64,7 +47,7 @@ const Categorias: React.FC<PropCategorias> = ({
 
   const concluir = () => {
     selecionar(null);
-    buscaCategorias();
+    buscarCategorias();
     buscaMovimentacoes();
   };
 

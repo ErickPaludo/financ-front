@@ -8,8 +8,6 @@ import "dayjs/locale/pt-br";
 
 import { AuthProvider } from "./contexts/AuthContext";
 import { ContaProvider } from "./contexts/ContaContext";
-import { ConviteProvider } from "./contexts/ConviteContext";
-import { MovimentacaoProvider } from "./contexts/MovimentacaoContext";
 import { Login } from "./telas/login/Login";
 import { Registrar } from "./telas/registrar/Registrar";
 import { Inicial } from "./telas/inicial/Inicial";
@@ -22,7 +20,7 @@ import MovimentacaoFixa from "./telas/movimentacoes/fixas/MovimentacaoFixa";
 import Membros from "./telas/membros/Membros";
 import Convites from "./telas/convites/Convites";
 import OpcoesUsuario from "./telas/usuario/OpcoesUsuario";
-import ReloadPrompt from "./componentes/reload-prompt/ReloadPrompt";
+import AvisoAtualizacao from "./componentes/aviso-atualizacao/AvisoAtualizacao";
 
 function App() {
   return (
@@ -39,8 +37,6 @@ function App() {
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <AuthProvider>
           <ContaProvider>
-            <MovimentacaoProvider>
-              <ConviteProvider>
                 <Routes>
                   <Route path="/login" element={<Login />} />
                   <Route path="/registrar" element={<Registrar />} />
@@ -62,9 +58,7 @@ function App() {
                   </Route>
                   <Route path="*" element={<Navigate to="/login" replace />} />
                 </Routes>
-                <ReloadPrompt />
-              </ConviteProvider>
-            </MovimentacaoProvider>
+                <AvisoAtualizacao />
           </ContaProvider>
         </AuthProvider>
       </BrowserRouter>
