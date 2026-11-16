@@ -1,269 +1,231 @@
-import React, { useEffect, useState, useCallback } from "react";
-import api from "../../services/api/apiConnect";
-import type { ApiResult } from "../../models/interface/ApiResult";
+import React, { useCallback, useEffect, useState } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  Stack,
+  Tab,
+  Tabs,
+  Typography,
+} from "@mui/material";
+import TabelaPesquisa from "../../componentes/tabela-pesquisa/TabelaPesquisa";
+
+import Conecta from "../../services/api/apiConnect";
 import type {
   Categoria,
   CategoriaResponse,
 } from "../../models/categorias/Categorias";
-import "./CategoriasStyle.css";
-import FncButton from "../../props/fnc-button/FncButton";
-import { TypeButton } from "../../props/fnc-button/TypeButton";
-import ErrorText from "../../props/error-text/ErrorText";
-import { TypeThemeButton } from "../../props/fnc-button/TypeThemeButton";
-import InputTextAndColor from "../../props/input-text-and-color/InputTextAndColor";
-import TitleText from "../../props/title-text/TitleText";
-import SelectList from "../../props/select-list/SelectList";
+import CampoTexto from "../../props/campo-texto/CampoTexto";
+import SeletorCor from "../../props/seletor-cor/SeletorCor";
+import { existeCampoVazio } from "../../props/campo-texto/validacoes";
+import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
 
-interface PropCadMov {
+const COR_INICIAL = "#314158";
+
+type Aba = "nova" | "editar";
+
+interface PropCategorias {
   idConta: number;
   buscaMovimentacoes: () => void;
 }
 
-const Categorias: React.FC<PropCadMov> = ({ buscaMovimentacoes, idConta }) => {
-  function getTextColor(bgColor: string) {
-    const r = parseInt(bgColor.substr(1, 2), 16);
-    const g = parseInt(bgColor.substr(3, 2), 16);
-    const b = parseInt(bgColor.substr(5, 2), 16);
+// Conteúdo da gaveta de categorias: clicar numa categoria edita/exclui; sem seleção, cadastra.
+const Categorias: React.FC<PropCategorias> = ({
+  idConta,
+  buscaMovimentacoes,
+}) => {
+  const [categorias, setCategorias] = useState<Categoria[]>([]);
+  const [selecionada, setSelecionada] = useState<Categoria | null>(null);
+  const [nome, setNome] = useState("");
+  const [cor, setCor] = useState(COR_INICIAL);
+  const [aba, setAba] = useState<Aba>("nova");
 
-    // fórmula de luminância simplificada
-    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-
-    return luminance > 186 ? "#000000" : "#FFFFFF";
-  }
-
-  const [titulo, setTitulo] = useState("");
-  const [categorias, setCategorias] = useState<CategoriaResponse>();
-  const [isLoading, setIsLoading] = useState(false);
-  const [erroMsg, setErroMsg] = useState<string | undefined>();
-  const [cor, setCor] = useState("#314158");
-
-  const [editOnly, setEditOnly] = useState(false);
-  const [categoriaSelecionada, setCategoriaSelecionada] =
-    useState<Categoria | null>();
-
-  const [tituloEditor, setTituloEditor] = useState("");
-  const [corEditor, setCorEditor] = useState("");
-
-  const buscaCategorias = useCallback(async () => {
-    try {
-      const resposta = await api<CategoriaResponse>(
-        `/Contas/${idConta}/Categorias`,
-        "GET",
-        undefined,
-      );
-      if (resposta.sucesso && resposta.dados) {
-        setCategorias(resposta.dados);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
-    }
-  }, [idConta]);
-
-  const cadastraCategoria = () => {
-    interface IConvite {
-      id: number;
-      nome: string;
-      categoria: Categoria;
-    }
-
-    let convitesData: IConvite[] = [];
-    categorias?.conteudo.map((cat) => {
-      convitesData.push({
-        id: cat.idCategoria,
-        nome: cat.nome,
-        categoria: cat,
-      });
-    });
-
-    return (
-      <>
-        <form onSubmit={criaCategoriaRequest}>
-          {categorias !== undefined && (
-            <SelectList
-              itens={categorias.conteudo}
-              idKey="idCategoria"
-              labelKey="nome"
-              selecionado={categoriaSelecionada?.idCategoria ?? null}
-              onSelect={(id, item) => {
-                id;
-                setCategoriaSelecionada(item);
-                setTituloEditor(item.nome);
-                setCorEditor(item.cor);
-                setEditOnly(true);
-              }}
-              label="Categoria"
-              placeholder="Selecione uma categoria..."
-            />
-          )}
-
-          <div className="modal-body">
-            <InputTextAndColor
-              label="Nova Categoria"
-              color={cor}
-              onChangeColor={setCor}
-              placeholder="Ex: Alimentação"
-              text={titulo}
-              setText={setTitulo}
-            />
-
-            {erroMsg && <ErrorText text={erroMsg} />}
-
-            <FncButton
-              type={TypeButton.Submit}
-              title={isLoading ? "Cadastrando..." : "Cadastrar"}
-            />
-          </div>
-        </form>
-      </>
-    );
-  };
-  const editaCategoria = () => {
-    if (categoriaSelecionada === null || categoriaSelecionada === undefined) {
-      setEditOnly(false);
-      return;
-    }
-
-    return (
-      <>
-        <form className="fnc-ctn-categoria" onSubmit={EditaCategoriaRequest}>
-          <TitleText text="Alterar Categoria" />
-
-          <div className="fnc-preview-name-cat">
-            <div className="categoria" style={{ background: corEditor }}>
-              <p style={{ color: getTextColor(corEditor) }}>{tituloEditor}</p>
-            </div>
-          </div>
-
-          <InputTextAndColor
-            label="Editar Categoria"
-            color={corEditor}
-            onChangeColor={setCorEditor}
-            placeholder="Ex: Alimentação"
-            text={tituloEditor}
-            setText={setTituloEditor}
-          />
-
-          {erroMsg && <ErrorText text={erroMsg} />}
-
-          <div className="fnc-btn-edit-cat">
-            <FncButton
-              type={TypeButton.Submit}
-              disabled={isLoading}
-              thema={TypeThemeButton.Cancel}
-              title="Cancelar"
-              onClick={() => {
-                setErroMsg("");
-                setEditOnly(false);
-              }}
-            />
-            <FncButton
-              type={TypeButton.Submit}
-              disabled={isLoading}
-              title={isLoading ? "Editando..." : "Editar"}
-            />
-            <FncButton
-              type={TypeButton.Submit}
-              thema={TypeThemeButton.Delete}
-              title="Deletar"
-              onClick={DeletarCategoriaRequest}
-            />
-          </div>
-        </form>
-      </>
-    );
-  };
+  const buscaCategorias = useCallback(
+    () =>
+      Conecta<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
+        (resposta) => {
+          if (resposta.sucesso && resposta.dados)
+            setCategorias(resposta.dados.conteudo);
+        },
+      ),
+    [idConta],
+  );
 
   useEffect(() => {
     buscaCategorias();
   }, [buscaCategorias]);
 
-  const criaCategoriaRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErroMsg(undefined);
-
-    try {
-      const request = {
-        nome: titulo,
-        cor: cor,
-      };
-
-      const resposta = await api<ApiResult<CategoriaResponse>>(
-        `/Contas/${idConta}/Categorias`,
-        "POST",
-        request,
-      );
-
-      if (resposta.sucesso) {
-        buscaCategorias();
-        buscaMovimentacoes();
-        setTitulo("");
-        setCor("#314158");
-      } else {
-        setErroMsg(resposta.erro);
-      }
-    } catch (error: any) {
-      setErroMsg(error.message);
-    } finally {
-      setIsLoading(false);
-    }
+  const selecionar = (categoria: Categoria | null) => {
+    setSelecionada(categoria);
+    setNome(categoria?.nome ?? "");
+    setCor(categoria?.cor ?? COR_INICIAL);
   };
 
-  const EditaCategoriaRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setErroMsg(undefined);
-
-    try {
-      const request = {
-        nome: tituloEditor,
-        cor: corEditor,
-      };
-
-      console.log(categoriaSelecionada);
-      const resposta = await api<ApiResult<CategoriaResponse>>(
-        `/Contas/Categorias/${categoriaSelecionada?.idCategoria}/Alterar`,
-        "PATCH",
-        request,
-      );
-
-      if (resposta.sucesso) {
-        buscaCategorias();
-        buscaMovimentacoes();
-        setEditOnly(false);
-      } else {
-        setErroMsg(resposta!.erro);
-      }
-    } catch (error: any) {
-      setErroMsg(error.message || "Erro inesperado.");
-    } finally {
-      setIsLoading(false);
-    }
+  const concluir = () => {
+    selecionar(null);
+    buscaCategorias();
+    buscaMovimentacoes();
   };
 
-  async function DeletarCategoriaRequest() {
-    try {
-      const resposta = await api<string>(
-        `/Contas/Categorias/${categoriaSelecionada?.idCategoria}/Remover`,
-        "DELETE",
-        undefined,
-      );
+  const salvar = async () => {
+    if (existeCampoVazio(nome)) return "Informe o nome da categoria";
 
-      if (resposta.sucesso) {
-        setErroMsg("");
-        buscaCategorias();
-        setEditOnly(false);
-        buscaMovimentacoes();
-      } else {
-        setErroMsg(resposta.erro);
-      }
-    } catch (error: any) {
-      setErroMsg(error.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-  return <>{!editOnly ? cadastraCategoria() : editaCategoria()}</>;
+    const corpo = { nome: nome.trim(), cor };
+    const resposta = selecionada
+      ? await Conecta<string>(
+          `/Contas/Categorias/${selecionada.idCategoria}/Alterar`,
+          "PATCH",
+          corpo,
+        )
+      : await Conecta<string>(`/Contas/${idConta}/Categorias`, "POST", corpo);
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível salvar a categoria";
+
+    concluir();
+  };
+
+  const excluir = async () => {
+    const resposta = await Conecta<string>(
+      `/Contas/Categorias/${selecionada!.idCategoria}/Remover`,
+      "DELETE",
+      undefined,
+    );
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível excluir a categoria";
+
+    concluir();
+  };
+
+  const envio = useEnvioFormulario(salvar);
+  const exclusao = useEnvioFormulario(excluir);
+  const ocupado = envio.enviando || exclusao.enviando;
+  const erro = envio.erro ?? exclusao.erro;
+
+  const trocarAba = (nova: Aba) => {
+    setAba(nova);
+    selecionar(null);
+  };
+
+  return (
+    <Stack spacing={2.5} sx={{ flex: 1 }}>
+      <Tabs
+        value={aba}
+        onChange={(_, nova: Aba) => trocarAba(nova)}
+        variant="fullWidth"
+        sx={{ borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab value="nova" label="Nova categoria" />
+        <Tab value="editar" label="Editar" />
+      </Tabs>
+
+      {/* fora do <form>: Enter na pesquisa não pode cadastrar */}
+      {aba === "editar" && (
+        <Stack spacing={1}>
+          <TabelaPesquisa
+            itens={categorias}
+            chave={(c) => c.idCategoria}
+            texto={(c) => c.nome}
+            titulo="Categoria"
+            placeholder="Pesquisar categoria"
+            mensagemVazia="Nenhuma categoria cadastrada"
+            selecionado={selecionada?.idCategoria}
+            onSelecionar={selecionar}
+            celula={(c) => (
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                <Box
+                  sx={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: "50%",
+                    bgcolor: c.cor,
+                    flexShrink: 0,
+                  }}
+                />
+                {c.nome}
+              </Box>
+            )}
+          />
+          <Typography variant="caption" sx={{ color: "text.secondary" }}>
+            Clique numa categoria para editar
+          </Typography>
+        </Stack>
+      )}
+
+      {(aba === "nova" || selecionada) && (
+        <Stack
+          component="form"
+          onSubmit={envio.enviar}
+          noValidate
+          spacing={2.5}
+          sx={{ flex: 1 }}
+        >
+          {/* prévia de como a categoria vai ficar */}
+          <Box>
+            <Chip
+              label={nome.trim() || "Minha categoria"}
+              sx={{
+                bgcolor: cor,
+                color: (t) => t.palette.getContrastText(cor),
+              }}
+            />
+          </Box>
+
+          <CampoTexto
+            label="Nome da categoria"
+            placeholder="Ex: Alimentação"
+            valor={nome}
+            setValor={setNome}
+          />
+
+          <SeletorCor rotulo="Cor da categoria" valor={cor} setValor={setCor} />
+
+          {erro && <Alert severity="error">{erro}</Alert>}
+
+          <Box sx={{ flex: 1 }} />
+
+          {selecionada ? (
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                disabled={ocupado}
+                onClick={() => selecionar(null)}
+                sx={{ flex: 1 }}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                disabled={ocupado}
+                onClick={exclusao.enviar}
+                sx={{ flex: 1 }}
+              >
+                {exclusao.enviando ? "Excluindo..." : "Excluir"}
+              </Button>
+              <Button
+                type="submit"
+                variant="contained"
+                disabled={ocupado}
+                sx={{ flex: 1 }}
+              >
+                {envio.enviando ? "Salvando..." : "Salvar"}
+              </Button>
+            </Stack>
+          ) : (
+            <Button
+              type="submit"
+              variant="contained"
+              fullWidth
+              disabled={ocupado}
+            >
+              {envio.enviando ? "Cadastrando..." : "Cadastrar"}
+            </Button>
+          )}
+        </Stack>
+      )}
+    </Stack>
+  );
 };
 
 export default Categorias;

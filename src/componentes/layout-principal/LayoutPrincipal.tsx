@@ -1,9 +1,16 @@
 import React, { useContext, useEffect, useMemo, useState } from "react";
-import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+} from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 
 import api from "../../services/api/apiConnect";
 import type { UsuarioResponse3 } from "../../models/usuario/UsuarioResponse";
+import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import Carregamento from "../carregamento/Carregamento";
@@ -11,12 +18,17 @@ import BarraLateral from "../barra-lateral/BarraLateral";
 import MsgBox from "../../props/msg-box/MsgBox";
 import { TypeMsgBox } from "../../props/msg-box/TypeMsgBox";
 import { criarTema, tema as temaEscuro } from "../../tema";
-import { CoresClaro, CoresEscuro } from "../../cores";
+import { CoresClaro, CoresEscuro, variaveisTelas } from "../../cores";
 import { useModoCor } from "../../hooks/useModoCor";
 import "./LayoutPrincipal.css";
 
 // Telas que já têm estilo de modo claro. As demais seguem no escuro até serem migradas.
-const ROTAS_COM_MODO_CLARO = ["/inicial"];
+const ROTAS_COM_MODO_CLARO = ["/inicial", "/agendadas", "/membros"];
+const temModoClaro = (rota: string) =>
+  ROTAS_COM_MODO_CLARO.includes(rota) || rota.endsWith("/contabancaria");
+
+const temFundoDesfocado = (rota: string) =>
+  rota === "/inicial" || rota.endsWith("/contabancaria");
 
 // Estrutura das telas logadas: barra lateral + a tela da rota atual (Outlet).
 const LayoutPrincipal: React.FC = () => {
@@ -27,10 +39,18 @@ const LayoutPrincipal: React.FC = () => {
 
   const { modo, alternarModo } = useModoCor();
   const temaModo = useMemo(() => criarTema(modo), [modo]);
-  const paginaTemModoClaro = ROTAS_COM_MODO_CLARO.includes(rotaAtual);
+  const paginaTemModoClaro = temModoClaro(rotaAtual);
   const temaPagina = paginaTemModoClaro ? temaModo : temaEscuro;
   const coresPagina =
     paginaTemModoClaro && modo === "claro" ? CoresClaro : CoresEscuro;
+  // fundo da página + marca d'água: escuro como o login, ou branco com a marca azul-escura no modo claro
+  const fundoClaro = coresPagina === CoresClaro;
+  const classeFundo = `fnc-fundo-marca${fundoClaro ? " fnc-fundo-marca--escura" : ""}`;
+  const fundoPagina = {
+    ...variaveisTelas(coresPagina), // cores dos componentes antigos (--fnc-*)
+    backgroundColor: coresPagina.telas.pagina,
+    color: coresPagina.telas.texto,
+  };
 
   const [carregando, setCarregando] = useState(true);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
@@ -70,7 +90,18 @@ const LayoutPrincipal: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- roda uma vez, quando a sessão termina de inicializar
   }, [inicializando]);
 
-  if (carregando) return <Carregamento />;
+  // o Carregamento não tem fundo próprio: sem isso aparecia o preto do body ao recarregar
+  if (carregando)
+    return (
+      <ThemeProvider theme={temaPagina}>
+        <div
+          className={classeFundo}
+          style={{ ...fundoPagina, display: "flex" }}
+        >
+          <Carregamento />
+        </div>
+      </ThemeProvider>
+    );
 
   return (
     <ThemeProvider theme={temaModo}>
@@ -92,16 +123,14 @@ const LayoutPrincipal: React.FC = () => {
         />
 
         <ThemeProvider theme={temaPagina}>
-          {/* mesmo fundo do login: cor da página + marca d'água; texto claro nos dois modos */}
-          <main
-            className="pagina-central fnc-fundo-marca"
-            style={{
-              backgroundColor: coresPagina.login.pagina,
-              color: coresPagina.login.rodapeLink,
-            }}
-          >
-            <Outlet />
-          </main>
+          {/* fundo no invólucro: o desfoque (backdrop-filter do main) só atinge o fundo, não o conteúdo */}
+          <div className={`area-central ${classeFundo}`} style={fundoPagina}>
+            <main
+              className={`pagina-central${temFundoDesfocado(rotaAtual) ? " fundo-desfocado" : ""}${rotaAtual.endsWith("/contabancaria") ? " pagina-transacoes" : ""}`}
+            >
+              <Outlet />
+            </main>
+          </div>
         </ThemeProvider>
       </div>
     </ThemeProvider>
@@ -113,6 +142,34 @@ const LayoutPrincipal: React.FC = () => {
 export const ExigeConta: React.FC = () => {
   const { conta } = useContext(ContaContext);
   return conta ? <Outlet /> : <Navigate to="/inicial" replace />;
+};
+
+// Rota /:idConta/contabancaria: a conta vem da URL, então recarregar ou abrir o link direto funciona.
+// Busca a conta quando ela não é a que está no contexto; inexistente, inativa ou sem acesso volta para /inicial.
+export const ContaDaRota: React.FC = () => {
+  const id = Number(useParams().idConta);
+  const { conta, setConta } = useContext(ContaContext);
+  const [naoEncontrada, setNaoEncontrada] = useState(false);
+  const carregada = conta?.idConta === id;
+
+  useEffect(() => {
+    if (carregada || !Number.isInteger(id)) return;
+    let ativo = true;
+    api<ContaResponse>(`/ContasUsuarios?id=${id}`, "GET").then((resposta) => {
+      if (!ativo) return;
+      const encontrada = resposta.dados?.conteudo.contas[0];
+      if (encontrada?.idConta === id && encontrada.status === 0)
+        setConta(encontrada);
+      else setNaoEncontrada(true);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [id, carregada, setConta]);
+
+  if (!Number.isInteger(id) || naoEncontrada)
+    return <Navigate to="/inicial" replace />;
+  return carregada ? <Outlet /> : <Carregamento />;
 };
 
 export default LayoutPrincipal;

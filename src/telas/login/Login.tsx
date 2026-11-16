@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Link as RouterLink, useNavigate } from "react-router-dom";
-import { Button, Checkbox, Divider, FormControlLabel, Link } from "@mui/material";
+import { Button, Divider, Link } from "@mui/material";
 
 import { AuthContext } from "../../contexts/AuthContext";
 import { autenticar } from "../../services/auth/tokenService";

@@ -1,7 +1,8 @@
 // Paletas do app. Fonte única das cores: o tema do MUI (tema.ts) e os componentes leem daqui.
+import type { CSSProperties } from "react";
 
 export type Paleta = {
-  primaria: { principal: string; gradiente: string };
+  primaria: { principal: string };
   secundaria: { principal: string }; // labels, subtítulos e ícones
   fundo: {
     pagina: string;
@@ -12,7 +13,30 @@ export type Paleta = {
   texto: string;
   barraLateral: CoresBarraLateral;
   login: CoresLogin;
+  telas: CoresTelas;
+  transacoes: CoresTransacoes;
 };
+
+// Componentes antigos (CSS próprio) das telas logadas: viram variáveis --fnc-<chave> (variaveisTelas).
+// "texto"/"apoio" são para o que fica direto sobre o fundo da página; cards, tabelas e listas
+// trocam por "textoSuperficie"/"apoioSuperficie" redefinindo as duas variáveis no próprio CSS.
+export type CoresTelas = Record<
+  | "pagina" // fundo da área central
+  | "texto"
+  | "apoio"
+  | "textoSuperficie"
+  | "apoioSuperficie"
+  | "superficie"
+  | "cabecalho" // cabeçalho das tabelas
+  | "borda"
+  | "bordaSuave"
+  | "apagado"
+  | "linhaHover"
+  | "positivo"
+  | "negativo"
+  | "neutro",
+  string
+>;
 
 // Barra lateral das telas logadas. Tem cores próprias porque fica escura nos dois modos.
 export type CoresBarraLateral = {
@@ -25,7 +49,40 @@ export type CoresBarraLateral = {
   itemHoverTexto: string;
   titulo: string; // "FinancHub" e nome do usuário
   apoio: string; // subtítulo, seções, versão e e-mail
+  itemAtivo: string; // fundo do item selecionado (texto branco)
+  perigo: string; // "Sair da Conta"
 };
+
+// Telas com cards brancos (Transações e Inicial): variáveis --fnc-tx-<chave> (variaveisTelas).
+export type CoresTransacoes = Record<
+  | "overlay" // camada sobre o fundo/marca d'água da página
+  | "superficie" // cards e tabela
+  | "borda"
+  | "divisoria" // entre linhas da tabela
+  | "linhaAlternada"
+  | "barraFiltros"
+  | "texto"
+  | "apoio"
+  | "textoTabela"
+  | "destaque" // card de saldo atual e botão principal
+  | "sobreDestaque"
+  | "legendaDestaque"
+  | "chipFundo"
+  | "chipTexto"
+  | "botaoBorda"
+  | "receita"
+  | "receitaFundo"
+  | "receitaBarra"
+  | "despesa"
+  | "despesaFundo"
+  | "despesaBadge"
+  | "despesaBarra"
+  | "trilho" // fundo das barras de progresso
+  | "blocoReceita" // blocos de receita/despesa dos cards de conta
+  | "rotuloReceita"
+  | "blocoDespesa",
+  string
+>;
 
 // Telas de login e cadastro (LayoutAutenticacao.css lê como variáveis --fnc-login-<chave>).
 export type CoresLogin = Record<
@@ -58,7 +115,6 @@ export type CoresLogin = Record<
 
 const primaria = {
   principal: "#155dfc",
-  gradiente: "linear-gradient(90deg, #2b7fff, #4f39f6)",
 };
 
 export const CoresEscuro: Paleta = {
@@ -81,6 +137,8 @@ export const CoresEscuro: Paleta = {
     itemHoverTexto: "#ffffff",
     titulo: "#ffffff",
     apoio: "#62748e",
+    itemAtivo: primaria.principal,
+    perigo: "#ff4b4b",
   },
   login: {
     esquemaCor: "dark",
@@ -108,6 +166,52 @@ export const CoresEscuro: Paleta = {
     rodape: "#c3cdf0",
     rodapeLink: "#ffffff",
   },
+  // os mesmos valores que os CSS antigos tinham fixos
+  telas: {
+    pagina: "#030a1f", // o mesmo fundo do login
+    texto: "#ffffff",
+    apoio: "#90a1b9",
+    textoSuperficie: "#ffffff",
+    apoioSuperficie: "#90a1b9",
+    superficie: "rgba(29, 41, 61, 0.7)",
+    cabecalho: "#314158",
+    borda: "#45556c",
+    bordaSuave: "rgba(49, 65, 88, 0.5)",
+    apagado: "#62748e",
+    linhaHover: "rgba(255, 255, 255, 0.03)",
+    positivo: "#00d492",
+    negativo: "#ff4b4b",
+    neutro: "#2b7fff",
+  },
+  // o layout "Azul claro" adaptado ao escuro: mesmas superfícies das outras telas escuras
+  transacoes: {
+    overlay: "transparent",
+    superficie: "#1d293d",
+    borda: "#45556c",
+    divisoria: "#314158",
+    linhaAlternada: "#22304a",
+    barraFiltros: "#233149",
+    texto: "#ffffff",
+    apoio: "#90a1b9",
+    textoTabela: "#cbd5e1",
+    destaque: "#2563eb",
+    sobreDestaque: "#ffffff",
+    legendaDestaque: "#dbeafe",
+    chipFundo: "#1e3a8a",
+    chipTexto: "#dbeafe",
+    botaoBorda: "#45556c",
+    receita: "#4ade80",
+    receitaFundo: "rgba(74, 222, 128, 0.15)",
+    receitaBarra: "#22c55e",
+    despesa: "#f87171",
+    despesaFundo: "rgba(248, 113, 113, 0.15)",
+    despesaBadge: "#fca5a5",
+    despesaBarra: "#ef4444",
+    trilho: "#314158",
+    blocoReceita: "rgba(74, 222, 128, 0.1)",
+    rotuloReceita: "#86efac",
+    blocoDespesa: "rgba(248, 113, 113, 0.1)",
+  },
 };
 
 // Modo claro: superfícies claras para o MUI; a barra lateral fica em azul-marinho.
@@ -133,6 +237,8 @@ export const CoresClaro: Paleta = {
     itemHoverTexto: "#ffffff",
     titulo: "#ffffff",
     apoio: "#8f9bc4",
+    itemAtivo: primaria.principal,
+    perigo: "#ff4b4b",
   },
   login: {
     esquemaCor: "light",
@@ -160,7 +266,85 @@ export const CoresClaro: Paleta = {
     rodape: "#d6defa",
     rodapeLink: "#ffffff",
   },
+  // Como o card de resumo da tela inicial: cards, tabelas e seções na cor primária sólida,
+  // texto branco e rótulos azul-claro. Os campos são do MUI (CampoTexto) e seguem o tema.
+  telas: {
+    pagina: "#f4f7fb", // branco gelo: os cards brancos se destacam do fundo
+    // texto direto sobre a página branca; cards e tabelas usam textoSuperficie
+    texto: "#0f172b",
+    apoio: "#475569",
+    textoSuperficie: "#ffffff",
+    apoioSuperficie: "#bedbff", // o mesmo rótulo do ResumoContas
+    superficie: primaria.principal,
+    // sólido (= branco 12% sobre a primária): o cabeçalho fixo não pode deixar ver as linhas rolando por baixo
+    cabecalho: "#3170fc",
+    borda: "#cbd5e1",
+    bordaSuave: "rgba(255, 255, 255, 0.2)",
+    apagado: "#bedbff",
+    linhaHover: "rgba(255, 255, 255, 0.08)",
+    // verde e vermelho claros: legíveis sobre o azul primário
+    positivo: "#7bf1a8",
+    negativo: "#ffa2a2",
+    neutro: "#ffffff",
+  },
+  transacoes: {
+    // sem camada, como no escuro: a 85% ela apagava a logo da marca d'água
+    overlay: "transparent",
+    superficie: "#ffffff",
+    borda: "#c7d7fe",
+    divisoria: "#e1eafd",
+    linhaAlternada: "#f7faff",
+    barraFiltros: "#f4f8ff",
+    texto: "#0f1e4a",
+    apoio: "#3b4f86",
+    textoTabela: "#334a80",
+    destaque: "#2563eb",
+    sobreDestaque: "#ffffff",
+    legendaDestaque: "#dbeafe",
+    chipFundo: "#dbeafe",
+    chipTexto: "#1e3a8a",
+    botaoBorda: "#bfd3fb",
+    receita: "#15803d",
+    receitaFundo: "#dcfce7",
+    receitaBarra: "#22c55e",
+    despesa: "#b91c1c",
+    despesaFundo: "#fee2e2",
+    despesaBadge: "#991b1b",
+    despesaBarra: "#ef4444",
+    trilho: "#e8f0fe",
+    blocoReceita: "#f0fdf4",
+    rotuloReceita: "#166534",
+    blocoDespesa: "#fef2f2",
+  },
 };
+
+// Barra lateral clara: em todas as telas no modo claro e na gaveta Modal.
+export const BarraLateralClara: CoresBarraLateral = {
+  fundo: "#ffffff",
+  rodape: "#ffffff",
+  contorno: "#c7d7fe",
+  divisoria: "#e1eafd",
+  item: "#1e3a8a",
+  itemHover: "rgba(37, 99, 235, 0.08)",
+  itemHoverTexto: "#1e3a8a",
+  titulo: "#0f1e4a",
+  apoio: "#3b4f86",
+  itemAtivo: "#2563eb",
+  perigo: "#b91c1c",
+};
+
+const variaveis = (prefixo: string, cores: Record<string, string>) =>
+  Object.entries(cores).map(([chave, cor]) => [
+    `--fnc-${prefixo}${chave.replace(/[A-Z]/g, (l) => `-${l.toLowerCase()}`)}`,
+    cor,
+  ]);
+
+// { "--fnc-texto-superficie": "#0f172b", "--fnc-tx-borda": "#c7d7fe", ... } para o style de quem envolve as telas.
+export const variaveisTelas = (paleta: Paleta) =>
+  Object.fromEntries([
+    ...variaveis("", paleta.telas),
+    ...variaveis("tx-", paleta.transacoes),
+  ]) as CSSProperties;
 
 // As telas fora do login ainda só existem no modo escuro.
 export const Cores = CoresEscuro;

@@ -2,7 +2,9 @@ import React, { useContext, useEffect, useState } from "react";
 import TitleText from "../../props/title-text/TitleText";
 import "./ConvitesStyle.css";
 import LabelText from "../../props/label-text/LabelText";
-import FncTable, { type FncTableColumn } from "../../props/fnc-table/FncTable";
+import TabelaDados, {
+  type ColunaTabela,
+} from "../../componentes/tabela-dados/TabelaDados";
 import type {
   ConviteItem,
   ConviteResponse,
@@ -12,8 +14,7 @@ import Carregamento from "../../componentes/carregamento/Carregamento";
 import Modal from "../../componentes/modal/Modal";
 import { ConviteContext } from "../../contexts/ConviteContext";
 import SubtitleText from "../../props/subtitle-text/SubtitleText";
-import FncButton from "../../props/fnc-button/FncButton";
-import { TypeThemeButton } from "../../props/fnc-button/TypeThemeButton";
+import { Button, Icon } from "@mui/material";
 import ErrorText from "../../props/error-text/ErrorText";
 const Convites = () => {
   interface IConvite {
@@ -27,13 +28,13 @@ const Convites = () => {
     convite: ConviteItem;
   }
   const { setConvite, convite, removeConvite } = useContext(ConviteContext);
-  const colunas: FncTableColumn[] = [
-    { header: "Conta", key: "conta" },
-    { header: "Usuário", key: "usuario" },
-    { header: "Acesso", key: "acesso" },
-    { header: "Status", key: "status" },
-    { header: "Data Envio", key: "dtEnvio" },
-    { header: "Data Expiração", key: "dtExpiracao" },
+  const colunas: ColunaTabela<IConvite>[] = [
+    { titulo: "Conta", chave: "conta" },
+    { titulo: "Usuário", chave: "usuario" },
+    { titulo: "Acesso", chave: "acesso" },
+    { titulo: "Status", chave: "status" },
+    { titulo: "Data Envio", chave: "dtEnvio" },
+    { titulo: "Data Expiração", chave: "dtExpiracao" },
   ];
 
   const typePermission = (value: number) => {
@@ -58,7 +59,7 @@ const Convites = () => {
 
   const [modalRevokeInvite, setIsModalRevokeInvite] = useState(false);
 
-  const handleConviteClick = async (objetoDaLinha: any) => {
+  const handleConviteClick = async (objetoDaLinha: IConvite) => {
     setConvite(objetoDaLinha.convite);
     if (convite?.convite !== null) {
       setIsModalInvite(true);
@@ -68,7 +69,7 @@ const Convites = () => {
     }
   };
 
-  const handleRevokeConviteClick = async (objetoDaLinha: any) => {
+  const handleRevokeConviteClick = async (objetoDaLinha: IConvite) => {
     setConvite(objetoDaLinha.convite);
     if (convite?.convite !== null) {
       setIsModalRevokeInvite(true);
@@ -116,9 +117,9 @@ const Convites = () => {
             dtExpiracao: dateConvert(invite.convite.dataExpiracao),
             convite: invite,
           });
-
-          setConvitesRecebidos(meusConvites);
         });
+        // fora do map: sem convites a lista vazia também é gravada (senão a tabela ficava carregando)
+        setConvitesRecebidos(meusConvites);
       } else {
         setConvitesRecebidos([]);
       }
@@ -143,14 +144,15 @@ const Convites = () => {
             dtExpiracao: dateConvert(invite.convite.dataExpiracao),
             convite: invite,
           });
-
-          setConvitesEnviados(meusConvitesEnviados);
         });
+        setConvitesEnviados(meusConvitesEnviados);
       } else {
         setConvitesEnviados([]);
       }
     } catch (error) {
       console.error("Erro ao buscar categorias:", error);
+      setConvitesRecebidos([]);
+      setConvitesEnviados([]);
     }
   };
 
@@ -160,6 +162,7 @@ const Convites = () => {
     };
 
     carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- busca só ao abrir a tela
   }, []);
 
   const entrarNaConta = async (value: boolean) => {
@@ -212,18 +215,22 @@ const Convites = () => {
           </div>
 
           <div className="fnc-tables-invite">
-            <FncTable
-              title="Recebidos"
-              data={convitesRecebidos}
-              columns={colunas}
-              onRowClick={handleConviteClick}
+            <TabelaDados
+              titulo="Recebidos"
+              idPreferencias="convites-recebidos"
+              linhas={convitesRecebidos ?? []}
+              carregando={convitesRecebidos === undefined}
+              colunas={colunas}
+              onClicarLinha={handleConviteClick}
             />
 
-            <FncTable
-              title="Enviados"
-              data={convitesEnviados}
-              columns={colunas}
-              onRowClick={handleRevokeConviteClick}
+            <TabelaDados
+              titulo="Enviados"
+              idPreferencias="convites-enviados"
+              linhas={convitesEnviados ?? []}
+              carregando={convitesEnviados === undefined}
+              colunas={colunas}
+              onClicarLinha={handleRevokeConviteClick}
             />
           </div>
 
@@ -241,17 +248,23 @@ const Convites = () => {
                   <SubtitleText text="Deseja entrar na conta?" />
                   {erroMsg && <ErrorText text={erroMsg} />}
                   <div className="fnc-ctn-btn-invite-acept">
-                    <FncButton
-                      title="Aceitar"
-                      icon="check"
+                    <Button
+                      variant="contained"
+                      startIcon={<Icon>check</Icon>}
                       onClick={async () => await entrarNaConta(true)}
-                    />
-                    <FncButton
-                      title="Recusar"
-                      icon="close"
-                      thema={TypeThemeButton.Delete}
+                      sx={{ flex: 1 }}
+                    >
+                      Aceitar
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<Icon>close</Icon>}
                       onClick={async () => await entrarNaConta(false)}
-                    />
+                      sx={{ flex: 1 }}
+                    >
+                      Recusar
+                    </Button>
                   </div>
                 </div>
               </>
@@ -272,17 +285,23 @@ const Convites = () => {
                   <SubtitleText text="Deseja revogar o convite?" />
                   {erroMsg && <ErrorText text={erroMsg} />}
                   <div className="fnc-ctn-btn-invite-acept">
-                    <FncButton
-                      title="Sim"
-                      icon="check"
+                    <Button
+                      variant="contained"
+                      startIcon={<Icon>check</Icon>}
                       onClick={async () => await revogarConvite()}
-                    />
-                    <FncButton
-                      title="Não"
-                      icon="close"
-                      thema={TypeThemeButton.Delete}
+                      sx={{ flex: 1 }}
+                    >
+                      Sim
+                    </Button>
+                    <Button
+                      variant="contained"
+                      color="error"
+                      startIcon={<Icon>close</Icon>}
                       onClick={() => setIsModalRevokeInvite(false)}
-                    />
+                      sx={{ flex: 1 }}
+                    >
+                      Não
+                    </Button>
                   </div>
                 </div>
               </>

@@ -3,7 +3,14 @@ import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
+  Button,
   Card,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Divider,
   Icon,
   IconButton,
   ListItemIcon,
@@ -12,7 +19,6 @@ import {
   MenuItem,
   Snackbar,
   Stack,
-  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -22,17 +28,7 @@ import type { ContaBancaria } from "../../../../models/contas-usuarios/GetContas
 import type { GetContaUsuario } from "../../../../models/contas-usuarios/GetContaUsuario";
 import api from "../../../../services/api/apiConnect";
 import { exibirMoeda } from "../../../../utils/formatacao";
-import Indicador from "../indicador/Indicador";
-
-const COR_SALDO_INATIVO = "#d6d6da";
-
-// Texto escuro em fundos claros e branco em fundos escuros (luminância simplificada).
-const corDoTexto = (corFundo: string) => {
-  const r = parseInt(corFundo.slice(1, 3), 16);
-  const g = parseInt(corFundo.slice(3, 5), 16);
-  const b = parseInt(corFundo.slice(5, 7), 16);
-  return 0.299 * r + 0.587 * g + 0.114 * b > 186 ? "#292a2b" : "#ffffff";
-};
+import { corParaTextoBranco } from "../../../../utils/corCategoria";
 
 const formatarDataHora = (dataUtc: string) =>
   new Date(dataUtc)
@@ -44,6 +40,80 @@ const formatarDataHora = (dataUtc: string) =>
       minute: "2-digit",
     })
     .replace(",", ""); // "16/11/2026 14:05", como antes
+
+// "Conta Nubank Pessoal" -> "CP"; uma palavra só -> a primeira letra
+const iniciais = (nome: string) => {
+  const palavras = nome.trim().split(/\s+/);
+  return (
+    (palavras[0]?.[0] ?? "") +
+    (palavras.length > 1 ? palavras[palavras.length - 1][0] : "")
+  ).toUpperCase();
+};
+
+type PropBloco = {
+  seta: string;
+  rotulo: string;
+  valor: number;
+  receita: boolean;
+  oculto: boolean;
+};
+
+// Bloco "↑ Receitas" / "↓ Despesas". Zerado fica neutro; oculto também, para a cor não revelar o valor.
+const Bloco: React.FC<PropBloco> = ({
+  seta,
+  rotulo,
+  valor,
+  receita,
+  oculto,
+}) => {
+  const neutro = oculto || valor === 0;
+  const cor = (corNeutra: string, corReceita: string, corDespesa: string) =>
+    neutro ? corNeutra : receita ? corReceita : corDespesa;
+
+  return (
+    <Box
+      sx={{
+        p: "10px 12px",
+        borderRadius: "10px",
+        minWidth: 0,
+        bgcolor: cor(
+          "var(--fnc-tx-barra-filtros)",
+          "var(--fnc-tx-bloco-receita)",
+          "var(--fnc-tx-bloco-despesa)",
+        ),
+      }}
+    >
+      <Typography
+        sx={{
+          fontSize: 12,
+          fontWeight: 500,
+          color: cor(
+            "var(--fnc-tx-apoio)",
+            "var(--fnc-tx-rotulo-receita)",
+            "var(--fnc-tx-despesa-badge)",
+          ),
+        }}
+      >
+        {seta} {rotulo}
+      </Typography>
+      <Typography
+        noWrap
+        sx={{
+          fontSize: 15,
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          color: cor(
+            "var(--fnc-tx-apoio)",
+            "var(--fnc-tx-receita)",
+            "var(--fnc-tx-despesa)",
+          ),
+        }}
+      >
+        {exibirMoeda(valor, oculto)}
+      </Typography>
+    </Box>
+  );
+};
 
 type Props = {
   conta: ContaBancaria;
@@ -69,6 +139,7 @@ const ContaComponent: React.FC<Props> = ({
   const [ancoraMenu, setAncoraMenu] = useState<HTMLElement | null>(null);
   const [admin, setAdmin] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
+  const [confirmarSaida, setConfirmarSaida] = useState(false);
 
   const abrirMenu = async (elemento: HTMLElement) => {
     setAncoraMenu(elemento);
@@ -88,12 +159,20 @@ const ContaComponent: React.FC<Props> = ({
   };
 
   const ativa = conta.status === 0;
-  const corTexto = corDoTexto(conta.cor);
+  // a cor escolhida, escurecida se preciso para o texto branco do avatar
+  const corConta = corParaTextoBranco(conta.cor);
+  const descricao = [
+    "Corrente",
+    conta.contaFavorita && "Favorita",
+    !conta.somaSaldo && "Fora do total", // antes: ícone de cifrão riscado
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   const abrirConta = () => {
     if (!ativa) return;
     setConta(conta);
-    navigate("/movimentacoes");
+    navigate(`/${conta.idConta}/contabancaria`);
   };
 
   return (
@@ -110,188 +189,248 @@ const ContaComponent: React.FC<Props> = ({
         }
       }}
       sx={{
-        p: 2.5,
+        height: "100%",
         display: "flex",
         flexDirection: "column",
-        gap: 1.5,
-        bgcolor: conta.cor,
+        bgcolor: "var(--fnc-tx-superficie)",
         backgroundImage: "none",
-        color: corTexto,
+        color: "var(--fnc-tx-texto)",
         borderRadius: "16px",
-        border: "1px solid rgba(49, 65, 88, 0.5)",
+        border: "1px solid var(--fnc-tx-borda)",
         cursor: ativa ? "pointer" : "default",
-        transition:
-          "transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease",
-        "&:hover": {
-          transform: "scale(1.03)",
-          boxShadow: "0 10px 20px rgba(0, 0, 0, 0.2)",
-        },
+        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        "&:hover": ativa
+          ? {
+              transform: "translateY(-2px)",
+              boxShadow: "0 8px 20px rgba(15, 30, 74, 0.12)",
+            }
+          : undefined,
         "&:focus-visible": {
-          outline: `2px solid ${corTexto}`,
+          outline: "2px solid var(--fnc-tx-destaque)",
           outlineOffset: 2,
         },
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-        <Icon>account_balance_wallet</Icon>
-        <Typography
-          noWrap
-          title={conta.titulo}
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: 14,
-            fontWeight: 600,
-            color: "inherit",
-          }}
-        >
-          {conta.titulo}
-        </Typography>
-        {!conta.somaSaldo && (
-          <Tooltip title="Não contabilizado no patrimônio total">
-            {/* focável para quem usa teclado também ver a dica */}
-            <Box
-              component="span"
-              tabIndex={0}
-              role="img"
-              aria-label="Não contabilizado no patrimônio total"
-              sx={{ display: "flex", opacity: 0.85, cursor: "help" }}
-            >
-              <Icon fontSize="small">money_off</Icon>
-            </Box>
-          </Tooltip>
-        )}
-        {ativa && (
-          // Barra cliques e teclas do menu (inclusive do portal) para não abrir a conta.
+      {/* faixa na cor da conta */}
+      <Box sx={{ height: 4, flexShrink: 0, bgcolor: corConta }} />
+
+      <Stack spacing={2} sx={{ p: 2.5, pt: 2, flex: 1 }}>
+        <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
           <Box
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={(e) => e.stopPropagation()}
-            sx={{ display: "flex", mr: -1 }}
+            aria-hidden
+            sx={{
+              width: 40,
+              height: 40,
+              flexShrink: 0,
+              borderRadius: "10px",
+              display: "grid",
+              placeItems: "center",
+              bgcolor: corConta,
+              color: "var(--fnc-tx-sobre-destaque)", // branco; corConta garante contraste 4.5:1
+              fontSize: 14,
+              fontWeight: 700,
+            }}
           >
-            <IconButton
-              size="small"
-              color="inherit"
-              aria-label={`Opções da conta ${conta.titulo}`}
-              aria-haspopup="menu"
-              aria-expanded={Boolean(ancoraMenu)}
-              onClick={(e) => abrirMenu(e.currentTarget)}
+            {iniciais(conta.titulo)}
+          </Box>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              noWrap
+              title={conta.titulo}
+              sx={{
+                fontSize: 15,
+                fontWeight: 600,
+                color: "var(--fnc-tx-texto)",
+              }}
             >
-              <Icon>more_vert</Icon>
-            </IconButton>
-            <Menu
-              anchorEl={ancoraMenu}
-              open={Boolean(ancoraMenu)}
-              onClose={() => setAncoraMenu(null)}
+              {conta.titulo}
+            </Typography>
+            <Typography
+              noWrap
+              sx={{ fontSize: 12, color: "var(--fnc-tx-apoio)" }}
             >
-              <MenuItem
-                onClick={() =>
-                  executar(
-                    `/ContasUsuarios/${conta.idConta}/Favorita`,
-                    "Não foi possível favoritar a conta.",
-                  )
-                }
+              {descricao}
+            </Typography>
+          </Box>
+          {ativa && (
+            // Barra cliques e teclas do menu (inclusive do portal) para não abrir a conta.
+            <Box
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+              sx={{ display: "flex", mr: -1 }}
+            >
+              <IconButton
+                aria-label={`Opções da conta ${conta.titulo}`}
+                aria-haspopup="menu"
+                aria-expanded={Boolean(ancoraMenu)}
+                onClick={(e) => abrirMenu(e.currentTarget)}
+                sx={{ width: 44, height: 44, color: "var(--fnc-tx-apoio)" }}
               >
-                <ListItemIcon>
-                  <Icon fontSize="small">
-                    {conta.contaFavorita ? "star" : "star_border"}
-                  </Icon>
-                </ListItemIcon>
-                <ListItemText>
-                  {conta.contaFavorita ? "Remover dos favoritos" : "Favoritar"}
-                </ListItemText>
-              </MenuItem>
-              <MenuItem
-                role="menuitemcheckbox"
-                aria-checked={conta.somaSaldo}
-                onClick={() =>
-                  executar(
-                    `/ContasUsuarios/${conta.idConta}/AutoSoma`,
-                    "Não foi possível alterar a soma do saldo.",
-                  )
-                }
+                <Icon>more_vert</Icon>
+              </IconButton>
+              <Menu
+                anchorEl={ancoraMenu}
+                open={Boolean(ancoraMenu)}
+                onClose={() => setAncoraMenu(null)}
               >
-                <ListItemIcon>
-                  <Icon fontSize="small">
-                    {conta.somaSaldo ? "check_box" : "check_box_outline_blank"}
-                  </Icon>
-                </ListItemIcon>
-                <ListItemText>Somar saldo na tela inicial</ListItemText>
-              </MenuItem>
-              {admin && (
+                <MenuItem
+                  onClick={() =>
+                    executar(
+                      `/ContasUsuarios/${conta.idConta}/Favorita`,
+                      "Não foi possível favoritar a conta.",
+                    )
+                  }
+                >
+                  <ListItemIcon>
+                    <Icon fontSize="small">
+                      {conta.contaFavorita ? "star" : "star_border"}
+                    </Icon>
+                  </ListItemIcon>
+                  <ListItemText>
+                    {conta.contaFavorita
+                      ? "Remover dos favoritos"
+                      : "Favoritar"}
+                  </ListItemText>
+                </MenuItem>
+                <MenuItem
+                  role="menuitemcheckbox"
+                  aria-checked={conta.somaSaldo}
+                  onClick={() =>
+                    executar(
+                      `/ContasUsuarios/${conta.idConta}/AutoSoma`,
+                      "Não foi possível alterar a soma do saldo.",
+                    )
+                  }
+                >
+                  <ListItemIcon>
+                    <Icon fontSize="small">
+                      {conta.somaSaldo
+                        ? "check_box"
+                        : "check_box_outline_blank"}
+                    </Icon>
+                  </ListItemIcon>
+                  <ListItemText>Somar saldo na tela inicial</ListItemText>
+                </MenuItem>
+                {admin && (
+                  <MenuItem
+                    onClick={() => {
+                      setAncoraMenu(null);
+                      onEditar();
+                    }}
+                  >
+                    <ListItemIcon>
+                      <Icon fontSize="small">edit</Icon>
+                    </ListItemIcon>
+                    <ListItemText>Editar nome e cor</ListItemText>
+                  </MenuItem>
+                )}
+                <Divider />
                 <MenuItem
                   onClick={() => {
                     setAncoraMenu(null);
-                    onEditar();
+                    setConfirmarSaida(true);
                   }}
+                  sx={{ color: "error.main" }}
                 >
-                  <ListItemIcon>
-                    <Icon fontSize="small">edit</Icon>
+                  <ListItemIcon sx={{ color: "inherit" }}>
+                    <Icon fontSize="small">exit_to_app</Icon>
                   </ListItemIcon>
-                  <ListItemText>Editar nome e cor</ListItemText>
+                  <ListItemText>Sair da conta</ListItemText>
                 </MenuItem>
-              )}
-            </Menu>
-            <Snackbar
-              open={Boolean(erro)}
-              autoHideDuration={5000}
-              onClose={() => setErro(null)}
-            >
-              <Alert severity="error" onClose={() => setErro(null)}>
-                {erro}
-              </Alert>
-            </Snackbar>
-          </Box>
-        )}
-      </Stack>
-
-      {/* Saldo à esquerda; receitas e despesas empilhadas à direita */}
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ alignItems: "flex-end", justifyContent: "space-between" }}
-      >
-        <Stack spacing={1.5} sx={{ minWidth: 0 }}>
-          <Box>
-            <Typography
-              sx={{
-                fontSize: 22,
-                fontWeight: 700,
-                color: ativa ? "inherit" : COR_SALDO_INATIVO,
-                textDecoration: ativa ? "none" : "line-through",
-              }}
-            >
-              {exibirMoeda(conta.saldoAtual, ocultarValores)}
-            </Typography>
-            {conta.expiracao && (
-              <Typography sx={{ fontSize: 12, color: "inherit", opacity: 0.8 }}>
-                Válida até {formatarDataHora(conta.expiracao)}
-              </Typography>
-            )}
-          </Box>
-
-          <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-            <Icon sx={{ fontSize: 12 }}>account_balance</Icon>
-            <Typography sx={{ fontSize: 12, color: "inherit" }}>
-              Corrente
-            </Typography>
-          </Stack>
+              </Menu>
+              <Dialog
+                open={confirmarSaida}
+                onClose={() => setConfirmarSaida(false)}
+                aria-labelledby={`sair-conta-${conta.idConta}`}
+              >
+                <DialogTitle id={`sair-conta-${conta.idConta}`}>
+                  Sair da conta
+                </DialogTitle>
+                <DialogContent>
+                  <DialogContentText>
+                    Deseja realmente sair da conta "{conta.titulo}"? Você
+                    perderá o acesso a ela até receber um novo convite.
+                  </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                  <Button onClick={() => setConfirmarSaida(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="contained"
+                    color="error"
+                    onClick={() => {
+                      setConfirmarSaida(false);
+                      executar(
+                        `/ContasUsuarios/${conta.idConta}/sair`,
+                        "Não foi possível sair da conta.",
+                      );
+                    }}
+                  >
+                    Sair
+                  </Button>
+                </DialogActions>
+              </Dialog>
+              <Snackbar
+                open={Boolean(erro)}
+                autoHideDuration={5000}
+                onClose={() => setErro(null)}
+              >
+                <Alert severity="error" onClose={() => setErro(null)}>
+                  {erro}
+                </Alert>
+              </Snackbar>
+            </Box>
+          )}
         </Stack>
 
+        <Box>
+          <Typography sx={{ fontSize: 12, color: "var(--fnc-tx-apoio)" }}>
+            Saldo
+          </Typography>
+          <Typography
+            sx={{
+              fontSize: 26,
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              fontVariantNumeric: "tabular-nums",
+              color: ativa ? "var(--fnc-tx-texto)" : "var(--fnc-tx-apoio)",
+              textDecoration: ativa ? "none" : "line-through",
+            }}
+          >
+            {exibirMoeda(conta.saldoAtual, ocultarValores)}
+          </Typography>
+          {conta.expiracao && (
+            <Typography sx={{ fontSize: 12, color: "var(--fnc-tx-apoio)" }}>
+              Válida até {formatarDataHora(conta.expiracao)}
+            </Typography>
+          )}
+        </Box>
+
         {ativa && (
-          <Stack spacing={1} sx={{ flexShrink: 0 }}>
-            <Indicador
-              icone="arrow_upward"
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 1,
+              mt: "auto !important", // encosta no rodapé quando o card estica na linha
+            }}
+          >
+            <Bloco
+              seta="↑"
               rotulo="Receitas"
               valor={conta.entradaPendente}
+              receita
               oculto={ocultarValores}
             />
-            <Indicador
-              icone="arrow_downward"
+            <Bloco
+              seta="↓"
               rotulo="Despesas"
               valor={conta.saidaPendente}
+              receita={false}
               oculto={ocultarValores}
             />
-          </Stack>
+          </Box>
         )}
       </Stack>
     </Card>

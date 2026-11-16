@@ -4,6 +4,7 @@ import {
   AppBar,
   Avatar,
   Box,
+  ButtonBase,
   Divider,
   Drawer,
   Icon,
@@ -31,23 +32,21 @@ import api from "../../services/api/apiConnect";
 import MsgBox from "../../props/msg-box/MsgBox";
 import { TypeMsgBox } from "../../props/msg-box/TypeMsgBox";
 import APP_VERSION from "../../version";
-import { CoresClaro, CoresEscuro } from "../../cores";
+import { BarraLateralClara, CoresClaro, CoresEscuro } from "../../cores";
 import type { ModoCor } from "../../tema";
-import logoClara from "../../assets/pldprojects-logo-clara.svg";
+import logoAzul from "../../assets/pldprojects-logo-azul.svg";
+import logoBranca from "../../assets/pldprojects-logo-azul-clara.svg";
 
 const LARGURA = 260;
 const LARGURA_RECOLHIDA = 68;
 const ALTURA_ITEM = 34; // itens do menu
 const TAMANHO_AVATAR = 40; // logo e avatar do usuário
 const ALTURA_TOPO_MOBILE = 60; // .pagina-central desconta essa altura no celular
-const ROTAS_DA_CONTA = [
-  "/movimentacoes",
-  "/membros",
-  "/configuracoes-conta",
-  "/agendadas",
-];
+const ROTAS_DA_CONTA = ["/membros", "/agendadas"];
+const ehRotaDaConta = (rota: string) =>
+  ROTAS_DA_CONTA.includes(rota) || rota.endsWith("/contabancaria");
 
-// Iguais nos dois modos: texto sobre o azul primário e ação de perigo.
+// Iguais nos dois modos: texto sobre o azul primário e "Deslogar" (no menu, fora da barra).
 const COR_SOBRE_GRADIENTE = "#fff";
 const COR_PERIGO = "#ff4b4b";
 
@@ -69,7 +68,9 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
 }) => {
   const { user } = useContext(AuthContext);
   const cores = useTheme().palette.mode === "dark" ? CoresEscuro : CoresClaro;
-  const barra = cores.barraLateral;
+  const rotaAtual = useLocation().pathname;
+  // no modo claro a barra é branca em todas as telas; só mudam as cores
+  const barra = cores === CoresClaro ? BarraLateralClara : cores.barraLateral;
 
   const nomeUsuario = user?.nomeCompleto || "Usuário";
   // Iniciais do primeiro e do último nome: "Erick Augusto Paludo" -> "EP".
@@ -80,7 +81,6 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   ).toUpperCase();
   const { conta, usuario, setConta, versaoContas } = useContext(ContaContext);
   const navigate = useNavigate();
-  const rotaAtual = useLocation().pathname;
   const isMobile = useMediaQuery("(max-width:768px)");
   const [recolhida, setRecolhida] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
@@ -117,13 +117,19 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
 
   const abrirConta = (contaFavorita: ContaBancaria) => {
     setConta(contaFavorita);
-    irPara("/movimentacoes");
+    irPara(`/${contaFavorita.idConta}/contabancaria`);
   };
 
   const menu: Item[] = [
     { rota: "/inicial", titulo: "Contas", icone: "account_balance" },
     ...(conta
-      ? [{ rota: "/movimentacoes", titulo: conta.titulo, icone: "wallet" }]
+      ? [
+          {
+            rota: `/${conta.idConta}/contabancaria`,
+            titulo: conta.titulo,
+            icone: "wallet",
+          },
+        ]
       : []),
     { rota: "/convites", titulo: "Convites", icone: "person_add" },
   ];
@@ -177,7 +183,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
             color: cor ?? barra.itemHoverTexto,
           },
           "&.Mui-selected, &.Mui-selected:hover": {
-            background: cores.primaria.principal, // item selecionado: fundo na cor primária
+            background: barra.itemAtivo,
             color: COR_SOBRE_GRADIENTE,
           },
         }}
@@ -203,36 +209,28 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const item = ({ rota, titulo, icone }: Item) =>
     botao(titulo, icone, () => irPara(rota), rotaAtual === rota);
 
-  // Logo clara (branca) dentro do quadrado na cor primária, com borda; igual nos dois modos.
+  // Só o SVG, sem quadro: azul-escuro na barra branca, branco na barra escura.
   const logo = (tamanho: number) => (
-    <Avatar
-      variant="rounded"
-      src={logoClara}
+    <Box
+      component="img"
+      src={modo === "claro" ? logoAzul : logoBranca}
       alt="" // decorativa: o nome FinancHub está ao lado
       sx={{
-        bgcolor: cores.primaria.principal,
-        border: 1,
-        borderColor: barra.divisoria,
-        // o fundo não passa por baixo da borda: evita franja serrilhada nos cantos arredondados
-        backgroundClip: "padding-box",
-        borderRadius: 1,
         width: tamanho,
         height: tamanho,
         flexShrink: 0,
-        "& img": {
-          width: "88%",
-          height: "88%",
-          objectFit: "contain",
-          // o desenho pesa embaixo (centro de massa ~14% abaixo do centro do SVG): sobe para parecer centralizado
-          transform: "translateY(-10%)",
-        },
+        objectFit: "contain",
+        // o desenho pesa embaixo (centro de massa ~14% abaixo do centro do SVG): sobe para parecer centralizado
+        transform: "translateY(-10%)",
       }}
     />
   );
 
   const conteudo = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <Box
+      <ButtonBase
+        onClick={() => irPara("/inicial")}
+        aria-label="FinancHub: ir para a tela inicial"
         sx={{
           height: 100,
           px: 1.5,
@@ -240,6 +238,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           alignItems: "center",
           justifyContent: compacta ? "center" : "flex-start",
           gap: 1.5,
+          textAlign: "left",
         }}
       >
         {logo(TAMANHO_AVATAR)}
@@ -256,7 +255,9 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
             </Typography>
           </Box>
         )}
-      </Box>
+      </ButtonBase>
+
+      <Divider sx={{ borderColor: barra.divisoria }} />
 
       <List
         component="nav"
@@ -282,7 +283,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           </>
         )}
 
-        {conta && ROTAS_DA_CONTA.includes(rotaAtual) && (
+        {conta && ehRotaDaConta(rotaAtual) && (
           <Box sx={{ mt: "auto", pt: 2 }}>
             {opcoesConta.map(item)}
             {botao(
@@ -290,7 +291,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
               "exit_to_app",
               () => setConfirmarSaida(true),
               false,
-              COR_PERIGO,
+              barra.perigo,
             )}
           </Box>
         )}
@@ -471,6 +472,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           elevation={0}
           sx={{
             ...fundoGaveta,
+            color: barra.titulo, // o padrão do AppBar é branco, que some na barra clara
             borderRight: 0,
             borderBottom: fundoGaveta.borderRight,
           }}

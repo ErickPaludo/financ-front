@@ -1,9 +1,10 @@
-/* Tela inicial: resumo e cards das contas */
+/* Tela inicial: resumo e cards das contas (cores em --fnc-tx-*, cores.ts) */
 .principal {
   display: flex;
   flex-direction: column;
   gap: 24px;
   min-height: min-content; /* Garante que o conteúdo não seja cortado */
+  padding-bottom: 50px;
 }
 
 /* Arrastar para reordenar as contas */
@@ -17,7 +18,44 @@
   opacity: 0.4;
 }
 
-/* Cards de conta mais largos: saldo e receitas/despesas lado a lado */
+/* em telas estreitas, uma coluna (min() evita rolagem horizontal abaixo de 260px) */
 .grid-contas {
-  grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+  gap: 16px;
+}
+
+.card-adicionar-conta {
+  min-height: 200px; /* a linha estica até a altura dos outros cards */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 2px dashed var(--fnc-tx-botao-borda);
+  border-radius: 16px;
+  /* superfície a 50%: branco translúcido no claro, card escuro translúcido no escuro */
+  background: color-mix(in srgb, var(--fnc-tx-superficie) 50%, transparent);
+  color: var(--fnc-tx-chip-texto);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+}
+.card-adicionar-conta:hover {
+  border-color: var(--fnc-tx-destaque);
+}
+.card-adicionar-conta:focus-visible {
+  outline: 2px solid var(--fnc-tx-destaque);
+  outline-offset: 2px;
+}
+
+.card-adicionar-conta__circulo {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--fnc-tx-chip-fundo);
 }

@@ -1,15 +1,16 @@
 import api from "../../services/api/apiConnect";
 import React, { useContext, useEffect, useState } from "react";
 
-import type { FncTableColumn } from "../../props/fnc-table/FncTable";
+import TabelaDados, {
+  type ColunaTabela,
+} from "../../componentes/tabela-dados/TabelaDados";
 import "./MembrosStyle.css";
 import TitleText from "../../props/title-text/TitleText";
 import LabelText from "../../props/label-text/LabelText";
-import FncTable from "../../props/fnc-table/FncTable";
 import { ContaContext } from "../../contexts/ContaContext";
 import { AuthContext } from "../../contexts/AuthContext";
 import MsgTextBox from "../../props/text-box/MsgTextBox";
-import FncButton from "../../props/fnc-button/FncButton";
+import { Button } from "@mui/material";
 import type {
   ContaUsuario,
   GetContaUsuario,
@@ -29,11 +30,11 @@ const Membros = () => {
   const { conta, usuario, setMembroConta } = useContext(ContaContext);
   const { user } = useContext(AuthContext);
 
-  const colunas: FncTableColumn[] = [
-    { header: "Email", key: "email" },
-    { header: "Acesso", key: "acesso" },
-    { header: "Status", key: "status" },
-    { header: "Data Expiração", key: "dtExpiracao" },
+  const colunas: ColunaTabela<IMembros>[] = [
+    { titulo: "Email", chave: "email" },
+    { titulo: "Acesso", chave: "acesso" },
+    { titulo: "Status", chave: "status" },
+    { titulo: "Data Expiração", chave: "dtExpiracao" },
   ];
 
   const typePermission = (value: number) => {
@@ -58,7 +59,8 @@ const Membros = () => {
       minute: "2-digit",
     });
   }
-  const [membros, setMembros] = React.useState<IMembros[]>([]);
+  // undefined = ainda buscando (a tabela mostra o carregamento)
+  const [membros, setMembros] = React.useState<IMembros[]>();
   const [openEditUser, setOpenEditUser] = useState<boolean>(false);
 
   const buscaContaUsuario = async () => {
@@ -87,9 +89,10 @@ const Membros = () => {
             });
           });
         setMembros(membroConta);
-      }
+      } else setMembros([]);
     } catch (error) {
       console.error("Erro ao buscar conta usuário:", error);
+      setMembros([]);
     }
   };
 
@@ -99,9 +102,10 @@ const Membros = () => {
     };
 
     carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- busca só ao abrir a tela
   }, []);
 
-  const handleMemberClick = async (objetoDaLinha: any) => {
+  const handleMemberClick = async (objetoDaLinha: IMembros) => {
     setMembroConta(objetoDaLinha.usuario);
     console.log(usuario);
     if (usuario?.permissao === 0) setOpenEditUser(true);
@@ -141,15 +145,19 @@ const Membros = () => {
           )}
         </div>
 
-        <FncTable
-          title="Membros"
-          data={membros}
-          columns={colunas}
-          onRowClick={handleMemberClick}
+        <TabelaDados
+          titulo="Membros"
+          idPreferencias="membros"
+          linhas={membros ?? []}
+          carregando={membros === undefined}
+          colunas={colunas}
+          onClicarLinha={handleMemberClick}
         />
         <div className="fnc-members-update">
           <div>
-            <FncButton title="Atualizar" onClick={buscaContaUsuario} />
+            <Button variant="contained" onClick={buscaContaUsuario}>
+              Atualizar
+            </Button>
           </div>
         </div>
       </div>

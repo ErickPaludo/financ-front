@@ -1,27 +1,4 @@
-
-
-.fnc-ctn-cads {
-  display: flex;
-  gap: 5px;
-  height: 40px;
-  width: 40%;
-}
-
-.fnc-ctn-filter {
-  display: flex;
-  flex-wrap: wrap;
-  flex-direction: row;
-  gap: 10px;
-}
-.fnc-ctn-filter > * {
-  width: auto;
-  flex: 1 1 250px;
-  min-width: 200px;
-}
 .transacoes-container {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
   animation: fadeIn 0.3s ease;
   padding-bottom: 50px;
 }
@@ -35,26 +12,4 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.fnc-grid-cards-mov {
-  display: flex;
-  align-items: start;
-  gap: 15px;
-}
-.transacoes-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.valor-positivo {
-  color: #00d492;
-  font-weight: 600;
-}
-
-.valor-negativo {
-  color: #ff4b4b;
-  font-weight: 600;
 }

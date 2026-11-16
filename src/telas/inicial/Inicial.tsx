@@ -4,7 +4,7 @@ import type {
 } from "../../models/contas-usuarios/GetContasBancarias";
 import api from "../../services/api/apiConnect";
 
-import { useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import { moverId, ordenarPorIds } from "./ordemContas";
@@ -22,7 +22,7 @@ export const Inicial: React.FC = () => {
   const [contasObtidas, setcontasObtidas] = useState<ContaResponse | null>(
     null,
   );
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   // a conta continua guardada ao fechar para o título não trocar durante a animação
   const [gaveta, setGaveta] = useState<{
     aberta: boolean;
@@ -51,20 +51,20 @@ export const Inicial: React.FC = () => {
       ),
     );
   };
-  const buscaContas = async () => {
-    // tela de carregamento só na primeira busca; depois atualiza sem piscar
-    if (!contasObtidas) setLoading(true);
-    const resposta = await api<ContaResponse>("/ContasUsuarios", "GET");
-
-    if (resposta.sucesso && resposta.dados) {
-      setcontasObtidas(resposta.dados);
-    }
-    setLoading(false);
-  };
+  // a tela de carregamento só aparece na primeira busca (loading começa true); depois atualiza sem piscar
+  const buscaContas = useCallback(
+    () =>
+      api<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
+        if (resposta.sucesso && resposta.dados)
+          setcontasObtidas(resposta.dados);
+        setLoading(false);
+      }),
+    [],
+  );
 
   useEffect(() => {
     buscaContas();
-  }, []);
+  }, [buscaContas]);
 
   // depois de alterar uma conta: atualiza os cards e os favoritos da barra lateral
   const { contasAlteradas } = useContext(ContaContext);
@@ -87,7 +87,7 @@ export const Inicial: React.FC = () => {
               onAlternarOcultar={alternarOcultos}
             />
 
-            <div className="grid-cards grid-contas">
+            <div className="grid-contas">
               {contas.map((conta) => (
                 <div
                   key={conta.idConta}
@@ -111,6 +111,18 @@ export const Inicial: React.FC = () => {
                   />
                 </div>
               ))}
+
+              {/* último item: mesmo fluxo do botão "Nova conta bancária" */}
+              <button
+                type="button"
+                className="card-adicionar-conta"
+                onClick={() => setGaveta({ aberta: true, conta: null })}
+              >
+                <span className="card-adicionar-conta__circulo" aria-hidden>
+                  <span className="material-icons">add</span>
+                </span>
+                Adicionar conta
+              </button>
             </div>
 
             <CadContas

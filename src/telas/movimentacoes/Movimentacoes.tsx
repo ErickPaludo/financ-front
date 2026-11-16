@@ -7,42 +7,114 @@ import type {
 } from "../../models/movimentacoes/GetMovimentacoes";
 import Modal from "../../componentes/modal/Modal";
 import type { CategoriaResponse } from "../../models/categorias/Categorias";
-import TitleText from "../../props/title-text/TitleText";
-import FncButton from "../../props/fnc-button/FncButton";
+import {
+  Box,
+  Button,
+  Icon,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import Categorias from "../categorias/Categorias";
-import InputDate from "../../props/input-date/InputDate";
+import FiltroPeriodo from "./filtro-periodo/FiltroPeriodo";
 import CheckBoxList from "../../props/check-box-list/CheckBoxList";
 import { ContaContext } from "../../contexts/ContaContext";
-import InputSelect from "../../props/input-select/InputSelect";
 import CadMov from "./cad-mov/CadMov";
 import TabelaMovimentacao from "./tabela/TabelaMovimentacao";
 import { AuthContext } from "../../contexts/AuthContext";
-import LabelText from "../../props/label-text/LabelText";
 import CadConvite from "./cad-convite/CadConvite";
 import type { GetContaUsuario } from "../../models/contas-usuarios/GetContaUsuario";
 import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
-import CtnFncMov from "../../props/ctn-fnc-mov/CtnFncMov";
 import InputCheckBox from "../../props/input-check-box/InputCheckBox";
+import CardResumo from "./card-resumo/CardResumo";
+import { ChipFiltro, ChipSelect } from "./filtros/ChipFiltro";
+import { valorComSinal } from "../../utils/formatacao";
 
-type Props = {};
+const botaoSecundario = {
+  height: 44,
+  px: 2.5,
+  borderRadius: "10px",
+  bgcolor: "var(--fnc-tx-superficie)",
+  border: "1px solid var(--fnc-tx-botao-borda)",
+  color: "var(--fnc-tx-chip-texto)",
+  "&:hover": { bgcolor: "var(--fnc-tx-chip-fundo)" },
+};
 
-const Movimentacoes: React.FC<Props> = ({}) => {
+// parte de cada pendência (receitas ou despesas) no total pendente
+const Progresso: React.FC<{
+  valor: number;
+  total: number;
+  cor: string;
+  rotulo: string;
+}> = ({ valor, total, cor, rotulo }) => (
+  <LinearProgress
+    variant="determinate"
+    value={total > 0 ? (valor / total) * 100 : 0}
+    aria-label={rotulo}
+    sx={{
+      height: 6,
+      borderRadius: 999,
+      bgcolor: "var(--fnc-tx-trilho)",
+      "& .MuiLinearProgress-bar": { bgcolor: cor, borderRadius: 999 },
+    }}
+  />
+);
+
+// valor de um card de "Ver detalhes": as mesmas cores de antes (receita, despesa ou neutro; neutro negativo em vermelho)
+const ValorDetalhe: React.FC<{
+  rotulo: string;
+  valor: number | undefined;
+  tipo: "receita" | "despesa" | "neutro";
+  formata: (valor: number | undefined) => string;
+}> = ({ rotulo, valor, tipo, formata }) => (
+  <Box>
+    <Typography sx={{ fontSize: 12, color: "var(--fnc-tx-apoio)" }}>
+      {rotulo}
+    </Typography>
+    <Typography
+      sx={{
+        fontSize: 16,
+        fontWeight: 700,
+        lineHeight: 1.3,
+        fontVariantNumeric: "tabular-nums",
+        color:
+          tipo === "receita"
+            ? "var(--fnc-tx-receita)"
+            : tipo === "despesa" || (valor ?? 0) < 0
+              ? "var(--fnc-tx-despesa)"
+              : "var(--fnc-tx-texto)",
+      }}
+    >
+      {formata(valor)}
+    </Typography>
+  </Box>
+);
+
+const Movimentacoes: React.FC = () => {
   const { conta, setConta, setContaUsuario, usuario } =
     useContext(ContaContext);
   const { user } = useContext(AuthContext);
+  // a rota (ContaDaRota) só mostra esta tela com a conta carregada
+  const idConta = conta!.idConta;
+  const idUsuario = user?.id;
   const [movimentacoes, setMovimentacoes] = useState<GetMovimentacoes>();
+  // filtros da última busca que voltou: diferente dos atuais = a tabela está carregando
+  const [filtrosCarregados, setFiltrosCarregados] = useState<string>();
   const [isCadMovOpen, setIsCadMovOpen] = useState(false);
   const [isCadInvite, setIsCadInvite] = useState(false);
 
   const [categorias, setCategorias] = useState<CategoriaResponse>();
   const [isCategoriaOpen, setIsCategoriaOpen] = useState(false);
-  const [isConcluido, setIsConcluido] = useState<Boolean | null>(null);
+  const [isConcluido, setIsConcluido] = useState<boolean | null>(null);
   const [tipoMovimentacao, setTipoMovimentacao] = useState<number | null>(null);
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<
     number[]
   >([]);
 
   const [mostraResumo, setmostraResumo] = useState<boolean>(false);
+  const [modoSimples, setModoSimples] = useState(false);
   const [statusSelect, setStatusSelect] = useState("Todas");
 
   const getNow = (isEnd: boolean = false) => {
@@ -72,48 +144,40 @@ const Movimentacoes: React.FC<Props> = ({}) => {
     }).format(valor);
   };
 
-  const buscaContas = async () => {
-    let resposta = await api<ContaResponse>(
-      `/ContasUsuarios?id=${conta!.idConta}`,
-      "GET",
-    );
-    console.log(`/ContasUsuarios?id=${conta!.idConta}`);
+  // atualiza saldos da conta (o card de resumo e a barra lateral leem do contexto)
+  const buscaContas = useCallback(
+    () =>
+      api<ContaResponse>(`/ContasUsuarios?id=${idConta}`, "GET").then(
+        (resposta) => {
+          if (resposta.sucesso && resposta.dados)
+            setConta(resposta.dados.conteudo.contas[0]);
+        },
+      ),
+    [idConta, setConta],
+  );
 
-    if (resposta.sucesso && resposta.dados) {
-      setConta(resposta.dados.conteudo.contas[0]);
-    }
-  };
+  // Conecta nunca lança erro: falhas vêm em resposta.sucesso
+  const buscaCategorias = useCallback(
+    () =>
+      api<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
+        (resposta) => {
+          if (resposta.sucesso && resposta.dados) setCategorias(resposta.dados);
+        },
+      ),
+    [idConta],
+  );
 
-  const buscaCategorias = useCallback(async () => {
-    try {
-      const resposta = await api<CategoriaResponse>(
-        `/Contas/${conta!.idConta}/Categorias`,
+  const buscaContaUsuario = useCallback(
+    () =>
+      api<GetContaUsuario>(
+        `/ContasUsuarios/${idConta}/associados?IdUsuario=${idUsuario}`,
         "GET",
-        undefined,
-      );
-      if (resposta.sucesso && resposta.dados) {
-        setCategorias(resposta.dados);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
-    }
-  }, [conta!.idConta]);
-
-  const buscaContaUsuario = useCallback(async () => {
-    try {
-      const resposta = await api<GetContaUsuario>(
-        `/ContasUsuarios/${conta!.idConta}/associados?IdUsuario=${user!.id}`,
-        "GET",
-        undefined,
-      );
-      if (resposta.sucesso && resposta.dados) {
-        console.log(resposta.dados);
-        setContaUsuario(resposta.dados.conteudo[0]);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar conta usuário:", error);
-    }
-  }, [conta!.idConta]);
+      ).then((resposta) => {
+        if (resposta.sucesso && resposta.dados)
+          setContaUsuario(resposta.dados.conteudo[0]);
+      }),
+    [idConta, idUsuario, setContaUsuario],
+  );
 
   const formatarData = (dataUtc: string) => {
     const data = new Date(dataUtc);
@@ -128,9 +192,7 @@ const Movimentacoes: React.FC<Props> = ({}) => {
     return `${dia}/${mes}/${ano} ${hora}:${min}`;
   };
 
-  const buscaMovimentacoes = useCallback(async () => {
-    await buscaContas();
-
+  const buscaMovimentacoes = useCallback(() => {
     const toUTCISOString = (data: string) => {
       const local = new Date(data);
       const offsetMs = local.getTimezoneOffset() * 60 * 1000;
@@ -156,18 +218,25 @@ const Movimentacoes: React.FC<Props> = ({}) => {
 
     params.append("RetornaFixos", "true");
 
-    const url = `/Contas/${conta!.idConta}/Movimentacoes/Retornar?${params.toString()}`;
+    const url = `/Contas/${idConta}/Movimentacoes/Retornar?${params.toString()}`;
 
-    try {
-      const resposta = await api<GetMovimentacoes>(url, "GET", undefined);
-      if (resposta.sucesso && resposta.dados) {
-        setMovimentacoes(resposta.dados);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar movimentações:", error);
-    }
+    const filtros = JSON.stringify([
+      dataInicial,
+      dataFinal,
+      categoriasSelecionadas,
+      isConcluido,
+      tipoMovimentacao,
+    ]);
+    return buscaContas()
+      .then(() => api<GetMovimentacoes>(url, "GET"))
+      .then((resposta) => {
+        if (resposta.sucesso && resposta.dados)
+          setMovimentacoes(resposta.dados);
+        setFiltrosCarregados(filtros);
+      });
   }, [
-    conta!.idConta,
+    buscaContas,
+    idConta,
     dataInicial,
     dataFinal,
     categoriasSelecionadas,
@@ -179,179 +248,272 @@ const Movimentacoes: React.FC<Props> = ({}) => {
     buscaContaUsuario();
     buscaCategorias();
     buscaMovimentacoes();
-  }, [buscaCategorias, buscaMovimentacoes]);
+  }, [buscaContaUsuario, buscaCategorias, buscaMovimentacoes]);
+
+  const carregandoMov =
+    filtrosCarregados !==
+    JSON.stringify([
+      dataInicial,
+      dataFinal,
+      categoriasSelecionadas,
+      isConcluido,
+      tipoMovimentacao,
+    ]);
+  const resumo = movimentacoes?.conteudo.resumo;
+  const linhas = movimentacoes?.conteudo.movimentacaos ?? [];
+  // soma das transações listadas: receitas menos despesas
+  const saldoPeriodo = linhas.reduce(
+    (soma, mov) => soma + (mov.tipo === 0 ? mov.valor : -mov.valor),
+    0,
+  );
+  const totalPendente = conta!.entradaPendente + conta!.saidaPendente;
+  const nivelAcesso =
+    usuario?.permissao === 0
+      ? "Mestre"
+      : usuario?.permissao === 1
+        ? "Administrador"
+        : "Visualizador";
 
   return (
-    <div className="transacoes-container">
-      <div className="transacoes-header">
-        <div>
-          <TitleText text={`Transações - ${conta!.titulo}`} />
-          <LabelText
-            text={`Acesso: ${usuario?.permissao === 0 ? "Mestre" : usuario?.permissao === 1 ? "Administrador" : "Visualizador"} ${usuario?.expiracao ? ` - Expiração: ${formatarData(usuario?.expiracao)}` : ""} `}
-          />
-        </div>
+    <Stack className="transacoes-container" spacing={3}>
+      {!modoSimples && (
+      <Stack
+        direction={{ xs: "column", md: "row" }}
+        sx={{
+          justifyContent: "space-between",
+          alignItems: { xs: "flex-start", md: "center" },
+          gap: 2,
+        }}
+      >
+        <Box>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: 28,
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: "var(--fnc-tx-texto)",
+            }}
+          >
+            Transações · {conta!.titulo}
+          </Typography>
+          <Typography sx={{ fontSize: 13, color: "var(--fnc-tx-apoio)" }}>
+            Acesso: {nivelAcesso}
+            {usuario?.expiracao &&
+              ` · Expiração: ${formatarData(usuario.expiracao)}`}
+          </Typography>
+        </Box>
 
         {usuario?.permissao !== 2 && (
-          <>
-            <div className="fnc-ctn-cads">
-              <FncButton
-                title="Nova Transação"
-                onClick={() => setIsCadMovOpen(true)}
-              />
-              {usuario?.permissao === 0 && (
-                <>
-                  <FncButton
-                    title="Novo Convite"
-                    onClick={() => setIsCadInvite(true)}
-                  />
-                  <FncButton
-                    title="Categorias"
-                    onClick={() => {
-                      setIsCategoriaOpen(true);
-                    }}
-                  />
-                </>
-              )}
-            </div>
-          </>
+          <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5 }}>
+            {usuario?.permissao === 0 && (
+              <>
+                <Button
+                  sx={botaoSecundario}
+                  onClick={() => setIsCategoriaOpen(true)}
+                >
+                  Categorias
+                </Button>
+                <Button
+                  sx={botaoSecundario}
+                  onClick={() => setIsCadInvite(true)}
+                >
+                  Novo convite
+                </Button>
+              </>
+            )}
+            <Button
+              variant="contained"
+              startIcon={<Icon>add</Icon>}
+              onClick={() => setIsCadMovOpen(true)}
+              sx={{
+                height: 44,
+                px: 2.5,
+                borderRadius: "10px",
+                bgcolor: "var(--fnc-tx-destaque)",
+                color: "var(--fnc-tx-sobre-destaque)",
+                boxShadow: "none",
+              }}
+            >
+              Nova transação
+            </Button>
+          </Stack>
         )}
-      </div>
+      </Stack>
+      )}
 
-      <div className="grid-cards">
-        <div className="card-secundario">
-          <div className="card-secundario__header">
-            <div className="card-secundario__icon icon-investimento">
-              <span className="material-icons">account_balance</span>
-            </div>
-          </div>
-          <div className="card-secundario__label">Saldo atual</div>
-          <div className="card-secundario__valor" style={{ color: "#2B7FFF" }}>
-            {formataMoeda(conta!.saldoAtual)}
-          </div>
-        </div>
+      {!modoSimples && (
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: 2,
+        }}
+      >
+        <CardResumo
+          destaque
+          rotulo="Saldo atual"
+          valor={formataMoeda(conta!.saldoAtual)}
+          icone="account_balance"
+          corIcone="var(--fnc-tx-sobre-destaque)"
+        >
+          <Typography
+            sx={{
+              fontSize: 13,
+              color: "var(--fnc-tx-legenda-destaque)",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            Real e projetado da conta:{" "}
+            {formataMoeda(resumo?.saldoRealProjetado)}
+          </Typography>
+        </CardResumo>
 
-        <div className="card-secundario">
-          <div className="card-secundario__header">
-            <div className="card-secundario__icon icon-investimento">
-              <span className="material-icons">account_balance</span>
-            </div>
-          </div>
-          <div className="card-secundario__label">Saldo Projetado</div>
-          <div className="card-secundario__valor" style={{ color: "#0c42f5" }}>
-            {formataMoeda(conta!.saldoProjetado)}
-          </div>
-        </div>
+        <CardResumo
+          rotulo="Saldo projetado"
+          valor={formataMoeda(conta!.saldoProjetado)}
+          icone="query_stats"
+          corIcone="var(--fnc-tx-destaque)"
+          corValor={
+            conta!.saldoProjetado < 0 ? "var(--fnc-tx-despesa)" : undefined
+          }
+        >
+   
+        </CardResumo>
 
-        <div className="card-secundario">
-          <div className="card-secundario__header">
-            <div className="card-secundario__icon icon-receita">
-              <span className="material-icons">trending_up</span>
-            </div>
-          </div>
-          <div className="card-secundario__label">Receitas Pendentes</div>
-          <div className="card-secundario__valor" style={{ color: "#00D492" }}>
-            {formataMoeda(conta!.entradaPendente)}
-          </div>
-        </div>
+        <CardResumo
+          rotulo="Receitas pendentes"
+          valor={formataMoeda(conta!.entradaPendente)}
+          icone="trending_up"
+          corIcone="var(--fnc-tx-receita)"
+          corValor="var(--fnc-tx-receita)"
+        >
+          <Progresso
+            valor={conta!.entradaPendente}
+            total={totalPendente}
+            cor="var(--fnc-tx-receita-barra)"
+            rotulo="Receitas no total pendente"
+          />
+        </CardResumo>
 
-        <div className="card-secundario">
-          <div className="card-secundario__header">
-            <div className="card-secundario__icon icon-despesa">
-              <span className="material-icons">trending_down</span>
-            </div>
-          </div>
-          <div className="card-secundario__label">Despesas Pendentes</div>
-          <div className="card-secundario__valor" style={{ color: "#FF4B4B" }}>
-            {formataMoeda(conta!.saidaPendente)}
-          </div>
-        </div>
-      </div>
+        <CardResumo
+          rotulo="Despesas pendentes"
+          valor={formataMoeda(conta!.saidaPendente)}
+          icone="trending_down"
+          corIcone="var(--fnc-tx-despesa)"
+          corValor="var(--fnc-tx-despesa)"
+        >
+          <Progresso
+            valor={conta!.saidaPendente}
+            total={totalPendente}
+            cor="var(--fnc-tx-despesa-barra)"
+            rotulo="Despesas no total pendente"
+          />
+        </CardResumo>
+      </Box>
+      )}
 
-      <div className="fnc-grid-cards-mov">
-        <CtnFncMov
-          title="Saldo Conta"
-          subtitle_1="Real"
-          value_1={formataMoeda(movimentacoes?.conteudo.resumo.saldoReal)}
-          type_1={true}
-          subtitle_2="Projetado"
-          value_2={formataMoeda(
-            movimentacoes?.conteudo.resumo.saldoRealProjetado,
-          )}
-        />
-      </div>
-      <InputCheckBox
-        label="Ver detalhes"
-        setChecked={() => setmostraResumo(!mostraResumo)}
-        checked={mostraResumo}
-      />
-      {mostraResumo && (
-        <>
-          <div className="fnc-grid-cards-mov">
-            <CtnFncMov
-              title="Geral Período"
-              subtitle_1="Entrada"
-              value_1={formataMoeda(
-                movimentacoes?.conteudo.resumo.entrada.projetado,
-              )}
-              type_1={true}
-              subtitle_2="Saída"
-              value_2={formataMoeda(
-                movimentacoes?.conteudo.resumo.saida.projetado,
-              )}
-              type_2={false}
-            />
-
-            <CtnFncMov
-              title="Resto Período"
-              subtitle_1="Saldo"
-              value_1={formataMoeda(
-                movimentacoes?.conteudo.resumo.saldoRealizado,
-              )}
-              type_1={true}
-              subtitle_2="Projetado"
-              value_2={formataMoeda(
-                movimentacoes?.conteudo.resumo.saldoProjetado,
-              )}
-            />
-          </div>
-          <div className="fnc-grid-cards-mov">
-            <CtnFncMov
-              title="Entradas Período"
-              subtitle_1="Realizadas"
-              value_1={formataMoeda(
-                movimentacoes?.conteudo.resumo.entrada.concluidos,
-              )}
-              type_1={true}
-              subtitle_2="Projetado"
-              value_2={formataMoeda(
-                movimentacoes?.conteudo.resumo.entrada.projetado,
-              )}
-              subtitle_3="Pendentes"
-              value_3={formataMoeda(
-                movimentacoes?.conteudo.resumo.entrada.pendentes,
-              )}
-              type_3={false}
-            />
-
-            <CtnFncMov
-              title="Saídas Período"
-              subtitle_1="Realizadas"
-              value_1={formataMoeda(
-                movimentacoes?.conteudo.resumo.saida.concluidos,
-              )}
-              type_1={false}
-              subtitle_2="Projetado"
-              value_2={formataMoeda(
-                movimentacoes?.conteudo.resumo.saida.projetado,
-              )}
-              subtitle_3="Pendentes"
-              value_3={formataMoeda(
-                movimentacoes?.conteudo.resumo.saida.pendentes,
-              )}
-              type_3={false}
-            />
-          </div>
-        </>
+      {mostraResumo && !modoSimples && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: 2,
+          }}
+        >
+          <CardResumo
+            rotulo="Geral período"
+            icone="swap_vert"
+            corIcone="var(--fnc-tx-destaque)"
+          >
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: "6px 16px" }}>
+              <ValorDetalhe
+                rotulo="Entrada"
+                valor={resumo?.entrada.projetado}
+                tipo="receita"
+                formata={formataMoeda}
+              />
+              <ValorDetalhe
+                rotulo="Saída"
+                valor={resumo?.saida.projetado}
+                tipo="despesa"
+                formata={formataMoeda}
+              />
+            </Stack>
+          </CardResumo>
+          <CardResumo
+            rotulo="Resto período"
+            icone="account_balance_wallet"
+            corIcone="var(--fnc-tx-destaque)"
+          >
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: "6px 16px" }}>
+              <ValorDetalhe
+                rotulo="Saldo"
+                valor={resumo?.saldoRealizado}
+                tipo="receita"
+                formata={formataMoeda}
+              />
+              <ValorDetalhe
+                rotulo="Projetado"
+                valor={resumo?.saldoProjetado}
+                tipo="neutro"
+                formata={formataMoeda}
+              />
+            </Stack>
+          </CardResumo>
+          <CardResumo
+            rotulo="Entradas período"
+            icone="trending_up"
+            corIcone="var(--fnc-tx-receita)"
+          >
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: "6px 16px" }}>
+              <ValorDetalhe
+                rotulo="Realizadas"
+                valor={resumo?.entrada.concluidos}
+                tipo="receita"
+                formata={formataMoeda}
+              />
+              <ValorDetalhe
+                rotulo="Projetado"
+                valor={resumo?.entrada.projetado}
+                tipo="neutro"
+                formata={formataMoeda}
+              />
+              <ValorDetalhe
+                rotulo="Pendentes"
+                valor={resumo?.entrada.pendentes}
+                tipo="despesa"
+                formata={formataMoeda}
+              />
+            </Stack>
+          </CardResumo>
+          <CardResumo
+            rotulo="Saídas período"
+            icone="trending_down"
+            corIcone="var(--fnc-tx-despesa)"
+          >
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: "6px 16px" }}>
+              <ValorDetalhe
+                rotulo="Realizadas"
+                valor={resumo?.saida.concluidos}
+                tipo="despesa"
+                formata={formataMoeda}
+              />
+              <ValorDetalhe
+                rotulo="Projetado"
+                valor={resumo?.saida.projetado}
+                tipo="neutro"
+                formata={formataMoeda}
+              />
+              <ValorDetalhe
+                rotulo="Pendentes"
+                valor={resumo?.saida.pendentes}
+                tipo="despesa"
+                formata={formataMoeda}
+              />
+            </Stack>
+          </CardResumo>
+        </Box>
       )}
 
       <Modal isOpen={isCadMovOpen} onClose={() => setIsCadMovOpen(false)}>
@@ -366,6 +528,7 @@ const Movimentacoes: React.FC<Props> = ({}) => {
 
       <Modal
         isOpen={isCategoriaOpen}
+        titulo="Categorias"
         onClose={async () => {
           {
             setIsCategoriaOpen(false);
@@ -388,78 +551,214 @@ const Movimentacoes: React.FC<Props> = ({}) => {
         <CadConvite setIsCadInvite={setIsCadInvite} />
       </Modal>
 
-      <div className="fnc-ctn-filter">
-        <InputDate
-          label="Data inicial"
-          text={dataInicial}
-          setText={setDataInicial}
-        />
-        <InputDate label="Data Final" text={dataFinal} setText={setDataFinal} />
-
-        <CheckBoxList<Categoria>
-          itens={[
-            {
-              idCategoria: 0,
-              nome: "Sem categoria",
-            } as Categoria,
-
-            ...(categorias?.conteudo ?? []),
-          ]}
-          idKey="idCategoria"
-          labelKey="nome"
-          selecionados={categoriasSelecionadas}
-          onChange={setCategoriasSelecionadas}
-          label="Categorias"
-          ignorarPrimeiroItem={true}
-        />
-
-        <InputSelect
-          label="Status"
-          opcoes={[
-            { label: "Todas", value: "Todas" },
-            { label: "Pendente", value: "Pendente" },
-            { label: "Concluído", value: "Concluido" },
-          ]}
-          value={statusSelect}
-          onChange={(valor) => {
-            setStatusSelect(valor);
-
-            setIsConcluido(
-              valor === "Todas" ? null : valor === "Pendente" ? false : true,
-            );
-          }}
-        />
-
-        <InputSelect
-          label="Tipo Movimentação"
-          opcoes={[
-            { label: "Todas", value: "Todas" },
-            { label: "Entrada", value: "Entrada" },
-            { label: "Saída", value: "Saida" },
-          ]}
-          onChange={(valor) =>
-            setTipoMovimentacao(
-              valor === "Todas" ? null : valor === "Entrada" ? 0 : 1,
-            )
-          }
-          value={
-            tipoMovimentacao === null
-              ? "Todas"
-              : tipoMovimentacao === 0
-                ? "Entrada"
-                : "Saida"
-          }
-        />
-      </div>
-
-      {movimentacoes && (
+      {/* card da tabela: filtros no topo, tabela e rodapé com o total do período.
+          Vidro fosco: superfície translúcida que desfoca o fundo atrás dela. */}
+      <Box
+        sx={{
+          bgcolor:
+            "color-mix(in srgb, var(--fnc-tx-superficie) 55%, transparent)",
+          backdropFilter: "blur(16px) saturate(140%)",
+          border: "1px solid var(--fnc-tx-borda)",
+          borderRadius: "16px",
+          overflow: "hidden",
+        }}
+      >
         <TabelaMovimentacao
           movimentacao={movimentacoes}
+          carregando={carregandoMov}
           buscaMovimentacoes={buscaMovimentacoes}
           idConta={conta!.idConta}
+          filtros={
+            <Stack
+              direction="row"
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                flexWrap: "wrap",
+                // pelo pé: os campos de data têm rótulo em cima, os chips não
+                alignItems: "flex-end",
+                // na mesma linha, filtros à direita; quebrando, a linha de baixo começa à esquerda
+                justifyContent: "space-between",
+                gap: 1.5,
+              }}
+            >
+              <FiltroPeriodo
+                dataInicial={dataInicial}
+                setDataInicial={setDataInicial}
+                dataFinal={dataFinal}
+                setDataFinal={setDataFinal}
+              />
+              {!modoSimples && (
+              <Stack
+                direction="row"
+                sx={{
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
+                <CheckBoxList<Categoria>
+                  itens={[
+                    {
+                      idCategoria: 0,
+                      nome: "Sem categoria",
+                    } as Categoria,
+
+                    ...(categorias?.conteudo ?? []),
+                  ]}
+                  idKey="idCategoria"
+                  labelKey="nome"
+                  selecionados={categoriasSelecionadas}
+                  onChange={setCategoriasSelecionadas}
+                  label="Categorias"
+                  ignorarPrimeiroItem={true}
+                  gatilho={({ abrir, aberto, resumo }) => (
+                    <ChipFiltro
+                      texto={resumo ? `Categorias: ${resumo}` : "Categorias"}
+                      aberto={aberto}
+                      onClick={abrir}
+                    />
+                  )}
+                />
+
+                <ChipSelect
+                  rotulo="Status"
+                  opcoes={[
+                    { label: "Todas", value: "Todas" },
+                    { label: "Pendente", value: "Pendente" },
+                    { label: "Concluído", value: "Concluido" },
+                  ]}
+                  valor={statusSelect}
+                  onChange={(valor) => {
+                    setStatusSelect(valor);
+
+                    setIsConcluido(
+                      valor === "Todas"
+                        ? null
+                        : valor === "Pendente"
+                          ? false
+                          : true,
+                    );
+                  }}
+                />
+
+                <ChipSelect
+                  rotulo="Tipo"
+                  opcoes={[
+                    { label: "Todas", value: "Todas" },
+                    { label: "Entrada", value: "Entrada" },
+                    { label: "Saída", value: "Saida" },
+                  ]}
+                  onChange={(valor) =>
+                    setTipoMovimentacao(
+                      valor === "Todas" ? null : valor === "Entrada" ? 0 : 1,
+                    )
+                  }
+                  valor={
+                    tipoMovimentacao === null
+                      ? "Todas"
+                      : tipoMovimentacao === 0
+                        ? "Entrada"
+                        : "Saida"
+                  }
+                />
+              </Stack>
+              )}
+
+              {/* margem automática: sempre à direita, mesmo quando a linha quebra */}
+              <Stack
+                direction="row"
+                sx={{ ml: "auto", height: 36, alignItems: "center", gap: 1 }}
+              >
+                {!modoSimples && (
+                  <Box sx={{ color: "var(--fnc-tx-texto)", pl: 1 }}>
+                    <InputCheckBox
+                      label="Ver detalhes"
+                      setChecked={() => setmostraResumo(!mostraResumo)}
+                      checked={mostraResumo}
+                    />
+                  </Box>
+                )}
+
+                <Tooltip title={modoSimples ? "Restaurar" : "Maximizar (extrato)"}>
+                  <IconButton
+                    aria-label={modoSimples ? "Restaurar" : "Maximizar (extrato)"}
+                    aria-pressed={modoSimples}
+                    sx={{ color: "var(--fnc-tx-texto)" }}
+                    // mantém os filtros: mudar qualquer um dispararia outra busca
+                    onClick={() => setModoSimples(!modoSimples)}
+                  >
+                    <Icon>{modoSimples ? "fullscreen_exit" : "fullscreen"}</Icon>
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+            </Stack>
+          }
         />
-      )}
-    </div>
+
+        <Stack
+          direction="row"
+          sx={{
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 1,
+            px: 2.5,
+            py: 2,
+            borderTop: "1px solid var(--fnc-tx-divisoria)",
+            fontSize: 13,
+            color: "var(--fnc-tx-apoio)",
+          }}
+        >
+          <span>
+            {linhas.length} {linhas.length === 1 ? "transação" : "transações"}
+          </span>
+          {modoSimples ? (
+            <>
+              <span>
+                Gastos no período:{" "}
+                <Box
+                  component="strong"
+                  sx={{
+                    fontVariantNumeric: "tabular-nums",
+                    color: "var(--fnc-tx-despesa)",
+                  }}
+                >
+                  {formataMoeda(resumo?.saida.projetado)}
+                </Box>
+              </span>
+              <span>
+                Saldo atual:{" "}
+                <Box
+                  component="strong"
+                  sx={{
+                    fontVariantNumeric: "tabular-nums",
+                    color: "var(--fnc-tx-texto)",
+                  }}
+                >
+                  {formataMoeda(conta!.saldoAtual)}
+                </Box>
+              </span>
+            </>
+          ) : (
+          <span>
+            Saldo do período:{" "}
+            <Box
+              component="strong"
+              sx={{
+                fontVariantNumeric: "tabular-nums",
+                color:
+                  saldoPeriodo < 0
+                    ? "var(--fnc-tx-despesa)"
+                    : "var(--fnc-tx-receita)",
+              }}
+            >
+              {valorComSinal(saldoPeriodo)}
+            </Box>
+          </span>
+          )}
+        </Stack>
+      </Box>
+    </Stack>
   );
 };
 

@@ -1,5 +1,5 @@
 .fnc-subtitle-text {
-  color: #90a1b9;
+  color: var(--fnc-apoio, #90a1b9);
   font-family: Inter;
   margin: 0;
   width: 100%;

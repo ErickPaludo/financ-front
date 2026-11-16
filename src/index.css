@@ -8,62 +8,6 @@ body {
   font-family: "Inter", sans-serif;
 }
 
-/* Cards e ícones compartilhados pela tela inicial e pelas movimentações */
-.grid-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 24px;
-  width: 100%;
-  max-width: 100%;
-  flex-wrap: wrap;
-  padding-bottom: 50px;
-}
-.card-secundario {
-  background: #1d293db3;
-  border-radius: 16px;
-  border: 1px rgba(49, 65, 88, 0.5) solid;
-  padding: 21px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  position: relative;
-  transition:
-    transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
-    box-shadow 0.3s ease;
-  cursor: pointer;
-}
-.card-secundario:hover {
-  transform: scale(1.03);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-.card-secundario__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.icon-receita {
-  background: rgba(0, 44, 34, 0.5);
-  color: #00d492;
-}
-.icon-despesa {
-  background: rgba(63, 18, 18, 0.5);
-  color: #ff4b4b;
-}
-.icon-investimento {
-  background: rgba(25, 60, 184, 0.2);
-  color: #2b7fff;
-}
-.card-secundario__label {
-  color: #62748e;
-  font-size: 12px;
-  font-weight: 500;
-}
-.card-secundario__valor {
-  color: white;
-  font-size: 22px;
-  font-weight: 700;
-}
-
 /* Fundo com a marca d'água da PLDProjects (login, cadastro e área central das telas logadas).
    A cor de fundo fica com quem usa a classe. Decorativa: background, não <img>. A opacidade de 7% já vem no SVG. */
 .fnc-fundo-marca {
@@ -72,6 +16,28 @@ body {
   /* maior que a tela e deslocada para fora pela direita: só parte da marca aparece */
   background-position: right -180px center;
   background-size: 1250px 1250px;
+}
+
+/* Sobre fundo claro (área central no modo claro): a logo azul em camada própria,
+   porque o SVG é opaco e a transparência de marca d'água tem de vir da opacidade. */
+.fnc-fundo-marca--escura {
+  background-image: none;
+  position: relative;
+  isolation: isolate;
+}
+
+.fnc-fundo-marca--escura::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("./assets/pldprojects-logo-azul.svg");
+  background-repeat: no-repeat;
+  /* posição e tamanho seguem os de .fnc-fundo-marca (inclusive nas media queries) */
+  background-position: inherit;
+  background-size: inherit;
+  opacity: 0.07;
 }
 
 @media (max-width: 1100px) {
@@ -84,5 +50,8 @@ body {
 @media (max-width: 600px) {
   .fnc-fundo-marca {
     background-image: none;
+  }
+  .fnc-fundo-marca--escura::before {
+    content: none;
   }
 }

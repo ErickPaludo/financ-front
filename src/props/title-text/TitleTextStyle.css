@@ -1,5 +1,5 @@
 .fnc-title {
-  color: #fff;
+  color: var(--fnc-texto, #fff);
   font-family: Inter;
   font-size: 28px;
   font-weight: 800;

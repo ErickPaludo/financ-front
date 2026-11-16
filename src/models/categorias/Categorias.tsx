@@ -6,7 +6,7 @@ export type Categoria = {
 
 export type CategoriaResponse = {
   conteudo: Categoria[];
-  metadados: any | null;
+  metadados: unknown;
 };
 
 export type CategoriaPost = {

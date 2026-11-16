@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useMemo, useState, type ReactNode } from "react";
 import type { ContaBancaria } from "../models/contas-usuarios/GetContasBancarias";
 import type { ContaUsuario } from "../models/contas-usuarios/GetContaUsuario";
 
@@ -28,52 +28,27 @@ export function ContaProvider({ children }: ContaProviderProps) {
   const [usuario, setUsuarioObj] = useState<ContaUsuario | null>(null);
   const [membro, setMembroObj] = useState<ContaUsuario | null>(null);
   const [versaoContas, setVersaoContas] = useState(0);
-  const contasAlteradas = () => setVersaoContas((v) => v + 1);
 
-  function setConta(contaBancaria: ContaBancaria) {
-    setContaObj(contaBancaria);
-  }
-
-  function setContaUsuario(contaUsuario: ContaUsuario) {
-    setUsuarioObj(contaUsuario);
-  }
-
-  function setMembroConta(contaUsuario: ContaUsuario) {
-    setMembroObj(contaUsuario);
-  }
-
-  function removeConta() {
-    setContaObj(null);
-  }
-
-  function removeMembroConta() {
-    setMembroObj(null);
-  }
-  function removeContaUsuario() {
-    setUsuarioObj(null);
-  }
+  // Funções estáveis (não mudam a cada render): as telas usam como dependência de
+  // useCallback/useEffect, e recriá-las faria a busca que chama setConta rodar em loop.
+  const acoes = useMemo(
+    () => ({
+      setConta: (contaBancaria: ContaBancaria) => setContaObj(contaBancaria),
+      setContaUsuario: (contaUsuario: ContaUsuario) => setUsuarioObj(contaUsuario),
+      setMembroConta: (contaUsuario: ContaUsuario) => setMembroObj(contaUsuario),
+      removeConta: () => setContaObj(null),
+      removeMembroConta: () => setMembroObj(null),
+      removeContaUsuario: () => setUsuarioObj(null),
+      contasAlteradas: () => setVersaoContas((v) => v + 1),
+    }),
+    [],
+  );
 
   return (
     <ContaContext.Provider
-      value={{
-        conta,
-        usuario,
-        membro,
-        setConta,
-        setContaUsuario,
-        setMembroConta,
-        removeMembroConta,
-        removeConta,
-        removeContaUsuario,
-        versaoContas,
-        contasAlteradas,
-      }}
+      value={{ conta, usuario, membro, versaoContas, ...acoes }}
     >
       {children}
     </ContaContext.Provider>
   );
-}
-
-export function useConta() {
-  return useContext(ContaContext);
 }

@@ -1,19 +1,9 @@
-import {
-  Box,
-  Button,
-  Card,
-  Icon,
-  IconButton,
-  Stack,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { useContext, type ReactNode } from "react";
+import { Box, Icon, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 
 import type { ConteudoContas } from "../../models/contas-usuarios/GetContasBancarias";
+import { AuthContext } from "../../contexts/AuthContext";
 import { exibirMoeda } from "../../utils/formatacao";
-import Indicador from "../contas-bancarias/componente/indicador/Indicador";
-
-const COR_ROTULO = "#bedbff";
 
 const saudacao = () => {
   const hora = new Date().getHours();
@@ -32,161 +22,170 @@ type Props = {
   onAlternarOcultar: () => void;
 };
 
-// Topo da tela inicial: título "Minhas Contas", botão de nova conta e o resumo do patrimônio.
-const ResumoContas: React.FC<Props> = ({
-  conteudo,
-  onNovaConta,
-  ocultarValores,
-  onAlternarOcultar,
-}) => (
-  <Card
-    elevation={0}
+const rotulo = { fontSize: 13, fontWeight: 500, color: "var(--fnc-tx-apoio)" };
+const numero = {
+  fontWeight: 700,
+  lineHeight: 1.2,
+  letterSpacing: "-0.02em",
+  fontVariantNumeric: "tabular-nums",
+  mt: 0.5,
+};
+
+// Coluna do card de resumo. As divisórias são sombras de 1px à direita e embaixo:
+// o card corta as da borda, então ficam certas com 4, 2 ou 1 coluna por linha.
+const Coluna: React.FC<{ children: ReactNode }> = ({ children }) => (
+  <Box
     sx={{
-      p: { xs: 2, sm: 2.5 },
-      borderRadius: "16px",
-      color: "#fff",
-      bgcolor: "primary.main",
-      backgroundImage: "none",
-      display: "flex",
-      flexDirection: "column",
-      gap: 2.5,
+      p: "22px 24px",
+      boxShadow:
+        "1px 0 0 0 var(--fnc-tx-divisoria), 0 1px 0 0 var(--fnc-tx-divisoria)",
     }}
   >
-    <Stack
-      direction="row"
-      useFlexGap
-      sx={{
-        flexWrap: "wrap",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 2,
-      }}
-    >
-      <Box>
-        <Typography sx={{ fontSize: 13, fontWeight: 600, color: COR_ROTULO }}>
-          {saudacao()}
-        </Typography>
-        <Stack direction="row" spacing={0.5} sx={{ alignItems: "center" }}>
-          <Typography
-            component="h1"
-            sx={{ fontSize: 24, fontWeight: 800, color: "inherit" }}
-          >
-            Minhas Contas
-          </Typography>
-          <Tooltip
-            title={ocultarValores ? "Mostrar valores" : "Ocultar valores"}
-          >
-            <IconButton
-              onClick={onAlternarOcultar}
-              aria-label={
-                ocultarValores ? "Mostrar valores" : "Ocultar valores"
-              }
-              aria-pressed={ocultarValores}
-              sx={{ color: COR_ROTULO }}
-            >
-              <Icon>{ocultarValores ? "visibility_off" : "visibility"}</Icon>
-            </IconButton>
-          </Tooltip>
-        </Stack>
-      </Box>
+    {children}
+  </Box>
+);
 
-      {/* branco: o botão padrão (degradê azul) sumiria sobre o fundo do card */}
-      <Button
-        variant="contained"
-        startIcon={<Icon>add</Icon>}
-        onClick={onNovaConta}
-        sx={{
-          px: 2.5,
-          background: "#fff",
-          color: "primary.main",
-          boxShadow: "none",
-          "&:hover": { background: "#eef2ff", boxShadow: "none" },
-        }}
-      >
-        Nova conta bancária
-      </Button>
-    </Stack>
+// Topo da tela inicial: saudação, "Minhas contas", botões e o card de resumo do patrimônio.
+const ResumoContas: React.FC<Props> = ({
+  conteudo,
+  ocultarValores,
+  onAlternarOcultar,
+}) => {
+  const { user } = useContext(AuthContext);
+  const contas = conteudo?.contas ?? [];
+  const noTotal = contas.filter((c) => c.somaSaldo).length;
+  const textoOlho = ocultarValores ? "Mostrar valores" : "Ocultar valores";
 
-    {conteudo && (
+  return (
+    <Stack spacing={3}>
       <Stack
         direction="row"
         useFlexGap
         sx={{
           flexWrap: "wrap",
-          alignItems: "flex-end",
+          alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          pt: 2,
-          borderTop: "1px solid rgba(255, 255, 255, 0.2)",
         }}
       >
-        <Stack
-          direction="row"
-          spacing={4}
-          useFlexGap
-          sx={{ flexWrap: "wrap", alignItems: "flex-end" }}
-        >
-          <Box>
-            <Stack
-              direction="row"
-              spacing={0.75}
-              sx={{ alignItems: "center", color: COR_ROTULO }}
-            >
-              <Icon sx={{ fontSize: 16 }}>account_balance</Icon>
-              <Typography
-                sx={{ fontSize: 13, fontWeight: 500, color: "inherit" }}
-              >
-                Patrimônio total
-              </Typography>
-            </Stack>
-            <Typography
+        <Box>
+          <Typography sx={{ fontSize: 13, color: "var(--fnc-tx-apoio)" }}>
+            {saudacao()}
+            {user?.primeiroNome && `, ${user.primeiroNome}`}
+          </Typography>
+          <Typography
+            component="h1"
+            sx={{
+              fontSize: 28,
+              fontWeight: 700,
+              letterSpacing: "-0.02em",
+              color: "var(--fnc-tx-texto)",
+            }}
+          >
+            Minhas contas
+          </Typography>
+        </Box>
+
+        <Stack direction="row" spacing={1.5}>
+          <Tooltip title={textoOlho}>
+            <IconButton
+              onClick={onAlternarOcultar}
+              aria-label={textoOlho}
+              aria-pressed={ocultarValores}
               sx={{
-                fontSize: 28,
-                fontWeight: 800,
-                lineHeight: 1.2,
-                color: "inherit",
+                width: 44,
+                height: 44,
+                borderRadius: "10px",
+                bgcolor: "var(--fnc-tx-superficie)",
+                border: "1px solid var(--fnc-tx-botao-borda)",
+                color: "var(--fnc-tx-chip-texto)",
+                "&:hover": { bgcolor: "var(--fnc-tx-chip-fundo)" },
               }}
+            >
+              <Icon>{ocultarValores ? "visibility_off" : "visibility"}</Icon>
+            </IconButton>
+          </Tooltip>
+        </Stack>
+      </Stack>
+
+      {conteudo && (
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+            bgcolor: "var(--fnc-tx-superficie)",
+            border: "1px solid var(--fnc-tx-borda)",
+            borderRadius: "16px",
+            overflow: "hidden", // corta as divisórias que caem na borda
+          }}
+        >
+          <Coluna>
+            <Typography sx={rotulo}>Patrimônio total</Typography>
+            <Typography
+              sx={{ ...numero, fontSize: 30, color: "var(--fnc-tx-texto)" }}
             >
               {exibirMoeda(conteudo.saldoRealizado, ocultarValores)}
             </Typography>
-          </Box>
-
-          <Box>
-            <Typography
-              sx={{ fontSize: 13, fontWeight: 500, color: COR_ROTULO }}
-            >
-              Projetado
+            <Typography sx={{ fontSize: 12, color: "var(--fnc-tx-apoio)", mt: 0.5 }}>
+              {noTotal} de {contas.length} contas no total
             </Typography>
+          </Coluna>
+
+          <Coluna>
+            <Typography sx={rotulo}>Projetado</Typography>
             <Typography
               sx={{
-                fontSize: 18,
-                fontWeight: 700,
-                lineHeight: 1.3,
-                color: "inherit",
+                ...numero,
+                fontSize: 30,
+                color:
+                  conteudo.saldoProjetado < 0 && !ocultarValores
+                    ? "var(--fnc-tx-despesa)"
+                    : "var(--fnc-tx-texto)",
               }}
             >
               {exibirMoeda(conteudo.saldoProjetado, ocultarValores)}
             </Typography>
-          </Box>
-        </Stack>
+            {conteudo.saldoProjetado < 0 && !ocultarValores && (
+              <Box
+                component="span"
+                sx={{
+                  display: "inline-block",
+                  mt: 0.75,
+                  px: 1.25,
+                  py: 0.25,
+                  borderRadius: 999,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  bgcolor: "var(--fnc-tx-despesa-fundo)",
+                  color: "var(--fnc-tx-despesa-badge)",
+                }}
+              >
+                Negativo no fim do mês
+              </Box>
+            )}
+          </Coluna>
 
-        <Stack direction="row" spacing={3} useFlexGap sx={{ flexWrap: "wrap" }}>
-          <Indicador
-            icone="arrow_upward"
-            rotulo="Receitas"
-            valor={conteudo.entradaPendente}
-            oculto={ocultarValores}
-          />
-          <Indicador
-            icone="arrow_downward"
-            rotulo="Despesas"
-            valor={conteudo.saidaPendente}
-            oculto={ocultarValores}
-          />
-        </Stack>
-      </Stack>
-    )}
-  </Card>
-);
+          <Coluna>
+            <Typography sx={rotulo}>↑ Receitas pendentes</Typography>
+            <Typography
+              sx={{ ...numero, fontSize: 24, color: "var(--fnc-tx-receita)" }}
+            >
+              {exibirMoeda(conteudo.entradaPendente, ocultarValores)}
+            </Typography>
+          </Coluna>
+
+          <Coluna>
+            <Typography sx={rotulo}>↓ Despesas pendentes</Typography>
+            <Typography
+              sx={{ ...numero, fontSize: 24, color: "var(--fnc-tx-despesa)" }}
+            >
+              {exibirMoeda(conteudo.saidaPendente, ocultarValores)}
+            </Typography>
+          </Coluna>
+        </Box>
+      )}
+    </Stack>
+  );
+};
 
 export default ResumoContas;

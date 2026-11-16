@@ -1,11 +1,10 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { ContaContext } from "../../../contexts/ContaContext";
 import TitleText from "../../../props/title-text/TitleText";
 import InputSelect from "../../../props/input-select/InputSelect";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
-import FncButton from "../../../props/fnc-button/FncButton";
-import { TypeText } from "../../../props/input-text/TypeText";
-import InputText from "../../../props/input-text/InputText";
+import { Button } from "@mui/material";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import api from "../../../services/api/apiConnect";
 import ErrorText from "../../../props/error-text/ErrorText";
 import "./EditMembro.css";
@@ -16,8 +15,9 @@ type PropEditMembro = {
 const EditMembro: React.FC<PropEditMembro> = ({ setOpen }) => {
   const { conta, membro } = useContext(ContaContext);
 
-  const [acesso, setAcesso] = useState<number>(0);
-  const [status, setStatus] = useState<number>(0);
+  // a gaveta monta o formulário de novo a cada abertura, já com o membro escolhido
+  const [acesso, setAcesso] = useState<number>(membro?.permissao ?? 0);
+  const [status, setStatus] = useState<number>(membro?.status ?? 0);
 
   const [expirarAcesso, setExpirarAcesso] = useState<boolean>(false);
 
@@ -26,14 +26,6 @@ const EditMembro: React.FC<PropEditMembro> = ({ setOpen }) => {
 
   const [expulsar, setExpulsar] = useState<boolean>(false);
   const [erroMsg, setErroMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (membro) {
-      console.log(membro);
-      setAcesso(membro.permissao);
-      setStatus(membro.status);
-    }
-  }, [membro]);
 
   const alteraUsuario = async () => {
     try {
@@ -51,7 +43,7 @@ const EditMembro: React.FC<PropEditMembro> = ({ setOpen }) => {
         }
       }
 
-      let request = {
+      const request = {
         idUsuarioAlterado: membro!.idUsuario,
         acesso: acesso,
         status: status,
@@ -129,17 +121,19 @@ const EditMembro: React.FC<PropEditMembro> = ({ setOpen }) => {
             />
 
             {checkExpiracao && (
-              <InputText
+              <CampoTexto
                 label="Tempo de expiração em minutos"
-                text={tempoExpiracao}
-                setText={setTempoExpiracao}
-                type={TypeText.Number}
+                valor={tempoExpiracao}
+                setValor={setTempoExpiracao}
+                type="number"
               />
             )}
           </>
         )}
         {erroMsg && <ErrorText text={erroMsg} />}
-        <FncButton title="Alterar Usuario" onClick={alteraUsuario} />
+        <Button variant="contained" fullWidth onClick={alteraUsuario}>
+          Alterar Usuário
+        </Button>
       </div>
     </>
   );

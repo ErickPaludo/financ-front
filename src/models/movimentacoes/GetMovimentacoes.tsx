@@ -54,7 +54,7 @@ export type ConteudoMovimentacoes = {
 
 export type GetMovimentacoes = {
   conteudo: ConteudoMovimentacoes;
-  metadados: any | null;
+  metadados: unknown;
 };
 
 type MovimentacaoDash = {

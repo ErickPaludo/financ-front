@@ -18,6 +18,8 @@ const InputCheckBox: React.FC<PropInputCheckBox> = ({
     control={
       <Checkbox
         size="small"
+        // desmarcado na mesma cor do texto (legível sobre o fundo azul da página)
+        sx={{ color: (t) => `var(--fnc-apoio, ${t.palette.text.secondary})` }}
         checked={checked}
         onChange={(e) => setChecked(e.target.checked)}
       />

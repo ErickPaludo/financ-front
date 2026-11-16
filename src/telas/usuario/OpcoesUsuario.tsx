@@ -3,12 +3,9 @@ import api from "../../services/api/apiConnect";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import { useNavigate } from "react-router-dom";
-import InputText from "../../props/input-text/InputText";
-import { TypeText } from "../../props/input-text/TypeText";
+import CampoTexto from "../../props/campo-texto/CampoTexto";
 import ErrorText from "../../props/error-text/ErrorText";
-import FncButton from "../../props/fnc-button/FncButton";
-import { TypeThemeButton } from "../../props/fnc-button/TypeThemeButton";
-import InputCheckBox from "../../props/input-check-box/InputCheckBox";
+import { Button } from "@mui/material";
 import "./OpcoesUsuarioStyle.css";
 
 const OpcoesUsuario: React.FC = () => {
@@ -19,7 +16,6 @@ const OpcoesUsuario: React.FC = () => {
   const [senhaAntiga, setSenhaAntiga] = useState("");
   const [senhaNova, setSenhaNova] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
 
   const [erroSenhaAntiga, setErroSenhaAntiga] = useState<string | null>(null);
   const [erroSenhaNova, setErroSenhaNova] = useState<string | null>(null);
@@ -81,8 +77,6 @@ const OpcoesUsuario: React.FC = () => {
     navigate("/login", { replace: true });
   };
 
-  const tipoSenha = mostrarSenha ? TypeText.Text : TypeText.Password;
-
   return (
     <div className="fnc-opcoes-usuario">
       <div className="fnc-opcoes-usuario__header">
@@ -98,11 +92,12 @@ const OpcoesUsuario: React.FC = () => {
       <div className="fnc-opcoes-usuario__card">
         <p className="fnc-opcoes-usuario__section-title">Senha atual</p>
 
-        <InputText
+        {/* o CampoTexto de senha já tem o botão de mostrar/ocultar */}
+        <CampoTexto
           label="Senha atual"
-          text={senhaAntiga}
-          setText={setSenhaAntiga}
-          type={tipoSenha}
+          valor={senhaAntiga}
+          setValor={setSenhaAntiga}
+          type="password"
           placeholder="Digite sua senha atual"
         />
         {erroSenhaAntiga && <ErrorText text={erroSenhaAntiga} />}
@@ -110,31 +105,23 @@ const OpcoesUsuario: React.FC = () => {
         <hr className="fnc-opcoes-usuario__divider" />
         <p className="fnc-opcoes-usuario__section-title">Nova senha</p>
 
-        <InputText
+        <CampoTexto
           label="Nova senha"
-          text={senhaNova}
-          setText={setSenhaNova}
-          type={tipoSenha}
+          valor={senhaNova}
+          setValor={setSenhaNova}
+          type="password"
           placeholder="Digite a nova senha"
         />
         {erroSenhaNova && <ErrorText text={erroSenhaNova} />}
 
-        <InputText
+        <CampoTexto
           label="Confirmar nova senha"
-          text={confirmarSenha}
-          setText={setConfirmarSenha}
-          type={tipoSenha}
+          valor={confirmarSenha}
+          setValor={setConfirmarSenha}
+          type="password"
           placeholder="Confirme a nova senha"
         />
         {erroConfirmar && <ErrorText text={erroConfirmar} />}
-
-        <div className="fnc-opcoes-usuario__mostrar-senha">
-          <InputCheckBox
-            label="Mostrar senhas"
-            checked={mostrarSenha}
-            setChecked={setMostrarSenha}
-          />
-        </div>
 
         {erroGeral && <ErrorText text={erroGeral} />}
 
@@ -145,12 +132,14 @@ const OpcoesUsuario: React.FC = () => {
           </div>
         )}
 
-        <FncButton
-          title={loading ? "Salvando..." : "Alterar Senha"}
-          thema={TypeThemeButton.Default}
+        <Button
+          variant="contained"
+          fullWidth
           disabled={loading}
           onClick={handleAlterarSenha}
-        />
+        >
+          {loading ? "Salvando..." : "Alterar Senha"}
+        </Button>
       </div>
     </div>
   );

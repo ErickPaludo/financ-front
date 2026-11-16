@@ -10,8 +10,11 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  background: rgba(29, 41, 61, 0.6);
-  border: 1px solid rgba(49, 65, 88, 0.5);
+  --fnc-texto: var(--fnc-texto-superficie);
+  --fnc-apoio: var(--fnc-apoio-superficie);
+  color: var(--fnc-texto);
+  background: var(--fnc-superficie);
+  border: 1px solid var(--fnc-borda-suave);
   border-radius: 16px;
   padding: 16px;
 }
@@ -21,7 +24,7 @@
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: #62748e;
+  color: var(--fnc-apagado);
   margin: 0;
 }
 
@@ -35,17 +38,6 @@
 .mf-group > * {
   flex: 1 1 180px;
   min-width: 0;
-}
-
-/* ── força input datetime-local a ter altura consistente em qualquer device ─ */
-.mf-section input[type="datetime-local"],
-.mf-section input[type="date"],
-.mf-section input[type="time"] {
-  height: 50px; /* mesma altura que os outros inputs (padding 14px × 2 + linha) */
-  min-height: unset;
-  padding-top: 0;
-  padding-bottom: 0;
-  line-height: 50px;
 }
 
 /* ── mobile ──────────────────────────────────────────────────────────────── */

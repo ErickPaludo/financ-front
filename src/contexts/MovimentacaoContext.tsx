@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useState, type ReactNode } from "react";
 import type { Movimentacao } from "../models/movimentacoes/GetMovimentacoes";
 
 type MovimentacaoContextType = {
@@ -33,8 +33,4 @@ export function MovimentacaoProvider({ children }: MovimentacaoProviderProps) {
       {children}
     </MovimentacaoContext.Provider>
   );
-}
-
-export function useMovimentacao() {
-  return useContext(MovimentacaoContext);
 }

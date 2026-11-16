@@ -9,10 +9,9 @@ import type {
 import type { CategoriaResponse } from "../../../models/categorias/Categorias";
 import "./CadMovStyle.css";
 import TitleText from "../../../props/title-text/TitleText";
-import InputText from "../../../props/input-text/InputText";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import InputPrice from "../../../props/input-price/InputPrice";
-import FncButton from "../../../props/fnc-button/FncButton";
-import { TypeButton } from "../../../props/fnc-button/TypeButton";
+import { Button } from "@mui/material";
 import ErrorText from "../../../props/error-text/ErrorText";
 import InputDate from "../../../props/input-date/InputDate";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
@@ -47,79 +46,55 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
   const { conta } = useContext(ContaContext);
   const { movimentacao } = useContext(MovimentacaoContext);
 
-  const [type, setType] = useState("receita");
-  const [titulo, setTitulo] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [valorFormatado, setValorFormatado] = useState("");
-  const [valor, setValor] = useState(0);
-  const [dataMovimentacao, setDataMovimentacao] = useState(getNowLocal);
-  const [dataConclusao, setDataConclusao] = useState(getNowLocal);
-  const [concluido, setConcluido] = useState(false);
+  // Na edição o formulário já começa com os dados da movimentação:
+  // a gaveta monta o CadMov de novo a cada abertura.
+  const mov = edit ? movimentacao : null;
+
+  const [type, setType] = useState(
+    mov && mov.tipo !== 0 ? "despesa" : "receita",
+  );
+  const [titulo, setTitulo] = useState(mov?.titulo ?? "");
+  const [descricao, setDescricao] = useState(mov?.observacao ?? "");
+  const [valorFormatado, setValorFormatado] = useState(
+    mov
+      ? mov.valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
+      : "",
+  );
+  const [valor, setValor] = useState(mov?.valor ?? 0);
+  const [dataMovimentacao, setDataMovimentacao] = useState(() =>
+    mov ? utcISOParaInputLocal(mov.dthrMovimentacao) : getNowLocal(),
+  );
+  // sem data de conclusão, a conclusão parte da data da movimentação
+  const [dataConclusao, setDataConclusao] = useState(() =>
+    mov
+      ? utcISOParaInputLocal(mov.dthrConclusao ?? mov.dthrMovimentacao)
+      : getNowLocal(),
+  );
+  const [concluido, setConcluido] = useState(mov?.concluido ?? false);
   const [categorias, setCategorias] = useState<CategoriaResponse>();
   const [isLoading, setIsLoading] = useState(false);
   const [erroMsg, setErroMsg] = useState<string | undefined>(undefined);
 
-  const [dataMovOriginal, setDataMovOriginal] = useState("");
-  const [dataConclusaoOriginal, setDataConclusaoOriginal] = useState("");
+  const dataMovOriginal = mov?.dthrMovimentacao ?? "";
+  const dataConclusaoOriginal = mov?.dthrConclusao ?? "";
 
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<
     number[]
-  >([]);
+  >(() => mov?.categorias.map((cat) => cat.idCategoria) ?? []);
 
   const setDateMov = (value: string) => {
     setDataMovimentacao(value);
     setDataConclusao(value);
   };
 
-  const buscaCategorias = async () => {
-    try {
-      const resposta = await api<CategoriaResponse>(
-        `/Contas/${conta?.idConta}/Categorias`,
-        "GET",
-        undefined,
-      );
-      if (resposta.sucesso && resposta.dados) {
-        setCategorias(resposta.dados);
-      }
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
-    }
-  };
-
+  const idConta = conta?.idConta;
   useEffect(() => {
-    buscaCategorias();
-
-    if (edit && movimentacao) {
-      setType(movimentacao.tipo === 0 ? "receita" : "despesa");
-      setTitulo(movimentacao.titulo);
-      setDescricao(movimentacao.observacao ?? "");
-      setValor(movimentacao.valor);
-      setValorFormatado(
-        movimentacao.valor.toLocaleString("pt-BR", {
-          style: "currency",
-          currency: "BRL",
-        }),
-      );
-
-      const dataMov = utcISOParaInputLocal(movimentacao.dthrMovimentacao);
-      setDataMovimentacao(dataMov);
-      setDataMovOriginal(movimentacao.dthrMovimentacao);
-
-      if (movimentacao.dthrConclusao) {
-        const dataCon = utcISOParaInputLocal(movimentacao.dthrConclusao);
-        setDataConclusao(dataCon);
-        setDataConclusaoOriginal(movimentacao.dthrConclusao);
-      } else {
-        setDataConclusao(dataMov);
-        setDataConclusaoOriginal("");
-      }
-
-      setConcluido(movimentacao.concluido);
-
-      const editCatId = movimentacao.categorias.map((cat) => cat.idCategoria);
-      setCategoriasSelecionadas(editCatId);
-    }
-  }, [edit, movimentacao]);
+    api<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
+      (resposta) => {
+        if (resposta.sucesso && resposta.dados) setCategorias(resposta.dados);
+      },
+    );
+  }, [idConta]);
 
   // Materializa a movimentação virtual (id=0 com idFixo) antes de editar.
   // Retorna o id real, ou null em caso de erro.
@@ -132,7 +107,7 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
     // Movimentação virtual gerada por agendamento — precisa materializar antes do PATCH
     if (movimentacao.idFixo && movimentacao.id === 0) {
       try {
-        const resposta = await api<any>(
+        const resposta = await api<{ valor: Movimentacao }>(
           `/Contas/${movimentacao.idConta}/Movimentacoes/Fixa/${movimentacao.idFixo}/Materializa`,
           "POST",
           {
@@ -142,14 +117,13 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
           },
         );
         if (resposta.sucesso && resposta.dados) {
-          const mov: Movimentacao = resposta.dados.valor;
-          return mov.id;
+          return resposta.dados.valor.id;
         } else {
           setErroMsg(resposta.erro || "Erro ao materializar movimentação.");
           return null;
         }
-      } catch (error: any) {
-        setErroMsg(error.message || "Erro inesperado.");
+      } catch (error) {
+        setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
         return null;
       }
     }
@@ -242,8 +216,8 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
           onClose();
         }
       }
-    } catch (error: any) {
-      setErroMsg(error.message || "Erro inesperado.");
+    } catch (error) {
+      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
     } finally {
       setIsLoading(false);
     }
@@ -275,19 +249,19 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
 
       <form onSubmit={reqMov}>
         <div className="fnc-ctn-cad">
-          <InputText
+          <CampoTexto
             label="Título"
-            text={titulo}
+            valor={titulo}
             placeholder="Ex: Mercado"
-            setText={setTitulo}
+            setValor={setTitulo}
           />
 
-          <InputText
+          <CampoTexto
             label="Descrição"
-            text={descricao}
+            valor={descricao}
             placeholder="Ex: Compra do mês"
-            setText={setDescricao}
-            maxLenght={255}
+            setValor={setDescricao}
+            slotProps={{ htmlInput: { maxLength: 255 } }}
           />
 
           <InputPrice
@@ -340,19 +314,20 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, edit = false }) => {
 
           {erroMsg && <ErrorText text={erroMsg} />}
 
-          <FncButton
-            type={TypeButton.Submit}
-            title={
-              edit
-                ? isLoading
-                  ? "Editando..."
-                  : "Editar"
-                : isLoading
-                  ? "Cadastrando..."
-                  : "Cadastrar"
-            }
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
             disabled={isLoading}
-          />
+          >
+            {edit
+              ? isLoading
+                ? "Editando..."
+                : "Editar"
+              : isLoading
+                ? "Cadastrando..."
+                : "Cadastrar"}
+          </Button>
         </div>
       </form>
     </>

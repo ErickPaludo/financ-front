@@ -1,25 +1,17 @@
-import InputText from "../input-text/InputText";
-import { TypeText } from "../input-text/TypeText";
+import CampoTexto from "../campo-texto/CampoTexto";
 
-import "./InputDateStyle.css";
 interface PropInputDate {
   label?: string;
   text: string;
   setText: (value: string) => void;
 }
-const InputDate: React.FC<PropInputDate> = ({ label, text, setText }) => {
-  return (
-    <>
-      <div className="fnc-input-date-group">
-        <InputText
-          type={TypeText.DateTime}
-          label={label}
-          text={text}
-          setText={setText}
-        />
-      </div>
-    </>
-  );
-};
+const InputDate: React.FC<PropInputDate> = ({ label, text, setText }) => (
+  <CampoTexto
+    type="datetime-local"
+    label={label}
+    valor={text}
+    setValor={setText}
+  />
+);
 
 export default InputDate;

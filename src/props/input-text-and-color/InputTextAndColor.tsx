@@ -1,5 +1,5 @@
 import InputColor from "../input-color/InputColor";
-import InputText from "../input-text/InputText";
+import CampoTexto from "../campo-texto/CampoTexto";
 import "./InputTextAndColorStyle.css";
 import LabelText from "../label-text/LabelText";
 interface PropInputTextAndColor {
@@ -32,12 +32,12 @@ const InputTextAndColor: React.FC<PropInputTextAndColor> = ({
             color={color}
             onChange={onChangeColor}
           />
-          <InputText
-            disable={disable}
+          <CampoTexto
+            disabled={disable}
             placeholder={placeholder}
-            text={text}
-            setText={setText}
-            maxLenght={maxLenght}
+            valor={text}
+            setValor={setText}
+            slotProps={{ htmlInput: { maxLength: maxLenght } }}
           />
         </div>
       </div>

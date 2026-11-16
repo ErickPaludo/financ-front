@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import "./MsgBoxStyle.css";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+} from "@mui/material";
 import { TypeMsgBox } from "./TypeMsgBox";
-import Modal from "../../componentes/modal/Modal";
-import TitleText from "../title-text/TitleText";
-import FncButton from "../fnc-button/FncButton";
-import { TypeThemeButton } from "../fnc-button/TypeThemeButton";
-import LabelText from "../label-text/LabelText";
+
 interface PropMsgBox {
   title: string;
   description?: string;
@@ -13,6 +16,8 @@ interface PropMsgBox {
   centerlize?: boolean;
   onQuestion?: (value: boolean) => void;
 }
+
+// Aviso (Ok) ou pergunta (Sim/Não). Fechar sem responder conta como "Não".
 const MsgBox: React.FC<PropMsgBox> = ({
   title,
   description,
@@ -20,62 +25,45 @@ const MsgBox: React.FC<PropMsgBox> = ({
   centerlize = false,
   onQuestion,
 }) => {
-  const [modalVisible, setModalVisible] = useState(true);
+  const [aberto, setAberto] = useState(true);
+
+  const responder = (valor: boolean) => {
+    onQuestion?.(valor);
+    setAberto(false);
+  };
 
   return (
-    <>
-      <Modal
-        isOpen={modalVisible}
-        onClose={() => {
-          setModalVisible(false);
-          onQuestion ? onQuestion(false) : null;
-          setModalVisible(false);
-        }}
-      >
-        <>
-          <div className="fnc-ctn-msgbox">
-            <TitleText text={title} />
-            {description && (
-              <LabelText text={description} centerlize={centerlize} />
-            )}
-            {type === TypeMsgBox.Question ? (
-              <>
-                <div className="fnc-ctn-btn-invite-aceept">
-                  <FncButton
-                    title="Sim"
-                    icon="check"
-                    thema={TypeThemeButton.Aceept}
-                    onClick={() => {
-                      onQuestion ? onQuestion(true) : null;
-                      setModalVisible(false);
-                    }}
-                  />
-                  <FncButton
-                    title="Não"
-                    icon="close"
-                    thema={TypeThemeButton.Delete}
-                    onClick={() => {
-                      onQuestion ? onQuestion(false) : null;
-                      setModalVisible(false);
-                    }}
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <FncButton
-                  title="Ok"
-                  onClick={() => {
-                    onQuestion ? onQuestion(true) : null;
-                    setModalVisible(false);
-                  }}
-                />
-              </>
-            )}
-          </div>
-        </>
-      </Modal>
-    </>
+    <Dialog
+      open={aberto}
+      onClose={() => responder(false)}
+      fullWidth
+      maxWidth="xs"
+    >
+      <DialogTitle sx={{ fontWeight: 700 }}>{title}</DialogTitle>
+      {description && (
+        <DialogContent>
+          <DialogContentText sx={{ textAlign: centerlize ? "center" : "left" }}>
+            {description}
+          </DialogContentText>
+        </DialogContent>
+      )}
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        {type === TypeMsgBox.Question ? (
+          <>
+            <Button color="inherit" onClick={() => responder(false)}>
+              Não
+            </Button>
+            <Button variant="contained" onClick={() => responder(true)}>
+              Sim
+            </Button>
+          </>
+        ) : (
+          <Button variant="contained" onClick={() => responder(true)}>
+            Ok
+          </Button>
+        )}
+      </DialogActions>
+    </Dialog>
   );
 };
 

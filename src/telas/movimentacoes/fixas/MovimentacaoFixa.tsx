@@ -5,9 +5,11 @@ import TitleText from "../../../props/title-text/TitleText";
 import InputSelect from "../../../props/input-select/InputSelect";
 import InputDate from "../../../props/input-date/InputDate";
 import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
-import InputText from "../../../props/input-text/InputText";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import InputPrice from "../../../props/input-price/InputPrice";
-import FncTable from "../../../props/fnc-table/FncTable";
+import TabelaDados, {
+  type ColunaTabela,
+} from "../../../componentes/tabela-dados/TabelaDados";
 import {
   Categoria,
   Movimentacao,
@@ -15,12 +17,9 @@ import {
 import { CategoriaResponse } from "../../../models/categorias/Categorias";
 import api from "../../../services/api/apiConnect";
 import "./MovimentacaoFixa.css";
-import FncButton from "../../../props/fnc-button/FncButton";
+import { Button } from "@mui/material";
 import { ApiResult } from "../../../models/interface/ApiResult";
-import { TypeThemeButton } from "../../../props/fnc-button/TypeThemeButton";
 import ErrorText from "../../../props/error-text/ErrorText";
-
-type Props = {};
 
 // ── tipos ─────────────────────────────────────────────────────────────────────
 
@@ -30,7 +29,7 @@ export type MovimentacaoFixaItem = {
   dataInicio: string;
   dataFim: string;
   dataOcorrencia: string;
-  ocorrenciaDiaria: any[];
+  ocorrenciaDiaria: number[]; // dias da semana (chaves de diasSemanaMap)
   expirado: boolean;
   movimentacaoBase: import("../../../models/movimentacoes/GetMovimentacoes").Movimentacao;
 };
@@ -130,7 +129,7 @@ const formatDatemes = (iso: string) => {
 
 // ── componente ────────────────────────────────────────────────────────────────
 
-const MovimentacaoFixa: React.FC<Props> = () => {
+const MovimentacaoFixa: React.FC = () => {
   const getNow = (isEnd: boolean = false) => {
     const now = new Date();
     let date: Date;
@@ -172,6 +171,7 @@ const MovimentacaoFixa: React.FC<Props> = () => {
   const [idFixo, setIdFixo] = useState<number>();
   const [idMov, setIdMov] = useState<number>();
   const [fixas, setFixas] = useState<MovimentacaoFixaItem[]>([]);
+  const [fixasCarregadas, setFixasCarregadas] = useState(false);
   const [habilitaEdicao, setHabilitaEdicao] = useState(false);
   const [status] = useState(0);
 
@@ -182,42 +182,39 @@ const MovimentacaoFixa: React.FC<Props> = () => {
 
   // ── buscas ────────────────────────────────────────────────────────────────
 
-  const buscaCategorias = useCallback(async () => {
-    try {
-      const resposta = await api<CategoriaResponse>(
-        `/Contas/${conta!.idConta}/Categorias`,
+  // Conecta nunca lança erro: falhas vêm em resposta.sucesso
+  const idConta = conta!.idConta;
+  const buscaFixas = useCallback(
+    () =>
+      api<{ conteudo: MovimentacaoFixaItem[] }>(
+        `/Contas/${idConta}/Movimentacoes/Fixa`,
         "GET",
-        undefined,
-      );
-      if (resposta.sucesso && resposta.dados) setCategorias(resposta.dados);
-    } catch (error) {
-      console.error("Erro ao buscar categorias:", error);
-    }
-  }, [conta!.idConta]);
-
-  const buscaFixas = useCallback(async () => {
-    try {
-      const resposta = await api<{ conteudo: MovimentacaoFixaItem[] }>(
-        `/Contas/${conta!.idConta}/Movimentacoes/Fixa`,
-        "GET",
-        undefined,
-      );
-      if (resposta.sucesso && resposta.dados)
-        setFixas(resposta.dados.conteudo ?? []);
-    } catch (error) {
-      console.error("Erro ao buscar fixas:", error);
-    }
-  }, [conta!.idConta]);
+      ).then((resposta) => {
+        if (resposta.sucesso && resposta.dados)
+          setFixas(resposta.dados.conteudo ?? []);
+        setFixasCarregadas(true);
+      }),
+    [idConta],
+  );
 
   useEffect(() => {
-    buscaCategorias();
+    api<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
+      (resposta) => {
+        if (resposta.sucesso && resposta.dados) setCategorias(resposta.dados);
+      },
+    );
     buscaFixas();
-    if (Number(dia) > diasPorMes[mes]) setDia(String(diasPorMes[mes]));
-  }, [buscaCategorias, buscaFixas, mes]);
+  }, [idConta, buscaFixas]);
+
+  // trocar o mês ajusta o dia quando ele não existe no mês novo (ex.: 31 -> fevereiro)
+  const alterarMes = (novoMes: string) => {
+    setMes(novoMes);
+    if (Number(dia) > diasPorMes[novoMes]) setDia(String(diasPorMes[novoMes]));
+  };
 
   // ── row click ─────────────────────────────────────────────────────────────
 
-  const handleRowClick = (row: Record<string, any>) => {
+  const handleRowClick = (row: Record<string, unknown>) => {
     const fixa = row._raw as MovimentacaoFixaItem;
     setOcorrencia(fixa.tipo.toString());
 
@@ -277,14 +274,14 @@ const MovimentacaoFixa: React.FC<Props> = () => {
         : f.ocorrenciaDiaria.map((d) => diasSemanaMap[d]).join(", "),
   }));
 
-  const tabelaColunas = [
-    { header: "Titulo", key: "titulo" },
-    { header: "Tipo Mov", key: "tipoMov" },
-    { header: "Valor", key: "valor" },
-    { header: "Tipo", key: "tipo" },
-    { header: "Ocorrência", key: "dataOcorrencia" },
-    { header: "Início", key: "dataInicio" },
-    { header: "Fim", key: "dataFim" },
+  const tabelaColunas: ColunaTabela<(typeof tabelaDados)[number]>[] = [
+    { titulo: "Titulo", chave: "titulo" },
+    { titulo: "Tipo Mov", chave: "tipoMov" },
+    { titulo: "Valor", chave: "valor" },
+    { titulo: "Tipo", chave: "tipo" },
+    { titulo: "Ocorrência", chave: "dataOcorrencia" },
+    { titulo: "Início", chave: "dataInicio" },
+    { titulo: "Fim", chave: "dataFim" },
   ];
 
   // ── limpar ────────────────────────────────────────────────────────────────
@@ -327,8 +324,8 @@ const MovimentacaoFixa: React.FC<Props> = () => {
         erro = resposta!.erro || "Erro ao excluir.";
         setErroMsg(erro);
       }
-    } catch (error: any) {
-      erro = error.message || "Erro inesperado.";
+    } catch (error) {
+      erro = error instanceof Error ? error.message : "Erro inesperado.";
       setErroMsg(erro);
     } finally {
       setIsLoading(false);
@@ -489,8 +486,8 @@ const MovimentacaoFixa: React.FC<Props> = () => {
 
         await buscaFixas();
       }
-    } catch (error: any) {
-      erro = error.message || "Erro inesperado.";
+    } catch (error) {
+      erro = error instanceof Error ? error.message : "Erro inesperado.";
       setErroMsg(erro);
     } finally {
       setIsLoading(false);
@@ -508,10 +505,12 @@ const MovimentacaoFixa: React.FC<Props> = () => {
       <TitleText text={`Movimentações Agendadas - ${conta!.titulo}`} />
 
       <section className="mf-section">
-        <FncTable
-          data={tabelaDados}
-          columns={tabelaColunas}
-          onRowClick={handleRowClick}
+        <TabelaDados
+          idPreferencias="movimentacoes-fixas"
+          linhas={tabelaDados}
+          carregando={!fixasCarregadas}
+          colunas={tabelaColunas}
+          onClicarLinha={handleRowClick}
         />
       </section>
 
@@ -574,7 +573,7 @@ const MovimentacaoFixa: React.FC<Props> = () => {
               label="Mês"
               opcoes={meses}
               value={mes}
-              onChange={setMes}
+              onChange={alterarMes}
             />
             <InputSelect
               label="Dia"
@@ -609,10 +608,10 @@ const MovimentacaoFixa: React.FC<Props> = () => {
         </div>
 
         <div className="mf-group">
-          <InputText
+          <CampoTexto
             label="Título"
-            text={titulo}
-            setText={setTitulo}
+            valor={titulo}
+            setValor={setTitulo}
             placeholder="Ex: Salário"
           />
           <InputPrice
@@ -623,7 +622,7 @@ const MovimentacaoFixa: React.FC<Props> = () => {
           />
         </div>
 
-        <InputText label="Observação" text={obs} setText={setObservacao} />
+        <CampoTexto label="Observação" valor={obs} setValor={setObservacao} />
 
         <CheckBoxList<Categoria>
           itens={[...(categorias?.conteudo ?? [])]}
@@ -636,29 +635,35 @@ const MovimentacaoFixa: React.FC<Props> = () => {
 
         {erroMsg && <ErrorText text={erroMsg} />}
 
-        <FncButton
-          title={habilitaEdicao ? "Editar Movimentação" : "Cadastrar"}
+        <Button
+          variant="contained"
+          fullWidth
           onClick={reqMovFixa}
           disabled={isLoading}
-        />
+        >
+          {habilitaEdicao ? "Editar Movimentação" : "Cadastrar"}
+        </Button>
 
         {habilitaEdicao && (
           <>
-            <FncButton
-              title={"Cancelar Edição"}
+            <Button
+              variant="outlined"
               onClick={() => {
                 setHabilitaEdicao(false);
                 limparCampos();
               }}
-              thema={TypeThemeButton.Cancel}
               disabled={isLoading}
-            />
-            <FncButton
-              title={"Excluir"}
+            >
+              Cancelar Edição
+            </Button>
+            <Button
+              variant="contained"
+              color="error"
               onClick={reqRemovMovFixa}
-              thema={TypeThemeButton.Delete}
               disabled={isLoading}
-            />
+            >
+              Excluir
+            </Button>
           </>
         )}
       </section>

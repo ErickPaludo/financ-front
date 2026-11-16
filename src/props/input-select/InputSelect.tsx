@@ -1,5 +1,6 @@
-import "./InputSelect.css";
-import LabelText from "../label-text/LabelText";
+import { MenuItem } from "@mui/material";
+
+import CampoTexto from "../campo-texto/CampoTexto";
 
 interface OpcaoSelect {
   label: string;
@@ -11,41 +12,36 @@ interface PropInputSelect {
   opcoes: OpcaoSelect[];
   onChange: (value: string) => void;
   placeholder?: string;
-  value?: string; // ← adiciona aqui
+  value?: string;
 }
 
+// Mantém a API antiga para as telas não mudarem; por dentro é o CampoTexto com select (tema do app).
 const InputSelect: React.FC<PropInputSelect> = ({
   label,
   opcoes,
   onChange,
   placeholder,
-  value, // ← e aqui
-}) => {
-  return (
-    <div className="fnc-input-select">
-      {label && <LabelText text={label} />}
-      <div className="fnc-input-select__wrapper">
-        <select
-          onChange={(e) => onChange(e.target.value)}
-          value={value ?? ""} // ← troca defaultValue por value
-        >
-          {placeholder && (
-            <option value="" disabled>
-              {placeholder}
-            </option>
-          )}
-          {opcoes.map((opcao) => (
-            <option key={opcao.value} value={opcao.value}>
-              {opcao.label}
-            </option>
-          ))}
-        </select>
-        <span className="fnc-input-select__icon material-icons">
-          expand_more
-        </span>
-      </div>
-    </div>
-  );
-};
+  value,
+}) => (
+  <CampoTexto
+    select
+    label={label}
+    valor={value ?? ""}
+    setValor={onChange}
+    // com placeholder, o valor vazio mostra o texto dele em vez de um campo em branco
+    slotProps={placeholder ? { select: { displayEmpty: true } } : undefined}
+  >
+    {placeholder && (
+      <MenuItem value="" disabled>
+        {placeholder}
+      </MenuItem>
+    )}
+    {opcoes.map((opcao) => (
+      <MenuItem key={opcao.value} value={opcao.value}>
+        {opcao.label}
+      </MenuItem>
+    ))}
+  </CampoTexto>
+);
 
 export default InputSelect;

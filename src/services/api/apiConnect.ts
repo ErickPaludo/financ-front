@@ -1,4 +1,5 @@
 import type { ApiResult } from "../../models/interface/ApiResult";
+import { isAxiosError } from "axios";
 import api from "./api";
 
 type Metodo = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
@@ -13,15 +14,16 @@ export default async function Conecta<T>(
   try {
     const resposta = await api.request<T>({ url: rota, method: metodo, data: objeto });
     return { sucesso: true, dados: resposta.data };
-  } catch (erro: any) {
+  } catch (erro) {
+    const resposta = isAxiosError(erro) ? erro.response : undefined;
     const msgErro =
-      typeof erro.response?.data === "string"
-        ? erro.response.data
-        : (erro.response?.data?.mensagem ??
+      typeof resposta?.data === "string"
+        ? resposta.data
+        : (resposta?.data?.mensagem ??
           // sem resposta do servidor (offline, certificado, CORS): garante que `erro` nunca venha vazio
-          erro.message ??
+          (erro instanceof Error ? erro.message : undefined) ??
           "Falha na comunicação com o servidor");
 
-    return { sucesso: false, erro: msgErro, status: erro.response?.status };
+    return { sucesso: false, erro: msgErro, status: resposta?.status };
   }
 }

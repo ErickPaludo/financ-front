@@ -23,6 +23,17 @@ body {
 }
 
 /* ── Main ── */
+.area-central {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.fundo-desfocado {
+  backdrop-filter: blur(12px);
+}
+
 .pagina-central {
   height: 100vh;
   flex: 1;
@@ -31,6 +42,12 @@ body {
   overflow-y: auto; /* Permite rolagem no conteúdo principal */
   overflow-x: hidden;
   transition: padding 0.3s;
+}
+
+/* Tela da conta: camada clara por cima do fundo (a marca d'água continua visível por baixo) */
+.pagina-transacoes {
+  background: var(--fnc-tx-overlay);
+  padding: 40px 32px;
 }
 
 @media (max-width: 768px) {

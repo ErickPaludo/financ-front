@@ -77,11 +77,6 @@
   margin: 4px 0;
 }
 
-.fnc-opcoes-usuario__mostrar-senha {
-  margin-top: -4px;
-  margin-bottom: 4px;
-}
-
 .fnc-opcoes-usuario__sucesso {
   border-radius: 10px;
   background-color: #1b3a2a;

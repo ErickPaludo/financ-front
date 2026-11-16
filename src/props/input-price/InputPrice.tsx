@@ -1,5 +1,4 @@
-import InputText from "../input-text/InputText";
-import "./InputPriceStyle.css";
+import CampoTexto from "../campo-texto/CampoTexto";
 interface PropInputPrice {
   label?: string;
   formattedValue: string;
@@ -25,12 +24,12 @@ const InputPrice: React.FC<PropInputPrice> = ({
 
   return (
     <>
-      <InputText
+      <CampoTexto
         placeholder="R$ 00,00"
         label={label}
-        text={formattedValue}
-        maxLenght={25}
-        setText={handleValor}
+        valor={formattedValue}
+        setValor={handleValor}
+        slotProps={{ htmlInput: { maxLength: 25, inputMode: "numeric" } }}
       />
     </>
   );

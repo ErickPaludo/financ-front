@@ -1,9 +1,8 @@
 import React, { useContext, useState } from "react";
 import TitleText from "../../../props/title-text/TitleText";
-import InputText from "../../../props/input-text/InputText";
-import { TypeText } from "../../../props/input-text/TypeText";
+import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import InputSelect from "../../../props/input-select/InputSelect";
-import FncButton from "../../../props/fnc-button/FncButton";
+import { Button } from "@mui/material";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import api from "../../../services/api/apiConnect";
 import { ContaContext } from "../../../contexts/ContaContext";
@@ -43,7 +42,7 @@ const CadConvite: React.FC<PropCadConvite> = ({ setIsCadInvite }) => {
         setMsgError("O email é obrigatório.");
         return;
       }
-      let request: ConviteCadastroRequest = {
+      const request: ConviteCadastroRequest = {
         acesso: acesso,
         emailDestinatario: email,
         idConta: conta!.idConta,
@@ -69,13 +68,13 @@ const CadConvite: React.FC<PropCadConvite> = ({ setIsCadInvite }) => {
   return (
     <>
       <TitleText text="Cadastro de Convite" />
-      <InputText
+      <CampoTexto
         label="Email do usuário"
-        text={email}
+        valor={email}
         placeholder="convidado@email.com"
-        setText={setEmail}
-        maxLenght={100}
-        type={TypeText.Text}
+        setValor={setEmail}
+        type="email"
+        slotProps={{ htmlInput: { maxLength: 100 } }}
       />
 
       <InputSelect
@@ -96,16 +95,18 @@ const CadConvite: React.FC<PropCadConvite> = ({ setIsCadInvite }) => {
       />
 
       {checkExpiracao && (
-        <InputText
+        <CampoTexto
           label="Tempo de expiração em minutos"
-          text={tempoExpiracao}
-          setText={setTempoExpiracao}
-          type={TypeText.Number}
+          valor={tempoExpiracao}
+          setValor={setTempoExpiracao}
+          type="number"
         />
       )}
       {msgError && <ErrorText text={msgError} />}
 
-      <FncButton title="Cadastrar" onClick={cadastrarConvite} />
+      <Button variant="contained" fullWidth onClick={cadastrarConvite}>
+        Cadastrar
+      </Button>
     </>
   );
 };

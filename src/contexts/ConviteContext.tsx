@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useState, type ReactNode } from "react";
 import type { ConviteItem } from "../models/convite/ConviteResponse";
 
 type ConviteContextType = {
@@ -29,8 +29,4 @@ export function ConviteProvider({ children }: ConviteProviderProps) {
       {children}
     </ConviteContext.Provider>
   );
-}
-
-export function useConvite() {
-  return useContext(ConviteContext);
 }

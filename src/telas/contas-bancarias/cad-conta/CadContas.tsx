@@ -1,20 +1,7 @@
 import { useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Drawer,
-  Icon,
-  IconButton,
-  Stack,
-  Typography,
-  useTheme,
-} from "@mui/material";
-import { ThemeProvider } from "@mui/material/styles";
+import { Alert, Box, Button, Icon, Stack, Typography } from "@mui/material";
 
-import { tema as temaEscuro } from "../../../tema";
-import { CoresClaro, CoresEscuro } from "../../../cores";
-
+import Modal from "../../../componentes/modal/Modal";
 import Conecta from "../../../services/api/apiConnect";
 import type { ContaBancaria } from "../../../models/contas-usuarios/GetContasBancarias";
 import CampoTexto from "../../../props/campo-texto/CampoTexto";
@@ -35,44 +22,21 @@ type Props = {
 };
 
 // Gaveta da direita para cadastrar ou editar uma conta bancária: nome, cor e prévia do card.
-// Mesmas cores da barra lateral (fundo escuro nos dois modos), por isso usa o tema escuro.
 // O conteúdo só existe com a gaveta aberta, então os campos voltam vazios a cada abertura.
 const CadContas: React.FC<Props> = ({
   aberto,
   onClose,
   buscaContas,
   conta,
-}) => {
-  const barra = (useTheme().palette.mode === "dark" ? CoresEscuro : CoresClaro)
-    .barraLateral;
-
-  return (
-    <ThemeProvider theme={temaEscuro}>
-      <Drawer
-        anchor="right"
-        open={aberto}
-        onClose={onClose}
-        slotProps={{
-          paper: {
-            sx: {
-              width: { xs: "100%", sm: 400 },
-              bgcolor: barra.fundo,
-              backgroundImage: "none",
-              borderLeft: `1px solid ${barra.contorno}`,
-              color: barra.titulo,
-            },
-          },
-        }}
-      >
-        <FormularioConta
-          onClose={onClose}
-          buscaContas={buscaContas}
-          conta={conta}
-        />
-      </Drawer>
-    </ThemeProvider>
-  );
-};
+}) => (
+  <Modal
+    isOpen={aberto}
+    onClose={onClose}
+    titulo={conta ? "Editar conta" : "Nova conta"}
+  >
+    <FormularioConta onClose={onClose} buscaContas={buscaContas} conta={conta} />
+  </Modal>
+);
 
 const FormularioConta: React.FC<Omit<Props, "aberto">> = ({
   onClose,
@@ -109,19 +73,8 @@ const FormularioConta: React.FC<Omit<Props, "aberto">> = ({
       onSubmit={envio.enviar}
       noValidate
       spacing={2.5}
-      sx={{ p: 3, height: "100%" }}
+      sx={{ flex: 1 }}
     >
-      <Stack
-        direction="row"
-        sx={{ alignItems: "center", justifyContent: "space-between" }}
-      >
-        <Typography component="h2" sx={{ fontSize: 20, fontWeight: 800 }}>
-          {conta ? "Editar conta" : "Nova conta"}
-        </Typography>
-        <IconButton onClick={onClose} aria-label="Fechar">
-          <Icon>close</Icon>
-        </IconButton>
-      </Stack>
 
       {/* prévia de como o card vai ficar */}
       <Box

@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useEffect, useState, type ReactNode } from "react";
 import {
   configurarSessao,
   refreshToken,
@@ -28,7 +22,6 @@ export type User = {
 type AuthContextType = {
   tokenData: TokenData | null;
   user: User | null;
-  authenticated: boolean;
   inicializando: boolean;
   login: (tokenData: TokenData) => void;
   setUser: (user: User) => void;
@@ -50,9 +43,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   });
   // sem usuário salvo não há sessão para restaurar
   const [inicializando, setInicializando] = useState(user !== null);
-
-  const authenticated =
-    tokenData !== null && Date.now() < new Date(tokenData.expiration).getTime();
 
   function logout() {
     setAccessToken(null);
@@ -77,6 +67,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (!dados) logout();
       })
       .finally(() => setInicializando(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- roda uma vez, ao abrir o app
   }, []);
 
   function login(novoTokenData: TokenData) {
@@ -96,7 +87,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       value={{
         tokenData,
         user,
-        authenticated,
         inicializando,
         login,
         logout,
@@ -106,8 +96,4 @@ export function AuthProvider({ children }: AuthProviderProps) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  return useContext(AuthContext);
 }

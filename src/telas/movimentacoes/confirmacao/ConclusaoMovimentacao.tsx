@@ -3,18 +3,23 @@ import type { ApiResult } from "../../../models/interface/ApiResult";
 import type { Movimentacao } from "../../../models/movimentacoes/GetMovimentacoes";
 import type { CategoriaResponse } from "../../../models/categorias/Categorias";
 import { useContext, useState } from "react";
-import TitleText from "../../../props/title-text/TitleText";
-import ErrorText from "../../../props/error-text/ErrorText";
-import FncButton from "../../../props/fnc-button/FncButton";
-import { TypeButton } from "../../../props/fnc-button/TypeButton";
-import { TypeThemeButton } from "../../../props/fnc-button/TypeThemeButton";
-import "./ConclusaoMovimentacao.css";
-import InputDate from "../../../props/input-date/InputDate";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Icon,
+  IconButton,
+  Stack,
+  Typography,
+} from "@mui/material";
+import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import Modal from "../../../componentes/modal/Modal";
 import { MovimentacaoContext } from "../../../contexts/MovimentacaoContext";
 import CadMov from "../cad-mov/CadMov";
-import SubtitleText from "../../../props/subtitle-text/SubtitleText";
 
 // "YYYY-MM-DDTHH:mm" (horário local do browser) → UTC ISO global
 const toUTCISOString = (data: string): string => new Date(data).toISOString();
@@ -80,7 +85,7 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
   const materializar = async (): Promise<number | null> => {
     if (idMovAtual > 0) return idMovAtual;
     try {
-      const resposta = await api<any>(
+      const resposta = await api<{ valor: Movimentacao }>(
         `/Contas/${movimentacaoSelecionada.idConta}/Movimentacoes/Fixa/${movimentacaoSelecionada.idFixo}/Materializa`,
         "POST",
         {
@@ -98,8 +103,8 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
         setErroMsg(resposta.erro || "Erro ao materializar movimentação.");
         return null;
       }
-    } catch (error: any) {
-      setErroMsg(error.message || "Erro inesperado.");
+    } catch (error) {
+      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
       return null;
     }
   };
@@ -128,8 +133,8 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
       } else {
         setErroMsg(resposta.erro);
       }
-    } catch (error: any) {
-      setErroMsg(error.message);
+    } catch (error) {
+      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
     } finally {
       setIsLoading(false);
     }
@@ -157,8 +162,8 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
       } else {
         setErroMsg(resposta.erro);
       }
-    } catch (error: any) {
-      setErroMsg(error.message || "Erro inesperado.");
+    } catch (error) {
+      setErroMsg(error instanceof Error ? error.message : "Erro inesperado.");
     } finally {
       setIsLoading(false);
     }
@@ -176,67 +181,103 @@ const ConclusaoMovimentacao: React.FC<PropAlteraMov> = ({
   // ── render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="fnc-ctn-opt-mov">
-      <TitleText text={`Alterar ${movimentacaoSelecionada.titulo}`} />
-      <TitleText text={formataMoeda(movimentacaoSelecionada.valor)} />
+    <>
+      <Dialog
+        // "Alterar" troca o popup pela gaveta (o componente segue montado por causa dela)
+        open={!alterarMovimentacao}
+        onClose={isLoading ? undefined : onClose}
+        fullWidth
+        maxWidth="xs"
+        aria-labelledby="titulo-conclusao-mov"
+      >
+        <DialogTitle id="titulo-conclusao-mov" sx={{ pr: 6 }}>
+          {movimentacaoSelecionada.titulo}
+          <Typography sx={{ fontSize: 22, fontWeight: 700 }}>
+            {formataMoeda(movimentacaoSelecionada.valor)}
+          </Typography>
+        </DialogTitle>
+        <IconButton
+          onClick={onClose}
+          aria-label="Fechar"
+          disabled={isLoading}
+          sx={{ position: "absolute", top: 8, right: 8 }}
+        >
+          <Icon>close</Icon>
+        </IconButton>
 
-      <div className="fnc-inputs-opt-mov">
-        {erroMsg && <ErrorText text={erroMsg} />}
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {erroMsg && <Alert severity="error">{erroMsg}</Alert>}
+            {!movAtual.concluido && (
+              <>
+                <InputCheckBox
+                  checked={usarDataMovimentacao}
+                  label="Usar data da movimentação"
+                  setChecked={toggleUsarDataMovimentacao}
+                />
+                <CampoDataHora
+                  label="Data conclusão"
+                  valor={dataConclusao}
+                  setValor={setDataConclusao}
+                />
+              </>
+            )}
+            {movimentacaoSelecionada.id === 0 && (
+              <Alert severity="info">
+                Esta movimentação foi criada a partir de um agendamento.
+                Alterações futuras no agendamento não afetarão esta
+                movimentação.
+              </Alert>
+            )}
+          </Stack>
+        </DialogContent>
 
-        {!movAtual.concluido && (
-          <>
-            <InputCheckBox
-              checked={usarDataMovimentacao}
-              label="Usar data da movimentação"
-              setChecked={toggleUsarDataMovimentacao}
-            />
-            <InputDate
-              text={dataConclusao}
-              label="Data Conclusão"
-              setText={setDataConclusao}
-            />
-          </>
-        )}
-        {movimentacaoSelecionada.id === 0 && (
-          <SubtitleText text="Esta movimentação foi criada a partir de um agendamento. Alterações futuras no agendamento não afetarão esta movimentação." />
-        )}
-        <div className="fnc-edit-mov-ctn-vertical">
-          <FncButton
-            title={movAtual.concluido ? "Extornar" : "Concluir"}
-            type={TypeButton.Submit}
+        <DialogActions sx={{ px: 3, pb: 2.5 }}>
+          {/* com fundo: só o contorno ficava apagado sobre o diálogo */}
+          <Button
+            variant="contained"
+            color="error"
+            disableElevation
+            onClick={DeletarMovRequest}
+            disabled={isLoading}
+            sx={{ mr: "auto" }}
+          >
+            Deletar
+          </Button>
+          <Button
+            variant="contained"
+            color="warning" // laranja do tema
+            disableElevation
+            onClick={AlterarMovimentacao}
+            disabled={isLoading}
+          >
+            Alterar
+          </Button>
+          <Button
+            variant="contained"
             onClick={ExecutarMovRequest}
             disabled={isLoading}
-          />
-          <FncButton
-            title="Deletar"
-            type={TypeButton.Submit}
-            onClick={DeletarMovRequest}
-            thema={TypeThemeButton.Delete}
-            disabled={isLoading}
-          />
-          <FncButton
-            title="Alterar"
-            type={TypeButton.Submit}
-            onClick={AlterarMovimentacao}
-            thema={TypeThemeButton.Aceept}
-            disabled={isLoading}
-          />
-        </div>
+          >
+            {movAtual.concluido ? "Extornar" : "Concluir"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        {alterarMovimentacao && (
-          <Modal isOpen={true} onClose={() => setAlterarMovimentacao(false)}>
-            <CadMov
-              onClose={() => {
-                setAlterarMovimentacao(false);
-                buscaMovimentacoes();
-                onClose();
-              }}
-              edit={true}
-            />
-          </Modal>
-        )}
-      </div>
-    </div>
+      {/* o formulário de edição continua na gaveta, como os demais */}
+      {alterarMovimentacao && (
+        // fechar a gaveta sem salvar encerra tudo (não volta ao popup)
+        <Modal isOpen={true} onClose={onClose}>
+          <CadMov
+            onClose={() => {
+              setAlterarMovimentacao(false);
+              buscaMovimentacoes();
+              onClose();
+            }}
+            edit={true}
+          />
+        </Modal>
+      )}
+    </>
   );
 };
 
