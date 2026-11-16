@@ -1,8 +1,12 @@
-import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
+import type {
+  ContaBancaria,
+  ContaResponse,
+} from "../../models/contas-usuarios/GetContasBancarias";
 import api from "../../services/api/apiConnect";
 
 import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "../../contexts/AuthContext";
+import { ContaContext } from "../../contexts/ContaContext";
 import { moverId, ordenarPorIds } from "./ordemContas";
 import { useOrdemContas } from "./useOrdemContas";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
@@ -19,7 +23,11 @@ export const Inicial: React.FC = () => {
     null,
   );
   const [loading, setLoading] = useState<boolean>(false);
-  const [isCadContaOpen, setIsCadContaOpen] = useState(false);
+  // a conta continua guardada ao fechar para o título não trocar durante a animação
+  const [gaveta, setGaveta] = useState<{
+    aberta: boolean;
+    conta: ContaBancaria | null;
+  }>({ aberta: false, conta: null });
   const { ocultos: valoresOcultos, alternarOcultos } = useValoresOcultos();
 
   // Ordem dos cards definida pelo usuário arrastando.
@@ -44,7 +52,8 @@ export const Inicial: React.FC = () => {
     );
   };
   const buscaContas = async () => {
-    setLoading(true);
+    // tela de carregamento só na primeira busca; depois atualiza sem piscar
+    if (!contasObtidas) setLoading(true);
     const resposta = await api<ContaResponse>("/ContasUsuarios", "GET");
 
     if (resposta.sucesso && resposta.dados) {
@@ -57,6 +66,13 @@ export const Inicial: React.FC = () => {
     buscaContas();
   }, []);
 
+  // depois de alterar uma conta: atualiza os cards e os favoritos da barra lateral
+  const { contasAlteradas } = useContext(ContaContext);
+  const atualizarContas = () => {
+    buscaContas();
+    contasAlteradas();
+  };
+
   return (
     <>
       {loading ? (
@@ -66,7 +82,7 @@ export const Inicial: React.FC = () => {
           <div className="principal">
             <ResumoContas
               conteudo={contasObtidas?.conteudo}
-              onNovaConta={() => setIsCadContaOpen(true)}
+              onNovaConta={() => setGaveta({ aberta: true, conta: null })}
               ocultarValores={valoresOcultos}
               onAlternarOcultar={alternarOcultos}
             />
@@ -90,15 +106,18 @@ export const Inicial: React.FC = () => {
                   <ContaComponent
                     conta={conta}
                     ocultarValores={valoresOcultos}
+                    onEditar={() => setGaveta({ aberta: true, conta })}
+                    onAlterada={atualizarContas}
                   />
                 </div>
               ))}
             </div>
 
             <CadContas
-              aberto={isCadContaOpen}
-              onClose={() => setIsCadContaOpen(false)}
-              buscaContas={buscaContas}
+              aberto={gaveta.aberta}
+              conta={gaveta.conta}
+              onClose={() => setGaveta((g) => ({ ...g, aberta: false }))}
+              buscaContas={atualizarContas}
             />
           </div>
         </>

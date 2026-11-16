@@ -44,10 +44,6 @@ function App() {
                       />
                       <Route path="/agendadas" element={<MovimentacaoFixa />} />
                       <Route path="/membros" element={<Membros />} />
-                      <Route
-                        path="/configuracoes-conta"
-                        element={<EditaConta />}
-                      />
                     </Route>
                   </Route>
                   <Route path="*" element={<Navigate to="/login" replace />} />

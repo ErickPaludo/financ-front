@@ -1,9 +1,26 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, Card, Icon, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Card,
+  Icon,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  Snackbar,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 
+import { AuthContext } from "../../../../contexts/AuthContext";
 import { ContaContext } from "../../../../contexts/ContaContext";
 import type { ContaBancaria } from "../../../../models/contas-usuarios/GetContasBancarias";
+import type { GetContaUsuario } from "../../../../models/contas-usuarios/GetContaUsuario";
+import api from "../../../../services/api/apiConnect";
 import { exibirMoeda } from "../../../../utils/formatacao";
 import Indicador from "../indicador/Indicador";
 
@@ -31,12 +48,44 @@ const formatarDataHora = (dataUtc: string) =>
 type Props = {
   conta: ContaBancaria;
   ocultarValores?: boolean;
+  onEditar: () => void; // abre a edição de nome e cor
+  onAlterada: () => void; // depois de favoritar ou mudar a soma do saldo
 };
 
+const PERMISSAO_ADMIN = 0;
+
 // Card de uma conta bancária na tela inicial. Clicar abre as movimentações (só contas ativas).
-const ContaComponent: React.FC<Props> = ({ conta, ocultarValores = false }) => {
+const ContaComponent: React.FC<Props> = ({
+  conta,
+  ocultarValores = false,
+  onEditar,
+  onAlterada,
+}) => {
   const { setConta } = useContext(ContaContext);
+  const { user } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  // Menu de 3 pontos: as mesmas opções da tela de configurações da conta.
+  const [ancoraMenu, setAncoraMenu] = useState<HTMLElement | null>(null);
+  const [admin, setAdmin] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const abrirMenu = async (elemento: HTMLElement) => {
+    setAncoraMenu(elemento);
+    // a permissão não vem na lista de contas; só admin edita nome e cor
+    const resposta = await api<GetContaUsuario>(
+      `/ContasUsuarios/${conta.idConta}/associados?IdUsuario=${user?.id}`,
+      "GET",
+    );
+    setAdmin(resposta.dados?.conteudo[0]?.permissao === PERMISSAO_ADMIN);
+  };
+
+  const executar = async (rota: string, mensagemErro: string) => {
+    setAncoraMenu(null);
+    const resposta = await api<string>(rota, "POST");
+    if (resposta.sucesso) onAlterada();
+    else setErro(resposta.erro ?? mensagemErro);
+  };
 
   const ativa = conta.status === 0;
   const corTexto = corDoTexto(conta.cor);
@@ -111,6 +160,87 @@ const ContaComponent: React.FC<Props> = ({ conta, ocultarValores = false }) => {
               <Icon fontSize="small">money_off</Icon>
             </Box>
           </Tooltip>
+        )}
+        {ativa && (
+          // Barra cliques e teclas do menu (inclusive do portal) para não abrir a conta.
+          <Box
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+            sx={{ display: "flex", mr: -1 }}
+          >
+            <IconButton
+              size="small"
+              color="inherit"
+              aria-label={`Opções da conta ${conta.titulo}`}
+              aria-haspopup="menu"
+              aria-expanded={Boolean(ancoraMenu)}
+              onClick={(e) => abrirMenu(e.currentTarget)}
+            >
+              <Icon>more_vert</Icon>
+            </IconButton>
+            <Menu
+              anchorEl={ancoraMenu}
+              open={Boolean(ancoraMenu)}
+              onClose={() => setAncoraMenu(null)}
+            >
+              <MenuItem
+                onClick={() =>
+                  executar(
+                    `/ContasUsuarios/${conta.idConta}/Favorita`,
+                    "Não foi possível favoritar a conta.",
+                  )
+                }
+              >
+                <ListItemIcon>
+                  <Icon fontSize="small">
+                    {conta.contaFavorita ? "star" : "star_border"}
+                  </Icon>
+                </ListItemIcon>
+                <ListItemText>
+                  {conta.contaFavorita ? "Remover dos favoritos" : "Favoritar"}
+                </ListItemText>
+              </MenuItem>
+              <MenuItem
+                role="menuitemcheckbox"
+                aria-checked={conta.somaSaldo}
+                onClick={() =>
+                  executar(
+                    `/ContasUsuarios/${conta.idConta}/AutoSoma`,
+                    "Não foi possível alterar a soma do saldo.",
+                  )
+                }
+              >
+                <ListItemIcon>
+                  <Icon fontSize="small">
+                    {conta.somaSaldo ? "check_box" : "check_box_outline_blank"}
+                  </Icon>
+                </ListItemIcon>
+                <ListItemText>Somar saldo na tela inicial</ListItemText>
+              </MenuItem>
+              {admin && (
+                <MenuItem
+                  onClick={() => {
+                    setAncoraMenu(null);
+                    onEditar();
+                  }}
+                >
+                  <ListItemIcon>
+                    <Icon fontSize="small">edit</Icon>
+                  </ListItemIcon>
+                  <ListItemText>Editar nome e cor</ListItemText>
+                </MenuItem>
+              )}
+            </Menu>
+            <Snackbar
+              open={Boolean(erro)}
+              autoHideDuration={5000}
+              onClose={() => setErro(null)}
+            >
+              <Alert severity="error" onClose={() => setErro(null)}>
+                {erro}
+              </Alert>
+            </Snackbar>
+          </Box>
         )}
       </Stack>
 

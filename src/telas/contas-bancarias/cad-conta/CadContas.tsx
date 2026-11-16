@@ -16,6 +16,7 @@ import { tema as temaEscuro } from "../../../tema";
 import { CoresClaro, CoresEscuro } from "../../../cores";
 
 import Conecta from "../../../services/api/apiConnect";
+import type { ContaBancaria } from "../../../models/contas-usuarios/GetContasBancarias";
 import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import SeletorCor from "../../../props/seletor-cor/SeletorCor";
 import { existeCampoVazio } from "../../../props/campo-texto/validacoes";
@@ -29,12 +30,19 @@ type Props = {
   aberto: boolean;
   onClose: () => void;
   buscaContas: () => void;
+  // com conta: edita nome e cor dela; sem: cadastra uma nova
+  conta?: ContaBancaria | null;
 };
 
-// Gaveta da direita para cadastrar uma conta bancária: nome, cor e prévia do card.
+// Gaveta da direita para cadastrar ou editar uma conta bancária: nome, cor e prévia do card.
 // Mesmas cores da barra lateral (fundo escuro nos dois modos), por isso usa o tema escuro.
 // O conteúdo só existe com a gaveta aberta, então os campos voltam vazios a cada abertura.
-const CadContas: React.FC<Props> = ({ aberto, onClose, buscaContas }) => {
+const CadContas: React.FC<Props> = ({
+  aberto,
+  onClose,
+  buscaContas,
+  conta,
+}) => {
   const barra = (useTheme().palette.mode === "dark" ? CoresEscuro : CoresClaro)
     .barraLateral;
 
@@ -56,32 +64,44 @@ const CadContas: React.FC<Props> = ({ aberto, onClose, buscaContas }) => {
           },
         }}
       >
-        <FormularioNovaConta onClose={onClose} buscaContas={buscaContas} />
+        <FormularioConta
+          onClose={onClose}
+          buscaContas={buscaContas}
+          conta={conta}
+        />
       </Drawer>
     </ThemeProvider>
   );
 };
 
-const FormularioNovaConta: React.FC<Omit<Props, "aberto">> = ({
+const FormularioConta: React.FC<Omit<Props, "aberto">> = ({
   onClose,
   buscaContas,
+  conta,
 }) => {
-  const [titulo, setTitulo] = useState("");
-  const [cor, setCor] = useState(COR_INICIAL);
+  const [titulo, setTitulo] = useState(conta?.titulo ?? "");
+  const [cor, setCor] = useState(conta?.cor ?? COR_INICIAL);
 
-  const cadastrar = async () => {
+  const salvar = async () => {
     if (existeCampoVazio(titulo)) return "Informe o nome da conta";
 
-    const conta: NovaContaRequest = { titulo: titulo.trim(), cor };
-    const resposta = await Conecta<string>("Contas", "POST", conta);
+    const corpo: NovaContaRequest = { titulo: titulo.trim(), cor };
+    const resposta = conta
+      ? await Conecta<string>(`Contas/${conta.idConta}/atualiza`, "PATCH", corpo)
+      : await Conecta<string>("Contas", "POST", corpo);
     if (!resposta.sucesso)
-      return resposta.erro ?? "Não foi possível criar a conta";
+      return (
+        resposta.erro ??
+        (conta
+          ? "Não foi possível salvar a conta"
+          : "Não foi possível criar a conta")
+      );
 
     onClose();
     buscaContas();
   };
 
-  const envio = useEnvioFormulario(cadastrar);
+  const envio = useEnvioFormulario(salvar);
 
   return (
     <Stack
@@ -96,7 +116,7 @@ const FormularioNovaConta: React.FC<Omit<Props, "aberto">> = ({
         sx={{ alignItems: "center", justifyContent: "space-between" }}
       >
         <Typography component="h2" sx={{ fontSize: 20, fontWeight: 800 }}>
-          Nova conta
+          {conta ? "Editar conta" : "Nova conta"}
         </Typography>
         <IconButton onClick={onClose} aria-label="Fechar">
           <Icon>close</Icon>
@@ -141,7 +161,13 @@ const FormularioNovaConta: React.FC<Omit<Props, "aberto">> = ({
         fullWidth
         disabled={envio.enviando}
       >
-        {envio.enviando ? "Cadastrando..." : "Cadastrar"}
+        {conta
+          ? envio.enviando
+            ? "Salvando..."
+            : "Salvar alterações"
+          : envio.enviando
+            ? "Cadastrando..."
+            : "Cadastrar"}
       </Button>
     </Stack>
   );

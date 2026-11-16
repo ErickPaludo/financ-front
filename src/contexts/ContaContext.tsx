@@ -12,6 +12,9 @@ type ContaContextType = {
   removeMembroConta: () => void;
   removeContaUsuario: () => void;
   removeConta: () => void;
+  // muda quando alguma conta é alterada fora da conta selecionada (ex.: favoritar pelo card)
+  versaoContas: number;
+  contasAlteradas: () => void;
 };
 
 type ContaProviderProps = {
@@ -24,6 +27,8 @@ export function ContaProvider({ children }: ContaProviderProps) {
   const [conta, setContaObj] = useState<ContaBancaria | null>(null);
   const [usuario, setUsuarioObj] = useState<ContaUsuario | null>(null);
   const [membro, setMembroObj] = useState<ContaUsuario | null>(null);
+  const [versaoContas, setVersaoContas] = useState(0);
+  const contasAlteradas = () => setVersaoContas((v) => v + 1);
 
   function setConta(contaBancaria: ContaBancaria) {
     setContaObj(contaBancaria);
@@ -60,6 +65,8 @@ export function ContaProvider({ children }: ContaProviderProps) {
         removeMembroConta,
         removeConta,
         removeContaUsuario,
+        versaoContas,
+        contasAlteradas,
       }}
     >
       {children}

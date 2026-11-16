@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   AppBar,
@@ -23,6 +23,11 @@ import {
 } from "@mui/material";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
+import type {
+  ContaBancaria,
+  ContaResponse,
+} from "../../models/contas-usuarios/GetContasBancarias";
+import api from "../../services/api/apiConnect";
 import MsgBox from "../../props/msg-box/MsgBox";
 import { TypeMsgBox } from "../../props/msg-box/TypeMsgBox";
 import APP_VERSION from "../../version";
@@ -73,7 +78,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     palavrasNome[0][0] +
     (palavrasNome.length > 1 ? palavrasNome[palavrasNome.length - 1][0] : "")
   ).toUpperCase();
-  const { conta, usuario } = useContext(ContaContext);
+  const { conta, usuario, setConta, versaoContas } = useContext(ContaContext);
   const navigate = useNavigate();
   const rotaAtual = useLocation().pathname;
   const isMobile = useMediaQuery("(max-width:768px)");
@@ -84,11 +89,35 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const [ancoraMenuUsuario, setAncoraMenuUsuario] =
     useState<HTMLElement | null>(null);
 
+  const [favoritas, setFavoritas] = useState<ContaBancaria[]>([]);
+
   const compacta = recolhida && !isMobile;
+
+  // Rebusca ao navegar e ao trocar a conta: favoritar acontece em outras telas.
+  useEffect(() => {
+    let ativo = true;
+    api<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
+      if (ativo && resposta.sucesso && resposta.dados)
+        setFavoritas(
+          // só ativas: inativas não abrem (igual ao card da tela inicial)
+          resposta.dados.conteudo.contas.filter(
+            (c) => c.contaFavorita && c.status === 0,
+          ),
+        );
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [rotaAtual, conta, versaoContas]);
 
   const irPara = (rota: string) => {
     navigate(rota);
     setMobileAberto(false);
+  };
+
+  const abrirConta = (contaFavorita: ContaBancaria) => {
+    setConta(contaFavorita);
+    irPara("/movimentacoes");
   };
 
   const menu: Item[] = [
@@ -103,12 +132,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     ...(usuario?.permissao !== 2
       ? [{ rota: "/agendadas", titulo: "Agendadas", icone: "browse_gallery" }]
       : []),
-    { rota: "/membros", titulo: "Membros da Conta", icone: "group" },
-    {
-      rota: "/configuracoes-conta",
-      titulo: "Configurações",
-      icone: "settings",
-    },
+    { rota: "/membros", titulo: "Membros da Conta", icone: "group" }
   ];
 
   const titulo = (texto: string) =>
@@ -247,6 +271,16 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
       >
         {titulo("Menu")}
         {menu.map(item)}
+
+        {favoritas.length > 0 && (
+          <>
+            {titulo("Favoritos")}
+            {compacta && <Divider sx={{ my: 1, borderColor: barra.divisoria }} />}
+            {favoritas.map((c) =>
+              botao(c.titulo, "wallet", () => abrirConta(c)),
+            )}
+          </>
+        )}
 
         {conta && ROTAS_DA_CONTA.includes(rotaAtual) && (
           <Box sx={{ mt: "auto", pt: 2 }}>

@@ -91,7 +91,8 @@ A conta selecionada (`ContaContext`) fica só em memória: recarregar uma rota d
   - `ResumoContas`: card na cor primária com saudação, "Minhas Contas", botão de olho (oculta valores), "Nova conta bancária", patrimônio total, projetado, receitas e despesas.
   - `ContaComponent` (`contas-bancarias/componente/conta-unitaria`): MUI `Card` na cor da conta; nome ao lado do ícone; "não contabilizado" é o ícone `money_off` com tooltip; saldo à esquerda e receitas/despesas empilhadas à direita (`Indicador`). Grade com mínimo de 320px (`.grid-contas`).
   - Cards **arrastáveis** (HTML5 drag and drop nativo) — ordem em `ordemContas.ts` (funções puras) + `useOrdemContas.ts`.
-  - `CadContas`: `Drawer` da direita com prévia do card, nome e `SeletorCor`.
+  - Menu de 3 pontos no card (só contas ativas): favoritar, somar saldo e editar nome/cor (só admin; a permissão é buscada ao abrir o menu). Após alterar, `Inicial` rebusca as contas e chama `contasAlteradas()` do `ContaContext`, que faz a barra lateral rebuscar os favoritos.
+  - `CadContas`: `Drawer` da direita com prévia do card, nome e `SeletorCor`. Com a prop `conta` edita (PATCH `Contas/{id}/atualiza`); sem ela cadastra.
 
 ## localStorage
 
