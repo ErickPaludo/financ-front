@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Box, Chip, Icon, Stack } from "@mui/material";
+import { Box, Icon, Stack } from "@mui/material";
 import type {
   GetMovimentacoes,
   Movimentacao,
@@ -8,7 +8,7 @@ import TabelaDados, {
   type ColunaTabela,
 } from "../../../componentes/tabela-dados/TabelaDados";
 import ConclusaoMovimentacao from "../confirmacao/ConclusaoMovimentacao";
-import { coresChipCategoria } from "../../../utils/corCategoria";
+import ChipCategoria from "../../../componentes/chip-categoria/ChipCategoria";
 import { valorComSinal } from "../../../utils/formatacao";
 
 type PropTabelaMovimentacao = {
@@ -77,22 +77,9 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
     ordenarPor: (mov) => mov.categorias[0]?.nome,
     exibir: (mov) => (
       <Stack direction="row" sx={{ flexWrap: "wrap", gap: 0.5 }}>
-        {mov.categorias.map((cat) => {
-          const cores = coresChipCategoria(cat.cor);
-          return (
-            <Chip
-              key={cat.idCategoria}
-              label={cat.nome}
-              size="small"
-              sx={{
-                borderRadius: 999,
-                fontWeight: 500,
-                bgcolor: cores?.fundo ?? "var(--fnc-tx-chip-fundo)",
-                color: cores?.texto ?? "var(--fnc-tx-chip-texto)",
-              }}
-            />
-          );
-        })}
+        {mov.categorias.map((cat) => (
+          <ChipCategoria key={cat.idCategoria} nome={cat.nome} cor={cat.cor} />
+        ))}
       </Stack>
     ),
   },
@@ -196,7 +183,6 @@ const ESTILOS = {
     minWidth: 760,
     "& .MuiTableCell-root": {
       p: "16px 20px",
-      textAlign: "left",
       fontSize: 14,
       color: "var(--fnc-tx-texto-tabela)",
       borderBottom: 0,

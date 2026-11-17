@@ -6,24 +6,22 @@ import { periodoDoMes } from "../../../utils/formatacao";
 
 type PropFiltroPeriodo = {
   dataInicial: string; // FORMATO_DATA_HORA
-  setDataInicial: (valor: string) => void;
   dataFinal: string;
-  setDataFinal: (valor: string) => void;
+  // as duas datas numa chamada só: os filtros vivem na URL, e duas escritas seguidas perderiam a primeira
+  setPeriodo: (inicio: string, fim: string) => void;
 };
 
 // Filtro de período das movimentações: "[data inicial] [data final] [‹|›]".
 // As setas levam o período ao mês inteiro anterior/seguinte; as datas também podem ser editadas.
 const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
   dataInicial,
-  setDataInicial,
   dataFinal,
-  setDataFinal,
+  setPeriodo,
 }) => {
   // do dia 1 às 00:00 ao último dia às 23:59, partindo do mês da data inicial
   const moverMes = (meses: number) => {
     const { inicio, fim } = periodoDoMes(dayjs(dataInicial).add(meses, "month"));
-    setDataInicial(inicio);
-    setDataFinal(fim);
+    setPeriodo(inicio, fim);
   };
 
   return (
@@ -56,7 +54,7 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
         <CampoDataHora
           rotulo="Data inicial"
           valor={dataInicial}
-          setValor={setDataInicial}
+          setValor={(inicio) => setPeriodo(inicio, dataFinal)}
           maximo={dataFinal}
         />
       </Box>
@@ -64,7 +62,7 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
         <CampoDataHora
           rotulo="Data final"
           valor={dataFinal}
-          setValor={setDataFinal}
+          setValor={(fim) => setPeriodo(dataInicial, fim)}
           minimo={dataInicial}
         />
       </Box>

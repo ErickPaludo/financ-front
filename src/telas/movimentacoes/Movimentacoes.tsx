@@ -1,4 +1,5 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Box,
   Button,
@@ -15,6 +16,7 @@ import { buscarContaUsuario } from "../../services/contas/contaUsuarioService";
 import type {
   Categoria,
   GetMovimentacoes,
+  Movimentacao,
 } from "../../models/movimentacoes/GetMovimentacoes";
 import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
 import { ContaContext } from "../../contexts/ContaContext";
@@ -27,21 +29,35 @@ import InputCheckBox from "../../props/input-check-box/InputCheckBox";
 import Categorias from "../categorias/Categorias";
 import FiltroPeriodo from "./filtro-periodo/FiltroPeriodo";
 import CadMov from "./cad-mov/CadMov";
-import CadConvite from "./cad-convite/CadConvite";
+import CadConvite from "../../componentes/painel-convites/CadConvite";
 import TabelaMovimentacao from "./tabela/TabelaMovimentacao";
 import CardResumo from "./card-resumo/CardResumo";
 import { ChipFiltro, ChipSelect } from "./filtros/ChipFiltro";
 import {
+  lerFiltros,
+  paraParametros,
+  passaNosFiltros,
+  type FiltrosMovimentacao,
+} from "./filtrosUrl";
+import {
   formatarDataHora,
   formatarMoeda,
-  periodoDoMes,
   valorComSinal,
+  paraUtcSemFuso,
 } from "../../utils/formatacao";
 import { nomePermissao, PERMISSAO } from "../../utils/permissao";
 import { estiloBotaoSecundario } from "../../estilos";
 import "./MovimentacaoesStyle.css";
 
 const SEM_CATEGORIA: Categoria = { idCategoria: 0, nome: "Sem categoria", cor: "" };
+
+// "Nova transação": no cabeçalho e, no modo extrato, na barra da tabela
+const estiloBotaoPrincipal = {
+  borderRadius: "10px",
+  bgcolor: "var(--fnc-tx-destaque)",
+  color: "var(--fnc-tx-sobre-destaque)",
+  boxShadow: "none",
+};
 
 const gradeCards = {
   display: "grid",
@@ -128,24 +144,17 @@ const ValorRodape: React.FC<{ rotulo: string; valor: string; cor: string }> = ({
   </span>
 );
 
+// valores iguais aos da URL (filtrosUrl.ts)
 const OPCOES_STATUS = [
-  { rotulo: "Todas", valor: "Todas" },
-  { rotulo: "Pendente", valor: "Pendente" },
-  { rotulo: "Concluído", valor: "Concluido" },
+  { rotulo: "Todas", valor: "todas" },
+  { rotulo: "Pendente", valor: "pendente" },
+  { rotulo: "Concluído", valor: "concluido" },
 ];
 const OPCOES_TIPO = [
-  { rotulo: "Todas", valor: "Todas" },
-  { rotulo: "Entrada", valor: "0" },
-  { rotulo: "Saída", valor: "1" },
+  { rotulo: "Todas", valor: "todas" },
+  { rotulo: "Entrada", valor: "entrada" },
+  { rotulo: "Saída", valor: "saida" },
 ];
-
-// "YYYY-MM-DDTHH:mm" local enviado como se fosse UTC: a API compara com o horário local gravado
-const paraUtcSemFuso = (data: string) => {
-  const local = new Date(data);
-  return new Date(
-    local.getTime() - local.getTimezoneOffset() * 60 * 1000,
-  ).toISOString();
-};
 
 const Movimentacoes: React.FC = () => {
   const { conta, setConta, setContaUsuario, usuario } =
@@ -164,15 +173,24 @@ const Movimentacoes: React.FC = () => {
   const [categoriasAberto, setCategoriasAberto] = useState(false);
   const { categorias, buscarCategorias } = useCategorias(idConta);
 
-  const [dataInicial, setDataInicial] = useState(() => periodoDoMes().inicio);
-  const [dataFinal, setDataFinal] = useState(() => periodoDoMes().fim);
-  const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<
-    number[]
-  >([]);
-  const [status, setStatus] = useState("Todas");
-  const [tipo, setTipo] = useState("Todas");
+  // filtros na URL: recarregar ou compartilhar o link mantém o período, categorias, status e tipo
+  const [parametrosUrl, setParametrosUrl] = useSearchParams();
+  const filtros = useMemo(() => lerFiltros(parametrosUrl), [parametrosUrl]);
+  const {
+    inicio: dataInicial,
+    fim: dataFinal,
+    categorias: categoriasSelecionadas,
+    status,
+    tipo,
+  } = filtros;
+  // replace: mudar um filtro não cria uma entrada nova no histórico do navegador
+  const alterarFiltros = (mudanca: Partial<FiltrosMovimentacao>) =>
+    setParametrosUrl(paraParametros({ ...filtros, ...mudanca }), {
+      replace: true,
+    });
   const [mostraDetalhes, setMostraDetalhes] = useState(false);
   const [modoSimples, setModoSimples] = useState(false);
+  const [recarregando, setRecarregando] = useState(false);
 
   const chaveFiltros = JSON.stringify([
     dataInicial,
@@ -211,9 +229,10 @@ const Movimentacoes: React.FC = () => {
     categoriasSelecionadas.forEach((id) =>
       parametros.append("IdCategoria", String(id)),
     );
-    if (status !== "Todas")
-      parametros.append("Concluido", String(status === "Concluido"));
-    if (tipo !== "Todas") parametros.append("TipoMovimentacao", tipo);
+    if (status !== "todas")
+      parametros.append("Concluido", String(status === "concluido"));
+    if (tipo !== "todas")
+      parametros.append("TipoMovimentacao", tipo === "entrada" ? "0" : "1");
     parametros.append("RetornaFixos", "true");
 
     return buscarConta()
@@ -243,6 +262,32 @@ const Movimentacoes: React.FC = () => {
     buscarUsuarioDaConta();
     buscarMovimentacoes();
   }, [buscarUsuarioDaConta, buscarMovimentacoes]);
+
+  // Recém-cadastrada entra na tabela sem nova busca, se passar nos filtros atuais.
+  // Saldos e cards de resumo só mudam ao recarregar (vêm prontos da API).
+  const incluirNaTabela = (cadastrada: Movimentacao) => {
+    if (!passaNosFiltros(cadastrada, filtros)) return;
+    setMovimentacoes(
+      (atual) =>
+        atual && {
+          ...atual,
+          conteudo: {
+            ...atual.conteudo,
+            movimentacaos: [...atual.conteudo.movimentacaos, cadastrada],
+          },
+        },
+    );
+  };
+
+  // botão de recarregar: busca de novo conta, permissões, categorias e movimentações
+  const recarregar = () => {
+    setRecarregando(true);
+    Promise.all([
+      buscarUsuarioDaConta(),
+      buscarCategorias(),
+      buscarMovimentacoes(),
+    ]).finally(() => setRecarregando(false));
+  };
 
   const resumo = movimentacoes?.conteudo.resumo;
   const linhas = movimentacoes?.conteudo.movimentacaos ?? [];
@@ -289,26 +334,14 @@ const Movimentacoes: React.FC = () => {
                     >
                       Categorias
                     </Button>
-                    <Button
-                      sx={{ ...estiloBotaoSecundario, px: 2.5 }}
-                      onClick={() => setConviteAberto(true)}
-                    >
-                      Novo convite
-                    </Button>
+                   
                   </>
                 )}
                 <Button
                   variant="contained"
                   startIcon={<Icon>add</Icon>}
                   onClick={() => setCadMovAberto(true)}
-                  sx={{
-                    height: 44,
-                    px: 2.5,
-                    borderRadius: "10px",
-                    bgcolor: "var(--fnc-tx-destaque)",
-                    color: "var(--fnc-tx-sobre-destaque)",
-                    boxShadow: "none",
-                  }}
+                  sx={{ ...estiloBotaoPrincipal, height: 44, px: 2.5 }}
                 >
                   Nova transação
                 </Button>
@@ -430,10 +463,10 @@ const Movimentacoes: React.FC = () => {
         onClose={() => setCadMovAberto(false)}
       >
         <CadMov
-          onClose={() => {
+          onClose={(cadastrada) => {
             setCadMovAberto(false);
-            buscarMovimentacoes();
-            buscarUsuarioDaConta();
+            if (cadastrada) incluirNaTabela(cadastrada);
+            else buscarMovimentacoes();
           }}
         />
       </Modal>
@@ -454,7 +487,12 @@ const Movimentacoes: React.FC = () => {
         titulo="Novo convite"
         onClose={() => setConviteAberto(false)}
       >
-        <CadConvite onClose={() => setConviteAberto(false)} />
+        {/* o botão só aparece para o mestre desta conta: ela já vem escolhida */}
+        <CadConvite
+          contas={[contaAtual]}
+          idContaInicial={idConta}
+          onClose={() => setConviteAberto(false)}
+        />
       </Modal>
 
       {/* card da tabela: filtros no topo, tabela e rodapé com o total do período.
@@ -471,7 +509,7 @@ const Movimentacoes: React.FC = () => {
       >
         <TabelaMovimentacao
           movimentacao={movimentacoes}
-          carregando={filtrosCarregados !== chaveFiltros}
+          carregando={recarregando || filtrosCarregados !== chaveFiltros}
           buscaMovimentacoes={buscarMovimentacoes}
           filtros={
             <Stack
@@ -489,9 +527,8 @@ const Movimentacoes: React.FC = () => {
             >
               <FiltroPeriodo
                 dataInicial={dataInicial}
-                setDataInicial={setDataInicial}
                 dataFinal={dataFinal}
-                setDataFinal={setDataFinal}
+                setPeriodo={(inicio, fim) => alterarFiltros({ inicio, fim })}
               />
               {!modoSimples && (
                 <Stack
@@ -503,7 +540,9 @@ const Movimentacoes: React.FC = () => {
                     chaveId="idCategoria"
                     chaveTexto="nome"
                     selecionados={categoriasSelecionadas}
-                    setSelecionados={setCategoriasSelecionadas}
+                    setSelecionados={(categorias) =>
+                      alterarFiltros({ categorias })
+                    }
                     rotulo="Categorias"
                     ignorarPrimeiroItem
                     gatilho={({ abrir, aberto, resumo }) => (
@@ -511,6 +550,11 @@ const Movimentacoes: React.FC = () => {
                         texto={resumo ? `Categorias: ${resumo}` : "Categorias"}
                         aberto={aberto}
                         onClick={abrir}
+                        onLimpar={
+                          categoriasSelecionadas.length > 0
+                            ? () => alterarFiltros({ categorias: [] })
+                            : undefined
+                        }
                       />
                     )}
                   />
@@ -520,13 +564,21 @@ const Movimentacoes: React.FC = () => {
                       rotulo="Status"
                       opcoes={OPCOES_STATUS}
                       valor={status}
-                      setValor={setStatus}
+                      setValor={(valor) =>
+                        alterarFiltros({
+                          status: valor as FiltrosMovimentacao["status"],
+                        })
+                      }
                     />
                     <ChipSelect
                       rotulo="Tipo"
                       opcoes={OPCOES_TIPO}
                       valor={tipo}
-                      setValor={setTipo}
+                      setValor={(valor) =>
+                        alterarFiltros({
+                          tipo: valor as FiltrosMovimentacao["tipo"],
+                        })
+                      }
                     />
                   </Stack>
                 </Stack>
@@ -560,6 +612,31 @@ const Movimentacoes: React.FC = () => {
                     />
                   </Box>
                 )}
+
+                {/* no extrato o cabeçalho some: o botão de nova transação vem para a barra da tabela */}
+                {modoSimples && podeEditar && (
+                  <Button
+                    variant="contained"
+                    startIcon={<Icon>add</Icon>}
+                    onClick={() => setCadMovAberto(true)}
+                    sx={{ ...estiloBotaoPrincipal, height: 36, px: 2 }}
+                  >
+                    Nova transação
+                  </Button>
+                )}
+
+                <Tooltip title="Recarregar">
+                  <span>
+                    <IconButton
+                      aria-label="Recarregar"
+                      disabled={recarregando}
+                      sx={{ color: "var(--fnc-tx-texto)" }}
+                      onClick={recarregar}
+                    >
+                      <Icon>refresh</Icon>
+                    </IconButton>
+                  </span>
+                </Tooltip>
 
                 <Tooltip title={textoMaximizar}>
                   <IconButton

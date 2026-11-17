@@ -26,7 +26,8 @@ import SeletorTipoMovimentacao from "../../../props/seletor-tipo-movimentacao/Se
 import { dataHoraLocal, paraIsoUtc } from "../../../utils/formatacao";
 
 interface PropCadMov {
-  onClose: () => void;
+  // no cadastro, recebe a movimentação criada (se a API devolveu) para a tela incluir sem buscar de novo
+  onClose: (cadastrada?: Movimentacao) => void;
   // com movimentação: edita; sem: cadastra
   movimentacao?: Movimentacao;
 }
@@ -72,14 +73,27 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
       dthrConclusao: concluido ? paraIsoUtc(dataConclusao) : null,
       idsCategoria: categoriasSelecionadas,
     };
-    const resposta = await Conecta<string>(
+    // a API devolve { valor: Movimentacao }, como nos outros cadastros
+    const resposta = await Conecta<{ valor?: Movimentacao }>(
       `/Contas/${conta!.idConta}/Movimentacoes`,
       "POST",
       corpo,
     );
     if (!resposta.sucesso)
       return resposta.erro ?? "Erro ao cadastrar movimentação.";
-    onClose();
+
+    const criada = resposta.dados?.valor;
+    // sem id real não dá para incluir (clicar na linha quebraria): quem chama busca na API
+    if (!criada?.id) return onClose();
+    onClose({
+      ...criada,
+      // se a resposta não trouxer as categorias, usa as escolhidas no formulário
+      categorias: criada.categorias?.length
+        ? criada.categorias
+        : categorias.filter((c) =>
+            categoriasSelecionadas.includes(c.idCategoria),
+          ),
+    });
   };
 
   const editar = async (mov: Movimentacao) => {

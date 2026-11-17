@@ -32,6 +32,9 @@ export const periodoDoMes = (data: Dayjs = dayjs()) => ({
   fim: dataHoraLocal(data.endOf("month")),
 });
 
+// "16/11/2026" no horário local
+export const formatarData = (data: string) => dayjs(data).format("DD/MM/YYYY");
+
 // "16/11/2026 14:05" no horário local
 export const formatarDataHora = (data: string) =>
   dayjs(data).format("DD/MM/YYYY HH:mm");
@@ -43,4 +46,21 @@ export const iniciais = (nome: string) => {
     (palavras[0]?.[0] ?? "") +
     (palavras.length > 1 ? palavras[palavras.length - 1][0] : "")
   ).toUpperCase();
+};
+
+// Para comparar e pesquisar nomes: sem espaços nas pontas, maiúsculas nem acentos
+// ("  Alimentação" e "alimentacao" ficam iguais).
+export const normalizarNome = (texto: string) =>
+  texto
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
+
+// "YYYY-MM-DDTHH:mm" local enviado como se fosse UTC: a API compara com o horário local gravado
+export const paraUtcSemFuso = (data: string) => {
+  const local = new Date(data);
+  return new Date(
+    local.getTime() - local.getTimezoneOffset() * 60 * 1000,
+  ).toISOString();
 };

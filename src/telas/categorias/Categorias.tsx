@@ -1,16 +1,8 @@
 import React, { useState } from "react";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  Stack,
-  Tab,
-  Tabs,
-  Typography,
-} from "@mui/material";
-import TabelaPesquisa from "../../componentes/tabela-pesquisa/TabelaPesquisa";
+import { Alert, Box, Button, Stack, Icon, Typography } from "@mui/material";
 
+import ListaPesquisa from "../../componentes/lista-pesquisa/ListaPesquisa";
+import ChipCategoria from "../../componentes/chip-categoria/ChipCategoria";
 import Conecta from "../../services/api/apiConnect";
 import type { Categoria } from "../../models/categorias/Categorias";
 import CampoTexto from "../../props/campo-texto/CampoTexto";
@@ -18,17 +10,19 @@ import SeletorCor from "../../props/seletor-cor/SeletorCor";
 import { existeCampoVazio } from "../../props/campo-texto/validacoes";
 import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
 import { useCategorias } from "../../hooks/useCategorias";
+import { normalizarNome } from "../../utils/formatacao";
+import { CORES_CATEGORIA } from "../../utils/corCategoria";
+import NovaCategoriaForm from "./nova-categoria/NovaCategoriaForm";
 
-const COR_INICIAL = "#314158";
-
-type Aba = "nova" | "editar";
+const COR_INICIAL = CORES_CATEGORIA[0].valor;
 
 interface PropCategorias {
   idConta: number;
   buscaMovimentacoes: () => void;
 }
 
-// Conteúdo da gaveta de categorias: clicar numa categoria edita/exclui; sem seleção, cadastra.
+// Conteúdo da gaveta de categorias: "+ Nova" abre o card de cadastro no topo; clicar numa
+// categoria da lista edita/exclui.
 const Categorias: React.FC<PropCategorias> = ({
   idConta,
   buscaMovimentacoes,
@@ -37,10 +31,18 @@ const Categorias: React.FC<PropCategorias> = ({
   const [selecionada, setSelecionada] = useState<Categoria | null>(null);
   const [nome, setNome] = useState("");
   const [cor, setCor] = useState(COR_INICIAL);
-  const [aba, setAba] = useState<Aba>("nova");
+  const [criando, setCriando] = useState(false);
+  // nome da última criada, para destacá-la na lista (a API não devolve o id)
+  const [criada, setCriada] = useState<string | null>(null);
+  const idCriada = criada
+    ? categorias.find((c) => normalizarNome(c.nome) === normalizarNome(criada))
+        ?.idCategoria
+    : undefined;
 
   const selecionar = (categoria: Categoria | null) => {
     setSelecionada(categoria);
+    setCriada(null);
+    if (categoria) setCriando(false);
     setNome(categoria?.nome ?? "");
     setCor(categoria?.cor ?? COR_INICIAL);
   };
@@ -51,17 +53,27 @@ const Categorias: React.FC<PropCategorias> = ({
     buscaMovimentacoes();
   };
 
+  const criar = async (corpo: { nome: string; cor: string }) => {
+    const resposta = await Conecta<string>(
+      `/Contas/${idConta}/Categorias`,
+      "POST",
+      corpo,
+    );
+    if (!resposta.sucesso)
+      return resposta.erro ?? "Não foi possível criar a categoria";
+    setCriando(false);
+    concluir();
+    setCriada(corpo.nome);
+  };
+
   const salvar = async () => {
     if (existeCampoVazio(nome)) return "Informe o nome da categoria";
 
-    const corpo = { nome: nome.trim(), cor };
-    const resposta = selecionada
-      ? await Conecta<string>(
-          `/Contas/Categorias/${selecionada.idCategoria}/Alterar`,
-          "PATCH",
-          corpo,
-        )
-      : await Conecta<string>(`/Contas/${idConta}/Categorias`, "POST", corpo);
+    const resposta = await Conecta<string>(
+      `/Contas/Categorias/${selecionada!.idCategoria}/Alterar`,
+      "PATCH",
+      { nome: nome.trim(), cor },
+    );
     if (!resposta.sucesso)
       return resposta.erro ?? "Não foi possível salvar a categoria";
 
@@ -85,57 +97,57 @@ const Categorias: React.FC<PropCategorias> = ({
   const ocupado = envio.enviando || exclusao.enviando;
   const erro = envio.erro ?? exclusao.erro;
 
-  const trocarAba = (nova: Aba) => {
-    setAba(nova);
-    selecionar(null);
-  };
-
   return (
     <Stack spacing={2.5} sx={{ flex: 1 }}>
-      <Tabs
-        value={aba}
-        onChange={(_, nova: Aba) => trocarAba(nova)}
-        variant="fullWidth"
-        sx={{ borderBottom: 1, borderColor: "divider" }}
-      >
-        <Tab value="nova" label="Nova categoria" />
-        <Tab value="editar" label="Editar" />
-      </Tabs>
-
-      {/* fora do <form>: Enter na pesquisa não pode cadastrar */}
-      {aba === "editar" && (
-        <Stack spacing={1}>
-          <TabelaPesquisa
-            itens={categorias}
-            chave={(c) => c.idCategoria}
-            texto={(c) => c.nome}
-            titulo="Categoria"
-            placeholder="Pesquisar categoria"
-            mensagemVazia="Nenhuma categoria cadastrada"
-            selecionado={selecionada?.idCategoria}
-            onSelecionar={selecionar}
-            celula={(c) => (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                <Box
-                  sx={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: "50%",
-                    bgcolor: c.cor,
-                    flexShrink: 0,
-                  }}
-                />
-                {c.nome}
-              </Box>
-            )}
-          />
-          <Typography variant="caption" sx={{ color: "text.secondary" }}>
-            Clique numa categoria para editar
-          </Typography>
-        </Stack>
+      {criando ? (
+        <NovaCategoriaForm
+          categorias={categorias}
+          onCriar={criar}
+          onCancelar={() => setCriando(false)}
+        />
+      ) : (
+        <Button
+          variant="outlined"
+          startIcon={<Icon>add</Icon>}
+          onClick={() => {
+            selecionar(null);
+            setCriando(true);
+          }}
+          sx={{ alignSelf: "flex-end", minHeight: 44 }}
+        >
+          Nova
+        </Button>
       )}
 
-      {(aba === "nova" || selecionada) && (
+      {/* fora do <form>: Enter na pesquisa não pode cadastrar */}
+      <Stack spacing={1}>
+        <ListaPesquisa
+          itens={categorias}
+          chave={(c) => c.idCategoria}
+          texto={(c) => c.nome}
+          placeholder="Pesquisar categoria"
+          mensagemVazia="Nenhuma categoria cadastrada"
+          selecionado={selecionada?.idCategoria ?? idCriada}
+          onSelecionar={selecionar}
+          item={(c, marcada) => (
+            <>
+              <ChipCategoria nome={c.nome} cor={c.cor} />
+              <Box sx={{ flex: 1 }} />
+              <Icon
+                fontSize="small"
+                sx={{ color: marcada ? "primary.main" : "text.secondary" }}
+              >
+                {marcada ? "check" : "edit"}
+              </Icon>
+            </>
+          )}
+        />
+        <Typography variant="caption" sx={{ color: "text.secondary" }}>
+          Clique numa categoria para editar
+        </Typography>
+      </Stack>
+
+      {selecionada && (
         <Stack
           component="form"
           onSubmit={envio.enviar}
@@ -145,12 +157,10 @@ const Categorias: React.FC<PropCategorias> = ({
         >
           {/* prévia de como a categoria vai ficar */}
           <Box>
-            <Chip
-              label={nome.trim() || "Minha categoria"}
-              sx={{
-                bgcolor: cor,
-                color: (t) => t.palette.getContrastText(cor),
-              }}
+            <ChipCategoria
+              nome={nome.trim() || "Minha categoria"}
+              cor={cor}
+              tamanho="medium"
             />
           </Box>
 
@@ -161,50 +171,45 @@ const Categorias: React.FC<PropCategorias> = ({
             setValor={setNome}
           />
 
-          <SeletorCor rotulo="Cor da categoria" valor={cor} setValor={setCor} />
+          <SeletorCor
+            rotulo="Cor da categoria"
+            valor={cor}
+            setValor={setCor}
+            cores={CORES_CATEGORIA}
+            personalizada={false}
+          />
 
           {erro && <Alert severity="error">{erro}</Alert>}
 
           <Box sx={{ flex: 1 }} />
 
-          {selecionada ? (
-            <Stack direction="row" spacing={1}>
-              <Button
-                variant="outlined"
-                disabled={ocupado}
-                onClick={() => selecionar(null)}
-                sx={{ flex: 1 }}
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                disabled={ocupado}
-                onClick={exclusao.enviar}
-                sx={{ flex: 1 }}
-              >
-                {exclusao.enviando ? "Excluindo..." : "Excluir"}
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                disabled={ocupado}
-                sx={{ flex: 1 }}
-              >
-                {envio.enviando ? "Salvando..." : "Salvar"}
-              </Button>
-            </Stack>
-          ) : (
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              disabled={ocupado}
+              onClick={() => selecionar(null)}
+              sx={{ flex: 1 }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              disabled={ocupado}
+              onClick={exclusao.enviar}
+              sx={{ flex: 1 }}
+            >
+              {exclusao.enviando ? "Excluindo..." : "Excluir"}
+            </Button>
             <Button
               type="submit"
               variant="contained"
-              fullWidth
               disabled={ocupado}
+              sx={{ flex: 1 }}
             >
-              {envio.enviando ? "Cadastrando..." : "Cadastrar"}
+              {envio.enviando ? "Salvando..." : "Salvar"}
             </Button>
-          )}
+          </Stack>
         </Stack>
       )}
     </Stack>

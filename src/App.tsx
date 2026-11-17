@@ -13,13 +13,9 @@ import { Registrar } from "./telas/registrar/Registrar";
 import { Inicial } from "./telas/inicial/Inicial";
 import LayoutPrincipal, {
   ContaDaRota,
-  ExigeConta,
 } from "./componentes/layout-principal/LayoutPrincipal";
 import Movimentacoes from "./telas/movimentacoes/Movimentacoes";
-import MovimentacaoFixa from "./telas/movimentacoes/fixas/MovimentacaoFixa";
-import Membros from "./telas/membros/Membros";
-import Convites from "./telas/convites/Convites";
-import OpcoesUsuario from "./telas/usuario/OpcoesUsuario";
+import Dashboard from "./telas/dashboard/Dashboard";
 import AvisoAtualizacao from "./componentes/aviso-atualizacao/AvisoAtualizacao";
 
 function App() {
@@ -34,34 +30,31 @@ function App() {
           ptBR.components.MuiLocalizationProvider.defaultProps.localeText
         }
       >
-      <BrowserRouter basename={import.meta.env.BASE_URL}>
-        <AuthProvider>
-          <ContaProvider>
-                <Routes>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/registrar" element={<Registrar />} />
-                  {/* Telas logadas: todas com a barra lateral */}
-                  <Route element={<LayoutPrincipal />}>
-                    <Route path="/inicial" element={<Inicial />} />
-                    <Route path="/convites" element={<Convites />} />
-                    <Route path="/usuario" element={<OpcoesUsuario />} />
-                    <Route element={<ContaDaRota />}>
-                      <Route
-                        path="/:idConta/contabancaria"
-                        element={<Movimentacoes />}
-                      />
-                    </Route>
-                    <Route element={<ExigeConta />}>
-                      <Route path="/agendadas" element={<MovimentacaoFixa />} />
-                      <Route path="/membros" element={<Membros />} />
-                    </Route>
+        <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <AuthProvider>
+            <ContaProvider>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/registrar" element={<Registrar />} />
+                {/* Telas logadas: todas com a barra lateral */}
+                <Route element={<LayoutPrincipal />}>
+                  <Route path="/" element={<Inicial />} />
+                  <Route element={<ContaDaRota />}>
+                    <Route
+                      path="/:idConta/contabancaria"
+                      element={<Movimentacoes />}
+                    />
+                    <Route path="/:idConta/dashboard" element={<Dashboard />} />
                   </Route>
-                  <Route path="*" element={<Navigate to="/login" replace />} />
-                </Routes>
-                <AvisoAtualizacao />
-          </ContaProvider>
-        </AuthProvider>
-      </BrowserRouter>
+                </Route>
+                {/* endereço antigo da tela inicial: links e favoritos salvos continuam funcionando */}
+                <Route path="/inicial" element={<Navigate to="/" replace />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </Routes>
+              <AvisoAtualizacao />
+            </ContaProvider>
+          </AuthProvider>
+        </BrowserRouter>
       </LocalizationProvider>
     </ThemeProvider>
   );

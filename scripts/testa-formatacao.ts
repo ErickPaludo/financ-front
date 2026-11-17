@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import dayjs from "dayjs";
 import {
+  normalizarNome,
   dataHoraLocal,
   formatarDataHora,
   formatarMoeda,
@@ -45,5 +46,9 @@ assert.deepEqual(
   OPCOES_PERMISSAO.map((o) => o.valor),
   ["1", "2", "0"],
 );
+
+// nome repetido de categoria: ignora espaços nas pontas, maiúsculas e acentos
+assert.equal(normalizarNome("  Alimentação "), normalizarNome("alimentacao"));
+assert.notEqual(normalizarNome("Mercado"), normalizarNome("Mercados"));
 
 console.log("formatacao: ok");

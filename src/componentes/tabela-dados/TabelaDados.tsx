@@ -1,7 +1,9 @@
 import { useMemo, useState, type Key, type ReactNode } from "react";
 import {
+  Button,
   Checkbox,
   CircularProgress,
+  Divider,
   Icon,
   IconButton,
   List,
@@ -113,6 +115,9 @@ function TabelaDados<T extends object>({
   }, [linhas, colunas, prefs.ordenacao]);
 
   const alterado = JSON.stringify(prefs) !== salvas;
+  // colunas na ordem da tela e todas visíveis
+  const colunasOriginais =
+    prefs.ordem.join() === chaves.join() && prefs.ocultas.length === 0;
 
   const alternarOrdenacao = (chave: string) => {
     const o = prefs.ordenacao;
@@ -250,6 +255,24 @@ function TabelaDados<T extends object>({
             );
           })}
         </List>
+        <Divider />
+        {/* volta as colunas para a ordem da tela e mostra todas; "Salvar" grava, como as outras mudanças */}
+        <Button
+          fullWidth
+          startIcon={<Icon>restart_alt</Icon>}
+          disabled={colunasOriginais}
+          onClick={() => setPrefs({ ...prefs, ordem: chaves, ocultas: [] })}
+          sx={{
+            justifyContent: "flex-start",
+            px: 2,
+            borderRadius: 0,
+            // no escuro o azul primário quase some sobre o fundo do menu: usa a cor do texto
+            color: (t) =>
+              t.palette.mode === "dark" ? t.palette.text.primary : undefined,
+          }}
+        >
+          Redefinir colunas
+        </Button>
       </Popover>
 
       <TableContainer
@@ -277,6 +300,19 @@ function TabelaDados<T extends object>({
                 whiteSpace: "nowrap",
               },
               "& .MuiTableCell-alignRight": { textAlign: "right" },
+              // conteúdo em Stack (flex) ignora o textAlign: alinha igual ao cabeçalho
+              "& .MuiTableBody-root .MuiTableCell-root > .MuiStack-root": {
+                justifyContent: "center",
+              },
+              "& .MuiTableBody-root .MuiTableCell-alignRight > .MuiStack-root": {
+                justifyContent: "flex-end",
+              },
+              // a seta de ordenação fica fora do fluxo, senão o título centralizado
+              // desloca para a esquerda pelo espaço reservado a ela
+              "& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-alignRight) .MuiTableSortLabel-root":
+                { position: "relative" },
+              "& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-alignRight) .MuiTableSortLabel-icon":
+                { position: "absolute", left: "100%" },
               "& .MuiTableHead-root .MuiTableCell-root": {
                 bgcolor: "var(--fnc-cabecalho)",
                 color: "var(--fnc-apagado)",

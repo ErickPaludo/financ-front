@@ -1,29 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
-
-import type {
-  Categoria,
-  CategoriaResponse,
-} from "../models/categorias/Categorias";
-import Conecta from "../services/api/apiConnect";
+import type { CategoriaResponse } from "../models/categorias/Categorias";
+import { useBuscaApi } from "./useBuscaApi";
 
 // Categorias da conta: busca ao montar; buscarCategorias atualiza depois de alterar.
 export function useCategorias(idConta: number) {
-  const [categorias, setCategorias] = useState<Categoria[]>([]);
-
-  const buscarCategorias = useCallback(
-    () =>
-      Conecta<CategoriaResponse>(`/Contas/${idConta}/Categorias`, "GET").then(
-        (resposta) => {
-          if (resposta.sucesso && resposta.dados)
-            setCategorias(resposta.dados.conteudo);
-        },
-      ),
-    [idConta],
+  const { dados, buscar } = useBuscaApi<CategoriaResponse>(
+    `/Contas/${idConta}/Categorias`,
   );
-
-  useEffect(() => {
-    buscarCategorias();
-  }, [buscarCategorias]);
-
-  return { categorias, buscarCategorias };
+  return { categorias: dados?.conteudo ?? [], buscarCategorias: buscar };
 }

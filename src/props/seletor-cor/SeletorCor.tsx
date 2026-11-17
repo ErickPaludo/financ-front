@@ -9,7 +9,7 @@ import {
 } from "@mui/material";
 import type { Theme } from "@mui/material/styles";
 
-type CorPronta = { nome: string; valor: string };
+export type CorPronta = { nome: string; valor: string };
 
 // Cores sugeridas para contas (tons fortes, que funcionam com texto branco ou escuro).
 const CORES_PADRAO: CorPronta[] = [
@@ -34,6 +34,7 @@ type PropSeletorCor = {
   setValor: (cor: string) => void;
   rotulo?: string;
   cores?: CorPronta[];
+  personalizada?: boolean; // false: só as cores prontas (ex.: categorias)
 };
 
 // Escolha de cor: cores prontas em círculos + uma cor personalizada (seletor nativo do navegador).
@@ -42,13 +43,13 @@ const SeletorCor: React.FC<PropSeletorCor> = ({
   setValor,
   rotulo = "Cor",
   cores = CORES_PADRAO,
+  personalizada = true,
 }) => {
   const idRotulo = useId();
   const refPersonalizada = useRef<HTMLInputElement>(null);
   const corAtual = valor.toLowerCase();
-  const ehPersonalizada = !cores.some(
-    (c) => c.valor.toLowerCase() === corAtual,
-  );
+  const ehPersonalizada =
+    personalizada && !cores.some((c) => c.valor.toLowerCase() === corAtual);
 
   const circulo = (selecionado: boolean, fundo: string) => ({
     width: TAMANHO,
@@ -96,50 +97,54 @@ const SeletorCor: React.FC<PropSeletorCor> = ({
           );
         })}
 
-        <Tooltip title="Cor personalizada">
-          <ButtonBase
-            role="radio"
-            aria-checked={ehPersonalizada}
-            aria-label="Cor personalizada"
-            onClick={() => refPersonalizada.current?.click()}
-            sx={{
-              ...circulo(
-                ehPersonalizada,
-                ehPersonalizada ? valor : "transparent",
-              ),
-              ...(!ehPersonalizada && {
-                // arco-íris indica "qualquer cor"
-                background:
-                  "conic-gradient(#e7000b, #f54900, #e17100, #00a63e, #0092b8, #155dfc, #7f22fe, #e60076, #e7000b)",
-                color: "#fff",
-              }),
-            }}
-          >
-            <Icon sx={{ fontSize: 18 }}>
-              {ehPersonalizada ? "check" : "colorize"}
-            </Icon>
-          </ButtonBase>
-        </Tooltip>
+        {personalizada && (
+          <>
+            <Tooltip title="Cor personalizada">
+              <ButtonBase
+                role="radio"
+                aria-checked={ehPersonalizada}
+                aria-label="Cor personalizada"
+                onClick={() => refPersonalizada.current?.click()}
+                sx={{
+                  ...circulo(
+                    ehPersonalizada,
+                    ehPersonalizada ? valor : "transparent",
+                  ),
+                  ...(!ehPersonalizada && {
+                    // arco-íris indica "qualquer cor"
+                    background:
+                      "conic-gradient(#e7000b, #f54900, #e17100, #00a63e, #0092b8, #155dfc, #7f22fe, #e60076, #e7000b)",
+                    color: "#fff",
+                  }),
+                }}
+              >
+                <Icon sx={{ fontSize: 18 }}>
+                  {ehPersonalizada ? "check" : "colorize"}
+                </Icon>
+              </ButtonBase>
+            </Tooltip>
 
-        {/* seletor nativo, escondido: aberto pelo círculo "Cor personalizada" */}
-        <Box
-          component="input"
-          ref={refPersonalizada}
-          type="color"
-          value={valor}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-            setValor(e.target.value)
-          }
-          tabIndex={-1}
-          aria-hidden
-          sx={{
-            position: "absolute",
-            width: 0,
-            height: 0,
-            opacity: 0,
-            pointerEvents: "none",
-          }}
-        />
+            {/* seletor nativo, escondido: aberto pelo círculo "Cor personalizada" */}
+            <Box
+              component="input"
+              ref={refPersonalizada}
+              type="color"
+              value={valor}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setValor(e.target.value)
+              }
+              tabIndex={-1}
+              aria-hidden
+              sx={{
+                position: "absolute",
+                width: 0,
+                height: 0,
+                opacity: 0,
+                pointerEvents: "none",
+              }}
+            />
+          </>
+        )}
       </Stack>
     </Box>
   );

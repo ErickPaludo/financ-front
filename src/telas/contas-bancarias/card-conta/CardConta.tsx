@@ -19,6 +19,7 @@ import {
   MenuItem,
   Snackbar,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -144,7 +145,6 @@ const CardConta: React.FC<PropCardConta> = ({
   const descricao = [
     "Corrente",
     conta.contaFavorita && "Favorita",
-    !conta.somaSaldo && "Fora do total", // antes: ícone de cifrão riscado
   ]
     .filter(Boolean)
     .join(" · ");
@@ -365,9 +365,24 @@ const CardConta: React.FC<PropCardConta> = ({
         </Stack>
 
         <Box>
-          <Typography sx={{ fontSize: 12, color: "var(--fnc-tx-apoio)" }}>
-            Saldo
-          </Typography>
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ alignItems: "center", color: "var(--fnc-tx-apoio)" }}
+          >
+            <Typography sx={{ fontSize: 12 }}>Saldo</Typography>
+            {!conta.somaSaldo && (
+              <Tooltip title="Fora do total: não soma no patrimônio">
+                <Icon
+                  role="img"
+                  aria-label="Fora do total"
+                  sx={{ fontSize: 16 }}
+                >
+                  money_off
+                </Icon>
+              </Tooltip>
+            )}
+          </Stack>
           <Typography
             sx={{
               fontSize: 26,

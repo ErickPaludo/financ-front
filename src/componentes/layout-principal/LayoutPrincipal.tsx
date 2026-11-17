@@ -19,15 +19,11 @@ import MsgBox from "../../props/msg-box/MsgBox";
 import { criarTema, tema as temaEscuro } from "../../tema";
 import { CoresClaro, CoresEscuro, variaveisTelas } from "../../cores";
 import { useModoCor } from "../../hooks/useModoCor";
+import { ehTelaDaConta } from "../../utils/rotas";
 import "./LayoutPrincipal.css";
 
-// Telas que já têm estilo de modo claro. As demais seguem no escuro até serem migradas.
-const ROTAS_COM_MODO_CLARO = ["/inicial", "/agendadas", "/membros"];
-const temModoClaro = (rota: string) =>
-  ROTAS_COM_MODO_CLARO.includes(rota) || rota.endsWith("/contabancaria");
-
-const temFundoDesfocado = (rota: string) =>
-  rota === "/inicial" || rota.endsWith("/contabancaria");
+// Telas com modo claro e fundo desfocado (inicial e tela da conta). As demais seguem no escuro.
+const telaDeCards = (rota: string) => rota === "/" || ehTelaDaConta(rota);
 
 // Estrutura das telas logadas: barra lateral + a tela da rota atual (Outlet).
 const LayoutPrincipal: React.FC = () => {
@@ -38,7 +34,7 @@ const LayoutPrincipal: React.FC = () => {
 
   const { modo, alternarModo } = useModoCor();
   const temaModo = useMemo(() => criarTema(modo), [modo]);
-  const paginaTemModoClaro = temModoClaro(rotaAtual);
+  const paginaTemModoClaro = telaDeCards(rotaAtual);
   const temaPagina = paginaTemModoClaro ? temaModo : temaEscuro;
   const coresPagina =
     paginaTemModoClaro && modo === "claro" ? CoresClaro : CoresEscuro;
@@ -73,7 +69,7 @@ const LayoutPrincipal: React.FC = () => {
     );
     if (resposta.sucesso) {
       limparConta();
-      navigate("/inicial");
+      navigate("/");
     } else {
       setErroMsg(resposta.erro ?? "Não foi possível sair da conta");
     }
@@ -125,7 +121,7 @@ const LayoutPrincipal: React.FC = () => {
           {/* fundo no invólucro: o desfoque (backdrop-filter do main) só atinge o fundo, não o conteúdo */}
           <div className={`area-central ${classeFundo}`} style={fundoPagina}>
             <main
-              className={`pagina-central${temFundoDesfocado(rotaAtual) ? " fundo-desfocado" : ""}${rotaAtual.endsWith("/contabancaria") ? " pagina-transacoes" : ""}`}
+              className={`pagina-central${telaDeCards(rotaAtual) ? " fundo-desfocado" : ""}${ehTelaDaConta(rotaAtual) ? " pagina-transacoes" : ""}`}
             >
               <Outlet />
             </main>
@@ -136,15 +132,8 @@ const LayoutPrincipal: React.FC = () => {
   );
 };
 
-// Telas que dependem de uma conta bancária selecionada. A conta fica só em memória:
-// ao recarregar a página ela se perde, então volta para a tela inicial.
-export const ExigeConta: React.FC = () => {
-  const { conta } = useContext(ContaContext);
-  return conta ? <Outlet /> : <Navigate to="/inicial" replace />;
-};
-
 // Rota /:idConta/contabancaria: a conta vem da URL, então recarregar ou abrir o link direto funciona.
-// Busca a conta quando ela não é a que está no contexto; inexistente, inativa ou sem acesso volta para /inicial.
+// Busca a conta quando ela não é a que está no contexto; inexistente, inativa ou sem acesso volta para a tela inicial (/).
 export const ContaDaRota: React.FC = () => {
   const id = Number(useParams().idConta);
   const { conta, setConta } = useContext(ContaContext);
@@ -154,20 +143,22 @@ export const ContaDaRota: React.FC = () => {
   useEffect(() => {
     if (carregada || !Number.isInteger(id)) return;
     let ativo = true;
-    Conecta<ContaResponse>(`/ContasUsuarios?id=${id}`, "GET").then((resposta) => {
-      if (!ativo) return;
-      const encontrada = resposta.dados?.conteudo.contas[0];
-      if (encontrada?.idConta === id && encontrada.status === 0)
-        setConta(encontrada);
-      else setNaoEncontrada(true);
-    });
+    Conecta<ContaResponse>(`/ContasUsuarios?id=${id}`, "GET").then(
+      (resposta) => {
+        if (!ativo) return;
+        const encontrada = resposta.dados?.conteudo.contas[0];
+        if (encontrada?.idConta === id && encontrada.status === 0)
+          setConta(encontrada);
+        else setNaoEncontrada(true);
+      },
+    );
     return () => {
       ativo = false;
     };
   }, [id, carregada, setConta]);
 
   if (!Number.isInteger(id) || naoEncontrada)
-    return <Navigate to="/inicial" replace />;
+    return <Navigate to="/" replace />;
   return carregada ? <Outlet /> : <Carregamento />;
 };
 

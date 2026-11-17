@@ -5,6 +5,7 @@ import {
   Avatar,
   Box,
   ButtonBase,
+  Collapse,
   Divider,
   Drawer,
   Icon,
@@ -13,7 +14,6 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  ListSubheader,
   Menu,
   MenuItem,
   Toolbar,
@@ -30,28 +30,71 @@ import type {
 } from "../../models/contas-usuarios/GetContasBancarias";
 import Conecta from "../../services/api/apiConnect";
 import MsgBox from "../../props/msg-box/MsgBox";
+import TituloSecao from "../titulo-secao/TituloSecao";
+import PainelMembros from "../painel-membros/PainelMembros";
+import PainelUsuario from "../painel-usuario/PainelUsuario";
+import PainelConvites from "../painel-convites/PainelConvites";
+import PainelAgendadas from "../painel-agendadas/PainelAgendadas";
+import PainelLateral from "../painel-lateral/PainelLateral";
 import { iniciais } from "../../utils/formatacao";
+import { useUltimaConta } from "../../hooks/useUltimaConta";
 import { PERMISSAO } from "../../utils/permissao";
 import APP_VERSION from "../../version";
-import { BarraLateralClara, CoresClaro, CoresEscuro } from "../../cores";
+import { CoresClaro, CoresEscuro, coresDaBarra } from "../../cores";
 import type { ModoCor } from "../../tema";
 import logoAzul from "../../assets/pldprojects-logo-azul.svg";
+import { ehTelaDaConta } from "../../utils/rotas";
 import logoBranca from "../../assets/pldprojects-logo-azul-clara.svg";
 
 const LARGURA = 260;
 const LARGURA_RECOLHIDA = 68;
 const ALTURA_ITEM = 34; // itens do menu
+const ALTURA_SUBITEM = 30; // subtópicos da conta atual
 const TAMANHO_AVATAR = 40; // logo e avatar do usuário
 const ALTURA_TOPO_MOBILE = 60; // .pagina-central desconta essa altura no celular
-const ROTAS_DA_CONTA = ["/membros", "/agendadas"];
-const ehRotaDaConta = (rota: string) =>
-  ROTAS_DA_CONTA.includes(rota) || rota.endsWith("/contabancaria");
 
 // Iguais nos dois modos: texto sobre o azul primário e "Deslogar" (no menu, fora da barra).
 const COR_SOBRE_GRADIENTE = "#fff";
 const COR_PERIGO = "#ff4b4b";
 
 type Item = { rota: string; titulo: string; icone: string };
+
+// Subpainéis que abrem ao lado da barra (um por vez, no mesmo PainelLateral).
+type Painel = "membros" | "agendadas" | "convites" | "usuario";
+type ConfigPainel = {
+  rotulo: string; // nome do painel para leitores de tela
+  Conteudo: React.FC<{ onClose: () => void }>;
+  daConta: boolean; // só na tela da conta selecionada
+  largura?: number; // padrão do PainelLateral (340)
+};
+const PAINEIS: Record<Painel, ConfigPainel> = {
+  membros: {
+    rotulo: "Membros da conta",
+    Conteudo: PainelMembros,
+    daConta: true,
+  },
+  agendadas: {
+    rotulo: "Movimentações agendadas",
+    Conteudo: PainelAgendadas,
+    daConta: true,
+    largura: 920, // tabela
+  },
+  convites: { rotulo: "Convites", Conteudo: PainelConvites, daConta: false },
+  usuario: {
+    rotulo: "Opções do usuário",
+    Conteudo: PainelUsuario,
+    daConta: false,
+  },
+};
+
+// tela da conta selecionada: só nela a conta e suas opções aparecem no Menu
+const FECHAR_SUBTOPICOS_MS = 3000;
+
+type OpcoesBotao = {
+  selecionado?: boolean;
+  cor?: string; // ex.: vermelho do "Sair"
+  subitem?: boolean; // recuado, abaixo da conta atual
+};
 
 type PropBarraLateral = {
   modo: ModoCor;
@@ -71,7 +114,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const cores = useTheme().palette.mode === "dark" ? CoresEscuro : CoresClaro;
   const rotaAtual = useLocation().pathname;
   // no modo claro a barra é branca em todas as telas; só mudam as cores
-  const barra = cores === CoresClaro ? BarraLateralClara : cores.barraLateral;
+  const barra = coresDaBarra(cores === CoresClaro);
 
   const nomeUsuario = user?.nomeCompleto || "Usuário";
   const { conta, usuario, setConta, versaoContas } = useContext(ContaContext);
@@ -80,11 +123,59 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const [recolhida, setRecolhida] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
+  // subpainel aberto ao lado da barra (um por vez)
+  const [painel, setPainel] = useState<Painel | null>(null);
+  // Subtópicos da conta atual (Agendadas, Membros, Sair): fechados, mas ao entrar na tela da
+  // conta abrem para mostrar as opções e fecham sozinhos depois de 3s, se ninguém clicar neles.
+  const [subtopicosAbertos, setSubtopicosAbertos] = useState(() =>
+    ehTelaDaConta(rotaAtual),
+  );
+  const [fecharSozinho, setFecharSozinho] = useState(() =>
+    ehTelaDaConta(rotaAtual),
+  );
+  // ajuste durante o render (não em efeito): entrou na tela de uma conta → abre e agenda o fechamento
+  const [rotaAnterior, setRotaAnterior] = useState(rotaAtual);
+  if (rotaAtual !== rotaAnterior) {
+    setRotaAnterior(rotaAtual);
+    if (ehTelaDaConta(rotaAtual)) {
+      setSubtopicosAbertos(true);
+      setFecharSozinho(true);
+    }
+  }
+  useEffect(() => {
+    if (!fecharSozinho) return;
+    const temporizador = setTimeout(() => {
+      setSubtopicosAbertos(false);
+      setFecharSozinho(false);
+    }, FECHAR_SUBTOPICOS_MS);
+    return () => clearTimeout(temporizador);
+  }, [fecharSozinho, rotaAtual]);
+  const alternarPainel = (qual: Painel) => {
+    setPainel((atual) => (atual === qual ? null : qual));
+    setMobileAberto(false);
+  };
   // elemento onde o menu do usuário abre (o próprio cartão); null = fechado
   const [ancoraMenuUsuario, setAncoraMenuUsuario] =
     useState<HTMLElement | null>(null);
 
-  const [favoritas, setFavoritas] = useState<ContaBancaria[]>([]);
+  // contas ativas do usuário (inativas não abrem, igual ao card da tela inicial)
+  const [contasAtivas, setContasAtivas] = useState<ContaBancaria[]>([]);
+  const favoritas = contasAtivas.filter((c) => c.contaFavorita);
+
+  // a conta selecionada, só nas telas dela; fora delas, null
+  const contaAberta = conta && ehTelaDaConta(rotaAtual) ? conta : null;
+  const naConta = contaAberta !== null;
+  // painel visível (os da conta só na tela da conta; navegar pelo menu fecha, em irPara)
+  const painelVisivel =
+    painel && (!PAINEIS[painel].daConta || naConta) ? painel : null;
+  const painelAberto = painelVisivel !== null;
+  // o último painel continua no Drawer ao fechar: o conteúdo não some durante a animação
+  const [painelExibido, setPainelExibido] = useState(painelVisivel);
+  if (painelVisivel && painelVisivel !== painelExibido)
+    setPainelExibido(painelVisivel);
+  const idUltimaConta = useUltimaConta(user?.id, contaAberta?.idConta ?? null);
+  // dados atuais da lista: some se o usuário saiu da conta ou ela foi desativada
+  const ultimaConta = contasAtivas.find((c) => c.idConta === idUltimaConta);
 
   const compacta = recolhida && !ehCelular;
 
@@ -93,11 +184,8 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     let ativo = true;
     Conecta<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
       if (ativo && resposta.sucesso && resposta.dados)
-        setFavoritas(
-          // só ativas: inativas não abrem (igual ao card da tela inicial)
-          resposta.dados.conteudo.contas.filter(
-            (c) => c.contaFavorita && c.status === 0,
-          ),
+        setContasAtivas(
+          resposta.dados.conteudo.contas.filter((c) => c.status === 0),
         );
     });
     return () => {
@@ -108,6 +196,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const irPara = (rota: string) => {
     navigate(rota);
     setMobileAberto(false);
+    setPainel(null);
   };
 
   const abrirConta = (contaFavorita: ContaBancaria) => {
@@ -115,51 +204,14 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     irPara(`/${contaFavorita.idConta}/contabancaria`);
   };
 
-  const menu: Item[] = [
-    { rota: "/inicial", titulo: "Contas", icone: "account_balance" },
-    ...(conta
-      ? [
-          {
-            rota: `/${conta.idConta}/contabancaria`,
-            titulo: conta.titulo,
-            icone: "wallet",
-          },
-        ]
-      : []),
-    { rota: "/convites", titulo: "Convites", icone: "person_add" },
-  ];
-
-  const opcoesConta: Item[] = [
-    ...(usuario?.permissao !== PERMISSAO.Visualizador
-      ? [{ rota: "/agendadas", titulo: "Agendadas", icone: "browse_gallery" }]
-      : []),
-    { rota: "/membros", titulo: "Membros da Conta", icone: "group" },
-  ];
-
   const titulo = (texto: string) =>
-    !compacta && (
-      <ListSubheader
-        disableSticky
-        sx={{
-          bgcolor: "transparent",
-          color: barra.apoio,
-          fontSize: 10,
-          fontWeight: 600,
-          letterSpacing: 1,
-          textTransform: "uppercase",
-          lineHeight: "32px",
-        }}
-      >
-        {texto}
-      </ListSubheader>
-    );
+    !compacta && <TituloSecao cor={barra.apoio}>{texto}</TituloSecao>;
 
   const botao = (
     texto: string,
     icone: string,
     onClick: () => void,
-    selecionado = false,
-    cor?: string,
+    { selecionado = false, cor, subitem = false }: OpcoesBotao = {},
   ) => (
     <Tooltip key={texto} title={compacta ? texto : ""} placement="right">
       <ListItemButton
@@ -168,7 +220,9 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
         sx={{
           borderRadius: 1,
           mb: 0.25,
-          height: ALTURA_ITEM,
+          height: subitem ? ALTURA_SUBITEM : ALTURA_ITEM,
+          // recuo dos subitens da conta (na barra recolhida ficam só os ícones)
+          pl: subitem && !compacta ? 4 : undefined,
           flexGrow: 0, // o padrão do MUI (1) esticava os itens dentro da List em coluna
           py: 0,
           justifyContent: compacta ? "center" : "flex-start",
@@ -186,14 +240,17 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
         <ListItemIcon
           sx={{ minWidth: 0, mr: compacta ? 0 : 1.5, color: "inherit" }}
         >
-          <Icon>{icone}</Icon>
+          <Icon sx={{ fontSize: subitem ? 18 : undefined }}>{icone}</Icon>
         </ListItemIcon>
         {!compacta && (
           <ListItemText
             primary={texto}
             sx={{ my: 0 }}
             slotProps={{
-              primary: { noWrap: true, sx: { fontSize: 13, fontWeight: 500 } },
+              primary: {
+                noWrap: true,
+                sx: { fontSize: subitem ? 12.5 : 13, fontWeight: 500 },
+              },
             }}
           />
         )}
@@ -201,8 +258,12 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     </Tooltip>
   );
 
-  const item = ({ rota, titulo, icone }: Item) =>
-    botao(titulo, icone, () => irPara(rota), rotaAtual === rota);
+  const item = ({ rota, titulo, icone }: Item, subitem = false) =>
+    botao(titulo, icone, () => irPara(rota), {
+      // com um painel aberto, só o item dele fica selecionado (não a tela atrás)
+      selecionado: rotaAtual === rota && !painelAberto,
+      subitem,
+    });
 
   // Só o SVG, sem quadro: azul-escuro na barra branca, branco na barra escura.
   const logo = (tamanho: number) => (
@@ -224,7 +285,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const conteudo = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <ButtonBase
-        onClick={() => irPara("/inicial")}
+        onClick={() => irPara("/")}
         aria-label="FinancHub: ir para a tela inicial"
         sx={{
           height: 100,
@@ -266,29 +327,132 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
         }}
       >
         {titulo("Menu")}
-        {menu.map(item)}
-
-        {favoritas.length > 0 && (
+        {item({ rota: "/", titulo: "Contas", icone: "account_balance" })}
+        {contaAberta && (
           <>
-            {titulo("Favoritos")}
-            {compacta && <Divider sx={{ my: 1, borderColor: barra.divisoria }} />}
-            {favoritas.map((c) =>
-              botao(c.titulo, "wallet", () => abrirConta(c)),
+            {/* o item abre a conta; a seta ao lado só oculta/mostra os subtópicos */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.25 }}>
+              <Box
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {item({
+                  rota: `/${contaAberta.idConta}/contabancaria`,
+                  titulo: contaAberta.titulo,
+                  icone: "wallet",
+                })}
+              </Box>
+              {!compacta && (
+                <Tooltip
+                  title={
+                    subtopicosAbertos
+                      ? "Ocultar opções da conta"
+                      : "Mostrar opções da conta"
+                  }
+                >
+                  <IconButton
+                    size="small"
+                    aria-label={
+                      subtopicosAbertos
+                        ? "Ocultar opções da conta"
+                        : "Mostrar opções da conta"
+                    }
+                    aria-expanded={subtopicosAbertos}
+                    aria-controls="subtopicos-conta"
+                    onClick={() => {
+                      setFecharSozinho(false);
+                      setSubtopicosAbertos((abertos) => !abertos);
+                    }}
+                    sx={{ mb: 0.25, color: barra.apoio }}
+                  >
+                    <Icon fontSize="small">
+                      {subtopicosAbertos ? "expand_less" : "expand_more"}
+                    </Icon>
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+            <Collapse
+              in={subtopicosAbertos}
+              id="subtopicos-conta"
+              // clicou num subtópico: o usuário está usando, então não fecha sozinho
+              onClickCapture={() => setFecharSozinho(false)}
+            >
+              <Box sx={{ display: "flex", flexDirection: "column" }}>
+                {item(
+                  {
+                    rota: `/${contaAberta.idConta}/dashboard`,
+                    titulo: "Dashboard",
+                    icone: "insights",
+                  },
+                  true,
+                )}
+                {/* abre o subpainel (largo) de agendadas ao lado da barra */}
+                {usuario?.permissao !== PERMISSAO.Visualizador &&
+                  botao(
+                    "Agendadas",
+                    "browse_gallery",
+                    () => alternarPainel("agendadas"),
+                    {
+                      selecionado: painel === "agendadas",
+                      subitem: true,
+                    },
+                  )}
+                {/* abre o subpainel de membros ao lado da barra */}
+                {botao(
+                  "Membros da conta",
+                  "group",
+                  () => alternarPainel("membros"),
+                  {
+                    selecionado: painel === "membros",
+                    subitem: true,
+                  },
+                )}
+                {botao(
+                  "Sair da conta",
+                  "exit_to_app",
+                  () => setConfirmarSaida(true),
+                  {
+                    cor: barra.perigo,
+                    subitem: true,
+                  },
+                )}
+              </Box>
+            </Collapse>
+          </>
+        )}
+        {/* abre o subpainel de convites ao lado da barra */}
+        {botao("Convites", "mail", () => alternarPainel("convites"), {
+          selecionado: painel === "convites",
+        })}
+
+        {/* fora das telas da conta: atalho para voltar à última conta aberta */}
+        {ultimaConta && !naConta && (
+          <>
+            {titulo("Última acessada")}
+            {compacta && (
+              <Divider sx={{ my: 1, borderColor: barra.divisoria }} />
+            )}
+            {botao(ultimaConta.titulo, "history", () =>
+              abrirConta(ultimaConta),
             )}
           </>
         )}
 
-        {conta && ehRotaDaConta(rotaAtual) && (
-          <Box sx={{ mt: "auto", pt: 2 }}>
-            {opcoesConta.map(item)}
-            {botao(
-              "Sair da Conta",
-              "exit_to_app",
-              () => setConfirmarSaida(true),
-              false,
-              barra.perigo,
+        {favoritas.length > 0 && (
+          <>
+            {titulo("Favoritos")}
+            {compacta && (
+              <Divider sx={{ my: 1, borderColor: barra.divisoria }} />
             )}
-          </Box>
+            {favoritas.map((c) =>
+              botao(c.titulo, "wallet", () => abrirConta(c)),
+            )}
+          </>
         )}
       </List>
 
@@ -396,10 +560,10 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           slotProps={{ paper: { sx: { minWidth: 220, mb: 1 } } }}
         >
           <MenuItem
-            selected={rotaAtual === "/usuario"}
+            selected={painel === "usuario"}
             onClick={() => {
               setAncoraMenuUsuario(null);
-              irPara("/usuario");
+              alternarPainel("usuario");
             }}
           >
             <ListItemIcon>
@@ -452,6 +616,23 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     </Box>
   );
 
+  const largura = recolhida ? LARGURA_RECOLHIDA : LARGURA;
+  const fecharPainel = () => setPainel(null);
+  const configPainel = painelExibido && PAINEIS[painelExibido];
+  const Conteudo = configPainel?.Conteudo;
+  const paineis = (
+    <PainelLateral
+      aberto={painelAberto}
+      onClose={fecharPainel}
+      deslocamento={ehCelular ? 0 : largura}
+      rotulo={configPainel?.rotulo ?? ""}
+      largura={configPainel?.largura}
+    >
+      {/* key: trocar de painel remonta o conteúdo (cada um busca os seus dados) */}
+      {Conteudo && <Conteudo key={painelExibido} onClose={fecharPainel} />}
+    </PainelLateral>
+  );
+
   const fundoGaveta = {
     bgcolor: barra.fundo,
     backgroundImage: "none",
@@ -477,7 +658,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           >
             {logo(28)}
             <Typography
-              onClick={() => irPara("/inicial")}
+              onClick={() => irPara("/")}
               sx={{ flex: 1, fontSize: 18, fontWeight: 700, cursor: "pointer" }}
             >
               FinancHub
@@ -500,11 +681,11 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
         >
           {conteudo}
         </Drawer>
+        {paineis}
       </>
     );
   }
 
-  const largura = recolhida ? LARGURA_RECOLHIDA : LARGURA;
   return (
     <Box sx={{ position: "relative", flexShrink: 0 }}>
       <Drawer
@@ -525,33 +706,37 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
       >
         {conteudo}
       </Drawer>
-      <IconButton
-        size="small"
-        onClick={() => setRecolhida((v) => !v)}
-        aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
-        title={recolhida ? "Expandir menu" : "Recolher menu"}
-        sx={{
-          position: "absolute",
-          top: "50%",
-          right: -13,
-          transform: "translateY(-50%)",
-          zIndex: (t) => t.zIndex.drawer + 1,
-          width: 26,
-          height: 26,
-          // mesmas cores da barra; destaque em azul primário, como o item ativo
-          bgcolor: barra.fundo,
-          border: `1px solid ${barra.divisoria}`,
-          color: barra.item,
-          "&:hover": {
-            bgcolor: cores.primaria.principal,
-            color: COR_SOBRE_GRADIENTE,
-          },
-        }}
-      >
-        <Icon sx={{ fontSize: 16 }}>
-          {recolhida ? "chevron_right" : "chevron_left"}
-        </Icon>
-      </IconButton>
+      {/* escondido com um painel aberto: ficaria por cima dele */}
+      {!painelAberto && (
+        <IconButton
+          size="small"
+          onClick={() => setRecolhida((v) => !v)}
+          aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
+          title={recolhida ? "Expandir menu" : "Recolher menu"}
+          sx={{
+            position: "absolute",
+            top: "50%",
+            right: -13,
+            transform: "translateY(-50%)",
+            zIndex: (t) => t.zIndex.drawer + 1,
+            width: 26,
+            height: 26,
+            // mesmas cores da barra; destaque em azul primário, como o item ativo
+            bgcolor: barra.fundo,
+            border: `1px solid ${barra.divisoria}`,
+            color: barra.item,
+            "&:hover": {
+              bgcolor: cores.primaria.principal,
+              color: COR_SOBRE_GRADIENTE,
+            },
+          }}
+        >
+          <Icon sx={{ fontSize: 16 }}>
+            {recolhida ? "chevron_right" : "chevron_left"}
+          </Icon>
+        </IconButton>
+      )}
+      {paineis}
     </Box>
   );
 };

@@ -12,9 +12,9 @@ import { ThemeProvider } from "@mui/material/styles";
 
 import { tema as temaEscuro } from "../../tema";
 import {
-  BarraLateralClara,
   CoresClaro,
   CoresEscuro,
+  coresDaBarra,
   variaveisTelas,
 } from "../../cores";
 
@@ -30,7 +30,7 @@ type PropModal = {
 const Modal: React.FC<PropModal> = ({ aberto, onClose, titulo, children }) => {
   const temaAtual = useTheme();
   const claro = temaAtual.palette.mode === "light";
-  const barra = claro ? BarraLateralClara : CoresEscuro.barraLateral;
+  const barra = coresDaBarra(claro);
 
   return (
     <ThemeProvider theme={claro ? temaAtual : temaEscuro}>

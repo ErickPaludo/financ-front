@@ -2,9 +2,9 @@ import type {
   ContaBancaria,
   ContaResponse,
 } from "../../models/contas-usuarios/GetContasBancarias";
-import Conecta from "../../services/api/apiConnect";
 
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
+import { useBuscaApi } from "../../hooks/useBuscaApi";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import { moverId, ordenarPorIds } from "./ordemContas";
@@ -19,10 +19,12 @@ import "./Inicial.css";
 
 // Tela inicial: patrimônio total e as contas bancárias do usuário.
 export const Inicial: React.FC = () => {
-  const [contasObtidas, setContasObtidas] = useState<ContaResponse | null>(
-    null,
-  );
-  const [carregando, setCarregando] = useState(true);
+  // a tela de carregamento só aparece na primeira busca; depois atualiza sem piscar
+  const {
+    dados: contasObtidas,
+    carregando,
+    buscar: buscaContas,
+  } = useBuscaApi<ContaResponse>("/ContasUsuarios");
   // a conta continua guardada ao fechar para o título não trocar durante a animação
   const [gaveta, setGaveta] = useState<{
     aberta: boolean;
@@ -51,21 +53,6 @@ export const Inicial: React.FC = () => {
       ),
     );
   };
-  // a tela de carregamento só aparece na primeira busca (carregando começa true); depois atualiza sem piscar
-  const buscaContas = useCallback(
-    () =>
-      Conecta<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
-        if (resposta.sucesso && resposta.dados)
-          setContasObtidas(resposta.dados);
-        setCarregando(false);
-      }),
-    [],
-  );
-
-  useEffect(() => {
-    buscaContas();
-  }, [buscaContas]);
-
   // depois de alterar uma conta: atualiza os cards e os favoritos da barra lateral
   const { contasAlteradas } = useContext(ContaContext);
   const atualizarContas = () => {

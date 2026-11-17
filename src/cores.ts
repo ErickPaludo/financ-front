@@ -76,7 +76,10 @@ export type CoresTransacoes = Record<
   | "trilho" // fundo das barras de progresso
   | "blocoReceita" // blocos de receita/despesa dos cards de conta
   | "rotuloReceita"
-  | "blocoDespesa",
+  | "blocoDespesa"
+  // séries dos gráficos: azul/laranja (verde/vermelho não se distinguem para daltônicos)
+  | "graficoEntrada"
+  | "graficoSaida",
   string
 >;
 
@@ -203,6 +206,8 @@ export const CoresEscuro: Paleta = {
     blocoReceita: "rgba(74, 222, 128, 0.1)",
     rotuloReceita: "#86efac",
     blocoDespesa: "rgba(248, 113, 113, 0.1)",
+    graficoEntrada: "#3987e5",
+    graficoSaida: "#d95926",
   },
 };
 
@@ -302,6 +307,8 @@ export const CoresClaro: Paleta = {
     blocoReceita: "#f0fdf4",
     rotuloReceita: "#166534",
     blocoDespesa: "#fef2f2",
+    graficoEntrada: "#2a78d6",
+    graficoSaida: "#eb6834",
   },
 };
 
@@ -319,6 +326,10 @@ export const BarraLateralClara: CoresBarraLateral = {
   itemAtivo: "#2563eb",
   perigo: "#b91c1c",
 };
+
+// Barra lateral e tudo que segue as cores dela (gaveta Modal, painel de membros).
+export const coresDaBarra = (claro: boolean) =>
+  claro ? BarraLateralClara : CoresEscuro.barraLateral;
 
 const variaveis = (prefixo: string, cores: Record<string, string>) =>
   Object.entries(cores).map(([chave, cor]) => [

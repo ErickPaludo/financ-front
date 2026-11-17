@@ -12,6 +12,14 @@ export const nomePermissao = (permissao: number) =>
       ? "Administrador"
       : "Visualizador";
 
+// ícone (Material Icons) de cada nível de acesso
+export const iconePermissao = (permissao: number) =>
+  permissao === PERMISSAO.Mestre
+    ? "workspace_premium"
+    : permissao === PERMISSAO.Administrador
+      ? "admin_panel_settings"
+      : "visibility";
+
 // opções do InputSelect de permissão (convite e edição de membro)
 export const OPCOES_PERMISSAO = [
   PERMISSAO.Administrador,
