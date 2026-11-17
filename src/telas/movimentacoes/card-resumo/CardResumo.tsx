@@ -41,7 +41,9 @@ const CardResumo: React.FC<PropCardResumo> = ({
         sx={{
           fontSize: 13,
           fontWeight: 500,
-          color: destaque ? "var(--fnc-tx-legenda-destaque)" : "var(--fnc-tx-apoio)",
+          color: destaque
+            ? "var(--fnc-tx-legenda-destaque)"
+            : "var(--fnc-tx-apoio)",
         }}
       >
         {rotulo}
@@ -63,18 +65,18 @@ const CardResumo: React.FC<PropCardResumo> = ({
       </Box>
     </Stack>
     {valor !== undefined && (
-    <Typography
-      sx={{
-        fontSize: 30,
-        fontWeight: 700,
-        lineHeight: 1.2,
-        letterSpacing: "-0.02em",
-        fontVariantNumeric: "tabular-nums",
-        color: corValor ?? "inherit",
-      }}
-    >
-      {valor}
-    </Typography>
+      <Typography
+        sx={{
+          fontSize: 30,
+          fontWeight: 700,
+          lineHeight: 1.2,
+          letterSpacing: "-0.02em",
+          fontVariantNumeric: "tabular-nums",
+          color: corValor ?? "inherit",
+        }}
+      >
+        {valor}
+      </Typography>
     )}
     {children}
   </Box>

@@ -1,5 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useCallback, useContext, useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -14,7 +13,6 @@ import {
 import Conecta from "../../services/api/apiConnect";
 import { buscarContaUsuario } from "../../services/contas/contaUsuarioService";
 import type {
-  Categoria,
   GetMovimentacoes,
   Movimentacao,
 } from "../../models/movimentacoes/GetMovimentacoes";
@@ -24,7 +22,6 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useCategorias } from "../../hooks/useCategorias";
 import Modal from "../../componentes/modal/Modal";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
-import CheckBoxList from "../../props/check-box-list/CheckBoxList";
 import InputCheckBox from "../../props/input-check-box/InputCheckBox";
 import Categorias from "../categorias/Categorias";
 import FiltroPeriodo from "./filtro-periodo/FiltroPeriodo";
@@ -32,24 +29,17 @@ import CadMov from "./cad-mov/CadMov";
 import CadConvite from "../../componentes/painel-convites/CadConvite";
 import TabelaMovimentacao from "./tabela/TabelaMovimentacao";
 import CardResumo from "./card-resumo/CardResumo";
-import { ChipFiltro, ChipSelect } from "./filtros/ChipFiltro";
-import {
-  lerFiltros,
-  paraParametros,
-  passaNosFiltros,
-  type FiltrosMovimentacao,
-} from "./filtrosUrl";
+import ChipsFiltros from "./filtros/ChipsFiltros";
+import { useFiltrosUrl } from "./useFiltrosUrl";
+import { passaNosFiltros, rotaMovimentacoes } from "./filtrosUrl";
 import {
   formatarDataHora,
   formatarMoeda,
   valorComSinal,
-  paraUtcSemFuso,
 } from "../../utils/formatacao";
 import { nomePermissao, PERMISSAO } from "../../utils/permissao";
 import { estiloBotaoSecundario } from "../../estilos";
 import "./MovimentacaoesStyle.css";
-
-const SEM_CATEGORIA: Categoria = { idCategoria: 0, nome: "Sem categoria", cor: "" };
 
 // "Nova transação": no cabeçalho e, no modo extrato, na barra da tabela
 const estiloBotaoPrincipal = {
@@ -145,16 +135,6 @@ const ValorRodape: React.FC<{ rotulo: string; valor: string; cor: string }> = ({
 );
 
 // valores iguais aos da URL (filtrosUrl.ts)
-const OPCOES_STATUS = [
-  { rotulo: "Todas", valor: "todas" },
-  { rotulo: "Pendente", valor: "pendente" },
-  { rotulo: "Concluído", valor: "concluido" },
-];
-const OPCOES_TIPO = [
-  { rotulo: "Todas", valor: "todas" },
-  { rotulo: "Entrada", valor: "entrada" },
-  { rotulo: "Saída", valor: "saida" },
-];
 
 const Movimentacoes: React.FC = () => {
   const { conta, setConta, setContaUsuario, usuario } =
@@ -174,8 +154,7 @@ const Movimentacoes: React.FC = () => {
   const { categorias, buscarCategorias } = useCategorias(idConta);
 
   // filtros na URL: recarregar ou compartilhar o link mantém o período, categorias, status e tipo
-  const [parametrosUrl, setParametrosUrl] = useSearchParams();
-  const filtros = useMemo(() => lerFiltros(parametrosUrl), [parametrosUrl]);
+  const { filtros, alterarFiltros } = useFiltrosUrl();
   const {
     inicio: dataInicial,
     fim: dataFinal,
@@ -183,11 +162,6 @@ const Movimentacoes: React.FC = () => {
     status,
     tipo,
   } = filtros;
-  // replace: mudar um filtro não cria uma entrada nova no histórico do navegador
-  const alterarFiltros = (mudanca: Partial<FiltrosMovimentacao>) =>
-    setParametrosUrl(paraParametros({ ...filtros, ...mudanca }), {
-      replace: true,
-    });
   const [mostraDetalhes, setMostraDetalhes] = useState(false);
   const [modoSimples, setModoSimples] = useState(false);
   const [recarregando, setRecarregando] = useState(false);
@@ -222,41 +196,16 @@ const Movimentacoes: React.FC = () => {
   );
 
   const buscarMovimentacoes = useCallback(() => {
-    const parametros = new URLSearchParams({
-      DthrMovimentacaoInicial: paraUtcSemFuso(dataInicial),
-      DthrMovimentacaoFinal: paraUtcSemFuso(dataFinal),
-    });
-    categoriasSelecionadas.forEach((id) =>
-      parametros.append("IdCategoria", String(id)),
-    );
-    if (status !== "todas")
-      parametros.append("Concluido", String(status === "concluido"));
-    if (tipo !== "todas")
-      parametros.append("TipoMovimentacao", tipo === "entrada" ? "0" : "1");
-    parametros.append("RetornaFixos", "true");
-
     return buscarConta()
       .then(() =>
-        Conecta<GetMovimentacoes>(
-          `/Contas/${idConta}/Movimentacoes/Retornar?${parametros}`,
-          "GET",
-        ),
+        Conecta<GetMovimentacoes>(rotaMovimentacoes(idConta, filtros), "GET"),
       )
       .then((resposta) => {
         if (resposta.sucesso && resposta.dados)
           setMovimentacoes(resposta.dados);
         setFiltrosCarregados(chaveFiltros);
       });
-  }, [
-    buscarConta,
-    idConta,
-    dataInicial,
-    dataFinal,
-    categoriasSelecionadas,
-    status,
-    tipo,
-    chaveFiltros,
-  ]);
+  }, [buscarConta, idConta, filtros, chaveFiltros]);
 
   useEffect(() => {
     buscarUsuarioDaConta();
@@ -334,7 +283,6 @@ const Movimentacoes: React.FC = () => {
                     >
                       Categorias
                     </Button>
-                   
                   </>
                 )}
                 <Button
@@ -419,8 +367,16 @@ const Movimentacoes: React.FC = () => {
                 icone="swap_vert"
                 corIcone="var(--fnc-tx-destaque)"
                 valores={[
-                  { rotulo: "Entrada", valor: resumo?.entrada.projetado, tipo: "receita" },
-                  { rotulo: "Saída", valor: resumo?.saida.projetado, tipo: "despesa" },
+                  {
+                    rotulo: "Entrada",
+                    valor: resumo?.entrada.projetado,
+                    tipo: "receita",
+                  },
+                  {
+                    rotulo: "Saída",
+                    valor: resumo?.saida.projetado,
+                    tipo: "despesa",
+                  },
                 ]}
               />
               <CardDetalhe
@@ -428,8 +384,16 @@ const Movimentacoes: React.FC = () => {
                 icone="account_balance_wallet"
                 corIcone="var(--fnc-tx-destaque)"
                 valores={[
-                  { rotulo: "Saldo", valor: resumo?.saldoRealizado, tipo: "receita" },
-                  { rotulo: "Projetado", valor: resumo?.saldoProjetado, tipo: "neutro" },
+                  {
+                    rotulo: "Saldo",
+                    valor: resumo?.saldoRealizado,
+                    tipo: "receita",
+                  },
+                  {
+                    rotulo: "Projetado",
+                    valor: resumo?.saldoProjetado,
+                    tipo: "neutro",
+                  },
                 ]}
               />
               <CardDetalhe
@@ -437,9 +401,21 @@ const Movimentacoes: React.FC = () => {
                 icone="trending_up"
                 corIcone="var(--fnc-tx-receita)"
                 valores={[
-                  { rotulo: "Realizadas", valor: resumo?.entrada.concluidos, tipo: "receita" },
-                  { rotulo: "Projetado", valor: resumo?.entrada.projetado, tipo: "neutro" },
-                  { rotulo: "Pendentes", valor: resumo?.entrada.pendentes, tipo: "despesa" },
+                  {
+                    rotulo: "Realizadas",
+                    valor: resumo?.entrada.concluidos,
+                    tipo: "receita",
+                  },
+                  {
+                    rotulo: "Projetado",
+                    valor: resumo?.entrada.projetado,
+                    tipo: "neutro",
+                  },
+                  {
+                    rotulo: "Pendentes",
+                    valor: resumo?.entrada.pendentes,
+                    tipo: "despesa",
+                  },
                 ]}
               />
               <CardDetalhe
@@ -447,9 +423,21 @@ const Movimentacoes: React.FC = () => {
                 icone="trending_down"
                 corIcone="var(--fnc-tx-despesa)"
                 valores={[
-                  { rotulo: "Realizadas", valor: resumo?.saida.concluidos, tipo: "despesa" },
-                  { rotulo: "Projetado", valor: resumo?.saida.projetado, tipo: "neutro" },
-                  { rotulo: "Pendentes", valor: resumo?.saida.pendentes, tipo: "despesa" },
+                  {
+                    rotulo: "Realizadas",
+                    valor: resumo?.saida.concluidos,
+                    tipo: "despesa",
+                  },
+                  {
+                    rotulo: "Projetado",
+                    valor: resumo?.saida.projetado,
+                    tipo: "neutro",
+                  },
+                  {
+                    rotulo: "Pendentes",
+                    valor: resumo?.saida.pendentes,
+                    tipo: "despesa",
+                  },
                 ]}
               />
             </Box>
@@ -479,7 +467,10 @@ const Movimentacoes: React.FC = () => {
           buscarCategorias();
         }}
       >
-        <Categorias idConta={idConta} buscaMovimentacoes={buscarMovimentacoes} />
+        <Categorias
+          idConta={idConta}
+          buscaMovimentacoes={buscarMovimentacoes}
+        />
       </Modal>
 
       <Modal
@@ -531,57 +522,11 @@ const Movimentacoes: React.FC = () => {
                 setPeriodo={(inicio, fim) => alterarFiltros({ inicio, fim })}
               />
               {!modoSimples && (
-                <Stack
-                  direction="row"
-                  sx={{ flexWrap: "wrap", alignItems: "center", gap: 1 }}
-                >
-                  <CheckBoxList<Categoria>
-                    itens={[SEM_CATEGORIA, ...categorias]}
-                    chaveId="idCategoria"
-                    chaveTexto="nome"
-                    selecionados={categoriasSelecionadas}
-                    setSelecionados={(categorias) =>
-                      alterarFiltros({ categorias })
-                    }
-                    rotulo="Categorias"
-                    ignorarPrimeiroItem
-                    gatilho={({ abrir, aberto, resumo }) => (
-                      <ChipFiltro
-                        texto={resumo ? `Categorias: ${resumo}` : "Categorias"}
-                        aberto={aberto}
-                        onClick={abrir}
-                        onLimpar={
-                          categoriasSelecionadas.length > 0
-                            ? () => alterarFiltros({ categorias: [] })
-                            : undefined
-                        }
-                      />
-                    )}
-                  />
-                  {/* juntos: quando a linha quebra, Status e Tipo descem lado a lado */}
-                  <Stack direction="row" sx={{ gap: 1 }}>
-                    <ChipSelect
-                      rotulo="Status"
-                      opcoes={OPCOES_STATUS}
-                      valor={status}
-                      setValor={(valor) =>
-                        alterarFiltros({
-                          status: valor as FiltrosMovimentacao["status"],
-                        })
-                      }
-                    />
-                    <ChipSelect
-                      rotulo="Tipo"
-                      opcoes={OPCOES_TIPO}
-                      valor={tipo}
-                      setValor={(valor) =>
-                        alterarFiltros({
-                          tipo: valor as FiltrosMovimentacao["tipo"],
-                        })
-                      }
-                    />
-                  </Stack>
-                </Stack>
+                <ChipsFiltros
+                  categorias={categorias}
+                  filtros={filtros}
+                  alterarFiltros={alterarFiltros}
+                />
               )}
 
               {/* margem automática: sempre à direita, mesmo quando a linha quebra;

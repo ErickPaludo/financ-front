@@ -57,7 +57,14 @@ const ALTURA_TOPO_MOBILE = 60; // .pagina-central desconta essa altura no celula
 const COR_SOBRE_GRADIENTE = "#fff";
 const COR_PERIGO = "#ff4b4b";
 
-type Item = { rota: string; titulo: string; icone: string };
+type Item = {
+  rota: string;
+  titulo: string;
+  icone: string;
+  // telas da conta: leva junto os filtros da URL (?inicio=&fim=...), para transações e dashboard
+  // mostrarem o mesmo período e buscarem as mesmas movimentações
+  manterFiltros?: boolean;
+};
 
 // Subpainéis que abrem ao lado da barra (um por vez, no mesmo PainelLateral).
 type Painel = "membros" | "agendadas" | "convites" | "usuario";
@@ -112,7 +119,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
 }) => {
   const { user } = useContext(AuthContext);
   const cores = useTheme().palette.mode === "dark" ? CoresEscuro : CoresClaro;
-  const rotaAtual = useLocation().pathname;
+  const { pathname: rotaAtual, search: filtrosUrl } = useLocation();
   // no modo claro a barra é branca em todas as telas; só mudam as cores
   const barra = coresDaBarra(cores === CoresClaro);
 
@@ -125,7 +132,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const [confirmarSaida, setConfirmarSaida] = useState(false);
   // subpainel aberto ao lado da barra (um por vez)
   const [painel, setPainel] = useState<Painel | null>(null);
-  // Subtópicos da conta atual (Agendadas, Membros, Sair): fechados, mas ao entrar na tela da
+  // Subtópicos da conta atual (Dashboard, Agendadas, Membros): fechados, mas ao entrar na tela da
   // conta abrem para mostrar as opções e fecham sozinhos depois de 3s, se ninguém clicar neles.
   const [subtopicosAbertos, setSubtopicosAbertos] = useState(() =>
     ehTelaDaConta(rotaAtual),
@@ -258,12 +265,20 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     </Tooltip>
   );
 
-  const item = ({ rota, titulo, icone }: Item, subitem = false) =>
-    botao(titulo, icone, () => irPara(rota), {
-      // com um painel aberto, só o item dele fica selecionado (não a tela atrás)
-      selecionado: rotaAtual === rota && !painelAberto,
-      subitem,
-    });
+  const item = (
+    { rota, titulo, icone, manterFiltros = false }: Item,
+    subitem = false,
+  ) =>
+    botao(
+      titulo,
+      icone,
+      () => irPara(manterFiltros ? rota + filtrosUrl : rota),
+      {
+        // com um painel aberto, só o item dele fica selecionado (não a tela atrás)
+        selecionado: rotaAtual === rota && !painelAberto,
+        subitem,
+      },
+    );
 
   // Só o SVG, sem quadro: azul-escuro na barra branca, branco na barra escura.
   const logo = (tamanho: number) => (
@@ -344,6 +359,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
                   rota: `/${contaAberta.idConta}/contabancaria`,
                   titulo: contaAberta.titulo,
                   icone: "wallet",
+                  manterFiltros: true,
                 })}
               </Box>
               {!compacta && (
@@ -388,6 +404,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
                     rota: `/${contaAberta.idConta}/dashboard`,
                     titulo: "Dashboard",
                     icone: "insights",
+                    manterFiltros: true,
                   },
                   true,
                 )}
@@ -409,15 +426,6 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
                   () => alternarPainel("membros"),
                   {
                     selecionado: painel === "membros",
-                    subitem: true,
-                  },
-                )}
-                {botao(
-                  "Sair da conta",
-                  "exit_to_app",
-                  () => setConfirmarSaida(true),
-                  {
-                    cor: barra.perigo,
                     subitem: true,
                   },
                 )}
@@ -454,18 +462,31 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
             )}
           </>
         )}
-      </List>
 
-      <Typography
-        sx={{
-          textAlign: "right",
-          p: 0.6,
-          fontSize: 11,
-          color: barra.apoio,
-        }}
-      >
-        {APP_VERSION.toString()}
-      </Typography>
+        {/* fim da barra: versão e, na tela da conta, a ação destrutiva longe das opções dela */}
+        <Box sx={{ mt: "auto", pt: 1 }}>
+          <Typography
+            noWrap
+            sx={{
+              px: compacta ? 0 : 2,
+              py: 0.5,
+              fontSize: 11,
+              color: barra.apoio,
+            }}
+          >
+            {APP_VERSION.toString()}
+          </Typography>
+          {contaAberta &&
+            botao(
+              "Sair da conta",
+              "exit_to_app",
+              () => setConfirmarSaida(true),
+              {
+                cor: barra.perigo,
+              },
+            )}
+        </Box>
+      </List>
       {/* Rodapé: cartão do usuário; ao clicar abre as opções do usuário */}
       <Box
         sx={{

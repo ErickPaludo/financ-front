@@ -47,7 +47,9 @@ const ConclusaoMovimentacao: React.FC<PropConclusaoMovimentacao> = ({
   const alternarUsarDataMovimentacao = (usar: boolean) => {
     setUsarDataMovimentacao(usar);
     setDataConclusao(
-      dataHoraLocal(usar ? movimentacaoSelecionada.dthrMovimentacao : undefined),
+      dataHoraLocal(
+        usar ? movimentacaoSelecionada.dthrMovimentacao : undefined,
+      ),
     );
   };
 

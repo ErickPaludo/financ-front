@@ -56,11 +56,3 @@ export const normalizarNome = (texto: string) =>
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
     .toLowerCase();
-
-// "YYYY-MM-DDTHH:mm" local enviado como se fosse UTC: a API compara com o horário local gravado
-export const paraUtcSemFuso = (data: string) => {
-  const local = new Date(data);
-  return new Date(
-    local.getTime() - local.getTimezoneOffset() * 60 * 1000,
-  ).toISOString();
-};

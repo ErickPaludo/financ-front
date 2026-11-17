@@ -1,6 +1,7 @@
 // Rode com: node --experimental-strip-types scripts/testa-filtros-url.ts
 import assert from "node:assert/strict";
 import {
+  parametrosApi,
   lerFiltros,
   paraParametros,
   passaNosFiltros,
@@ -67,5 +68,17 @@ assert.equal(passaNosFiltros(mov, { ...semFiltro, categorias: [9] }), false);
 const semCategoria = { ...mov, categorias: [] };
 assert.equal(passaNosFiltros(semCategoria, { ...semFiltro, categorias: [0] }), true);
 assert.equal(passaNosFiltros(semCategoria, { ...semFiltro, categorias: [5] }), false);
+
+// query da API (transações e dashboard): status, tipo e categorias só quando filtrados
+const api = parametrosApi({ inicio: "2026-11-01T00:00", fim: "2026-11-30T23:59", categorias: [1, 0], status: "pendente", tipo: "saida" });
+assert.deepEqual(api.getAll("IdCategoria"), ["1", "0"]);
+assert.equal(api.get("Concluido"), "false");
+assert.equal(api.get("TipoMovimentacao"), "1");
+assert.equal(api.get("RetornaFixos"), "true");
+// UTC de verdade (como o cadastro grava), não o horário local com "Z"
+assert.equal(api.get("DthrMovimentacaoInicial"), new Date("2026-11-01T00:00").toISOString());
+assert.equal(api.get("DthrMovimentacaoFinal"), new Date("2026-11-30T23:59").toISOString());
+const apiSemFiltro = parametrosApi({ inicio: "2026-11-01T00:00", fim: "2026-11-30T23:59", categorias: [], status: "todas", tipo: "todas" });
+assert.equal(apiSemFiltro.has("Concluido") || apiSemFiltro.has("TipoMovimentacao") || apiSemFiltro.has("IdCategoria"), false);
 
 console.log("filtros-url: ok");

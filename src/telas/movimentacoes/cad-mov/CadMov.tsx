@@ -114,8 +114,7 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
       valor: mov.valor !== valor ? valor : null,
       titulo: mov.titulo !== titulo ? titulo : null,
       observacao: mov.observacao !== descricao ? descricao : null,
-      dthrMovimentacao:
-        dataMovUtc !== mov.dthrMovimentacao ? dataMovUtc : null,
+      dthrMovimentacao: dataMovUtc !== mov.dthrMovimentacao ? dataMovUtc : null,
       dthrConclusao:
         mov.concluido && dataConclusaoUtc !== mov.dthrConclusao
           ? dataConclusaoUtc

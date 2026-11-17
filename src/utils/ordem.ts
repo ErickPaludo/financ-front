@@ -1,10 +1,12 @@
-// Ordem dos cards de conta definida pelo usuário (lista de ids).
+// Ordem definida pelo usuário arrastando (cards de conta, gráficos do dashboard): lista de ids.
 
-// Ordena pelos ids salvos. Contas que não estão na lista (novas) vão para o fim, na ordem da API.
-export function ordenarPorIds<T>(
+export type Id = number | string;
+
+// Ordena pelos ids salvos. Itens que não estão na lista (novos) vão para o fim, na ordem original.
+export function ordenarPorIds<T, K extends Id>(
   itens: T[],
-  ids: number[],
-  idDe: (item: T) => number,
+  ids: K[],
+  idDe: (item: T) => K,
 ): T[] {
   const posicao = new Map(ids.map((id, i) => [id, i]));
   return itens
@@ -18,11 +20,7 @@ export function ordenarPorIds<T>(
 
 // Move o id arrastado para a posição do id de destino.
 // Arrastando para frente, entra depois do destino; para trás, antes (como ao arrastar na tela).
-export function moverId(
-  ids: number[],
-  arrastado: number,
-  destino: number,
-): number[] {
+export function moverId<K extends Id>(ids: K[], arrastado: K, destino: K): K[] {
   const de = ids.indexOf(arrastado);
   const para = ids.indexOf(destino);
   if (de === -1 || para === -1 || de === para) return ids;

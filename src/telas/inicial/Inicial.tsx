@@ -7,8 +7,8 @@ import { useContext, useState } from "react";
 import { useBuscaApi } from "../../hooks/useBuscaApi";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
-import { moverId, ordenarPorIds } from "./ordemContas";
-import { useOrdemContas } from "./useOrdemContas";
+import { moverId, ordenarPorIds } from "../../utils/ordem";
+import { useOrdemSalva } from "../../hooks/useOrdemSalva";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
 
 import CadContas from "../contas-bancarias/cad-conta/CadContas";
@@ -34,7 +34,9 @@ export const Inicial: React.FC = () => {
 
   // Ordem dos cards definida pelo usuário arrastando.
   const { user } = useContext(AuthContext);
-  const { ids: ordemSalva, salvarOrdem } = useOrdemContas(user?.id);
+  const { ids: ordemSalva, salvarOrdem } = useOrdemSalva<number>(
+    `ordemContas:${user?.id ?? "anonimo"}`,
+  );
   const [idArrastando, setIdArrastando] = useState<number | null>(null);
   const contas = ordenarPorIds(
     contasObtidas?.conteudo.contas ?? [],
