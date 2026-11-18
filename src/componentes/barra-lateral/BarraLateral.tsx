@@ -22,6 +22,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import { CONSULTA_CELULAR } from "../../estilos";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import type {
@@ -126,7 +127,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const nomeUsuario = user?.nomeCompleto || "Usuário";
   const { conta, usuario, setConta, versaoContas } = useContext(ContaContext);
   const navigate = useNavigate();
-  const ehCelular = useMediaQuery("(max-width:768px)");
+  const ehCelular = useMediaQuery(CONSULTA_CELULAR);
   const [recolhida, setRecolhida] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);

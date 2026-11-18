@@ -55,11 +55,11 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
       onSubmit={pesquisar}
       sx={{
         // grade: as duas datas ficam em colunas 1fr, sempre com a mesma largura.
-        // Celular: uma data por linha, setas ao lado da final. Maior: tudo numa linha.
+        // Celular: datas e setas numa linha, Pesquisar abaixo (à esquerda). Maior: tudo numa linha.
         display: "grid",
-        gridTemplateColumns: { xs: "1fr auto", sm: "1fr 1fr auto auto" },
+        gridTemplateColumns: { xs: "1fr 1fr auto", sm: "1fr 1fr auto auto" },
         gridTemplateAreas: {
-          xs: '"inicial setas" "final pesquisar"',
+          xs: '"inicial final setas" "pesquisar pesquisar pesquisar"',
           sm: '"inicial final setas pesquisar"',
         },
         alignItems: "end", // pelo pé: os rótulos ficam acima dos campos, as setas não têm rótulo
@@ -98,6 +98,7 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
         aria-label="Navegar entre meses"
         sx={{
           gridArea: "setas",
+          justifySelf: "start",
           height: 36, // a altura dos campos compactos
           "& .MuiButton-root": {
             height: "100%",
@@ -132,6 +133,7 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
         startIcon={<Icon>search</Icon>}
         sx={{
           gridArea: "pesquisar",
+          justifySelf: "start",
           height: 36,
           px: 1.5,
           whiteSpace: "nowrap",

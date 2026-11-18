@@ -72,6 +72,25 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
     ),
   },
   {
+    titulo: "Valor",
+    chave: "valor",
+    alinhar: "right",
+    exibir: (mov) => (
+      <Box
+        component="span"
+        sx={{
+          fontWeight: 700,
+          fontVariantNumeric: "tabular-nums",
+          color: ehReceita(mov)
+            ? "var(--fnc-tx-receita)"
+            : "var(--fnc-tx-despesa)",
+        }}
+      >
+        {valorComSinal(ehReceita(mov) ? mov.valor : -mov.valor)}
+      </Box>
+    ),
+  },
+  {
     titulo: "Categoria",
     chave: "categorias",
     ordenarPor: (mov) => mov.categorias[0]?.nome,
@@ -120,6 +139,7 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
     titulo: "Usu. cad.",
     chave: "usarioCriador",
     oculta: true,
+    grupo: "usuarios",
     ordenarPor: (mov) => mov.usarioCriador?.email,
     exibir: (mov) => mov.usarioCriador?.email,
   },
@@ -127,6 +147,7 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
     titulo: "Usu. exe.",
     chave: "usuarioExecutor",
     oculta: true,
+    grupo: "usuarios",
     ordenarPor: (mov) => mov.usuarioExecutor?.email,
     exibir: (mov) => mov.usuarioExecutor?.email,
   },
@@ -136,25 +157,6 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
     oculta: true,
     ordenarPor: (mov) => Boolean(mov.idFixo),
     exibir: (mov) => (mov.idFixo ? "Sim" : "Não"),
-  },
-  {
-    titulo: "Valor",
-    chave: "valor",
-    alinhar: "right",
-    exibir: (mov) => (
-      <Box
-        component="span"
-        sx={{
-          fontWeight: 700,
-          fontVariantNumeric: "tabular-nums",
-          color: ehReceita(mov)
-            ? "var(--fnc-tx-receita)"
-            : "var(--fnc-tx-despesa)",
-        }}
-      >
-        {valorComSinal(ehReceita(mov) ? mov.valor : -mov.valor)}
-      </Box>
-    ),
   },
 ];
 
@@ -208,6 +210,22 @@ const ESTILOS = {
       bgcolor: "color-mix(in srgb, var(--fnc-tx-trilho) 70%, transparent)",
     },
   },
+  // linhas separadas: cards translúcidos sobre o mesmo vidro do card
+  linhas: {
+    maxHeight: 560,
+    p: 2,
+    color: "var(--fnc-tx-texto-tabela)",
+    "& .linha-separada": {
+      bgcolor:
+        "color-mix(in srgb, var(--fnc-tx-linha-alternada) 60%, transparent)",
+      border: "1px solid var(--fnc-tx-divisoria)",
+      "&:hover": {
+        filter: "none",
+        bgcolor: "color-mix(in srgb, var(--fnc-tx-trilho) 70%, transparent)",
+      },
+    },
+    "& .linha-separada-rotulo": { color: "var(--fnc-tx-apoio)" },
+  },
 };
 
 const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
@@ -235,6 +253,7 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
         carregando={carregando}
         estilos={ESTILOS}
         ordenacaoPadrao={{ chave: "dthrMovimentacao", direcao: "desc" }}
+        permitirLinhas
       />
 
       {movSelecionada && (

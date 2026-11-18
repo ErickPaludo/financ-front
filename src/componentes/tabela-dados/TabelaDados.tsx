@@ -21,6 +21,7 @@ import {
   TableSortLabel,
   Tooltip,
   Typography,
+  useMediaQuery,
   type SxProps,
   type Theme,
 } from "@mui/material";
@@ -34,6 +35,8 @@ import {
   type Ordenacao,
   type PreferenciasTabela,
 } from "./preferenciasTabela";
+import { CONSULTA_CELULAR } from "../../estilos";
+import LinhasSeparadas from "./LinhasSeparadas";
 
 export type ColunaTabela<T> = {
   titulo: string;
@@ -44,11 +47,13 @@ export type ColunaTabela<T> = {
   ordenarPor?: (linha: T) => unknown;
   oculta?: boolean; // começa escondida (o usuário pode mostrar pelo menu "Colunas")
   alinhar?: "right"; // ex.: valores em dinheiro
+  // nas linhas separadas, colunas do mesmo grupo ficam uma abaixo da outra (no lugar da primeira)
+  grupo?: string;
 };
 
 // sx somado por cima do visual padrão de cada parte
 type EstilosTabela = Partial<
-  Record<"barra" | "container" | "tabela", SxProps<Theme>>
+  Record<"barra" | "container" | "tabela" | "linhas", SxProps<Theme>>
 >;
 
 const somar = (base: SxProps<Theme>, extra?: SxProps<Theme>) =>
@@ -68,6 +73,8 @@ type PropTabelaDados<T> = {
   barra?: ReactNode;
   estilos?: EstilosTabela;
   ordenacaoPadrao?: Ordenacao;
+  // mostra o botão que alterna entre a tabela e as linhas separadas (LinhasSeparadas)
+  permitirLinhas?: boolean;
 };
 
 // Tabela com colunas reordenáveis (arrastando o cabeçalho ou pelo menu "Colunas"),
@@ -85,6 +92,7 @@ function TabelaDados<T extends object>({
   barra,
   estilos,
   ordenacaoPadrao = null,
+  permitirLinhas = false,
 }: PropTabelaDados<T>) {
   const chaves = colunas.map((c) => c.chave as string);
   const [prefs, setPrefs] = useState<PreferenciasTabela>(() => {
@@ -100,6 +108,15 @@ function TabelaDados<T extends object>({
   const [aviso, setAviso] = useState<string | null>(null);
   const [ancoraColunas, setAncoraColunas] = useState<HTMLElement | null>(null);
   const [arrastando, setArrastando] = useState<string | null>(null);
+  const [linhasLigadas, setLinhasLigadas] = useState(() => {
+    try {
+      return (
+        localStorage.getItem(`linhasSeparadas:${idPreferencias}`) === "true"
+      );
+    } catch {
+      return false;
+    }
+  });
 
   const porChave = new Map(colunas.map((c) => [c.chave as string, c]));
   const visiveis = prefs.ordem
@@ -115,6 +132,23 @@ function TabelaDados<T extends object>({
   }, [linhas, colunas, prefs.ordenacao]);
 
   const alterado = JSON.stringify(prefs) !== salvas;
+  // com a barra superior (celular) a tabela não cabe: força as linhas separadas (sem mudar a preferência)
+  const telaEstreita = useMediaQuery(CONSULTA_CELULAR);
+  const emLinhas = permitirLinhas && (telaEstreita || linhasLigadas);
+
+  // o formato é gravado assim que muda (não espera o "Salvar" das colunas)
+  const alternarLinhas = () => {
+    setLinhasLigadas(!linhasLigadas);
+    try {
+      if (idPreferencias)
+        localStorage.setItem(
+          `linhasSeparadas:${idPreferencias}`,
+          String(!linhasLigadas),
+        );
+    } catch {
+      // localStorage bloqueado: vale só até recarregar a página
+    }
+  };
   // colunas na ordem da tela e todas visíveis
   const colunasOriginais =
     prefs.ordem.join() === chaves.join() && prefs.ocultas.length === 0;
@@ -176,6 +210,21 @@ function TabelaDados<T extends object>({
           </Typography>
         )}
         <Stack direction="row" spacing={1}>
+          {permitirLinhas && !telaEstreita && (
+            <Tooltip
+              title={emLinhas ? "Ver como tabela" : "Ver em linhas separadas"}
+            >
+              <IconButton
+                color="inherit"
+                aria-label={
+                  emLinhas ? "Ver como tabela" : "Ver em linhas separadas"
+                }
+                onClick={alternarLinhas}
+              >
+                <Icon>{emLinhas ? "table_rows" : "view_agenda"}</Icon>
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="Escolher e reordenar colunas">
             <IconButton
               color="inherit"
@@ -275,143 +324,160 @@ function TabelaDados<T extends object>({
         </Button>
       </Popover>
 
-      <TableContainer
-        sx={somar(
-          {
-            maxHeight: 500,
-            bgcolor: "var(--fnc-superficie)",
-            border: "1px solid var(--fnc-borda-suave)",
-            borderRadius: 1,
-          },
-          estilos?.container,
-        )}
-      >
-        <Table
-          stickyHeader
+      {emLinhas ? (
+        <LinhasSeparadas
+          linhas={linhasOrdenadas}
+          colunas={visiveis}
+          onClicarLinha={onClicarLinha}
+          chaveLinha={chaveLinha}
+          mensagemVazia={mensagemVazia}
+          carregando={carregando}
+          sx={estilos?.linhas}
+          ordenacao={prefs.ordenacao}
+          ordenacaoPadrao={ordenacaoPadrao}
+          setOrdenacao={(ordenacao) => setPrefs({ ...prefs, ordenacao })}
+        />
+      ) : (
+        <TableContainer
           sx={somar(
             {
-              // largura mínima: em telas pequenas a tabela rola em vez de espremer
-              minWidth: 700,
-              "& .MuiTableCell-root": {
-                borderColor: "var(--fnc-borda-suave)",
-                color: "var(--fnc-texto-superficie)",
-                textAlign: "center",
-                fontSize: 13,
-                whiteSpace: "nowrap",
-              },
-              "& .MuiTableCell-alignRight": { textAlign: "right" },
-              // conteúdo em Stack (flex) ignora o textAlign: alinha igual ao cabeçalho
-              "& .MuiTableBody-root .MuiTableCell-root > .MuiStack-root": {
-                justifyContent: "center",
-              },
-              "& .MuiTableBody-root .MuiTableCell-alignRight > .MuiStack-root": {
-                justifyContent: "flex-end",
-              },
-              // a seta de ordenação fica fora do fluxo, senão o título centralizado
-              // desloca para a esquerda pelo espaço reservado a ela
-              "& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-alignRight) .MuiTableSortLabel-root":
-                { position: "relative" },
-              "& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-alignRight) .MuiTableSortLabel-icon":
-                { position: "absolute", left: "100%" },
-              "& .MuiTableHead-root .MuiTableCell-root": {
-                bgcolor: "var(--fnc-cabecalho)",
-                color: "var(--fnc-apagado)",
-                fontSize: 11,
-                fontWeight: 600,
-                letterSpacing: 1,
-                textTransform: "uppercase",
-                cursor: "grab",
-              },
-              // o TableSortLabel usa as cores do tema; aqui segue a do cabeçalho
-              "& .MuiTableSortLabel-root, & .MuiTableSortLabel-root:hover, & .MuiTableSortLabel-root.Mui-active, & .MuiTableSortLabel-root.Mui-active .MuiTableSortLabel-icon":
-                { color: "inherit" },
+              maxHeight: 500,
+              bgcolor: "var(--fnc-superficie)",
+              border: "1px solid var(--fnc-borda-suave)",
+              borderRadius: 1,
             },
-            estilos?.tabela,
+            estilos?.container,
           )}
         >
-          <TableHead>
-            <TableRow>
-              {visiveis.map((coluna) => {
-                const o = prefs.ordenacao;
-                const ativa = o?.chave === coluna.chave;
-                return (
-                  <TableCell
-                    key={coluna.chave}
-                    align={coluna.alinhar}
-                    draggable
-                    sortDirection={ativa ? o!.direcao : false}
-                    onDragStart={(e) => {
-                      e.dataTransfer.effectAllowed = "move";
-                      setArrastando(coluna.chave);
-                    }}
-                    onDragOver={(e) => arrastando && e.preventDefault()}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      if (arrastando)
-                        mover(arrastando, prefs.ordem.indexOf(coluna.chave));
-                      setArrastando(null);
-                    }}
-                    onDragEnd={() => setArrastando(null)}
+          <Table
+            stickyHeader
+            sx={somar(
+              {
+                // largura mínima: em telas pequenas a tabela rola em vez de espremer
+                minWidth: 700,
+                "& .MuiTableCell-root": {
+                  borderColor: "var(--fnc-borda-suave)",
+                  color: "var(--fnc-texto-superficie)",
+                  textAlign: "center",
+                  fontSize: 13,
+                  whiteSpace: "nowrap",
+                },
+                "& .MuiTableCell-alignRight": { textAlign: "right" },
+                // conteúdo em Stack (flex) ignora o textAlign: alinha igual ao cabeçalho
+                "& .MuiTableBody-root .MuiTableCell-root > .MuiStack-root": {
+                  justifyContent: "center",
+                },
+                "& .MuiTableBody-root .MuiTableCell-alignRight > .MuiStack-root":
+                  {
+                    justifyContent: "flex-end",
+                  },
+                // a seta de ordenação fica fora do fluxo, senão o título centralizado
+                // desloca para a esquerda pelo espaço reservado a ela
+                "& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-alignRight) .MuiTableSortLabel-root":
+                  { position: "relative" },
+                "& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-alignRight) .MuiTableSortLabel-icon":
+                  { position: "absolute", left: "100%" },
+                "& .MuiTableHead-root .MuiTableCell-root": {
+                  bgcolor: "var(--fnc-cabecalho)",
+                  color: "var(--fnc-apagado)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  textTransform: "uppercase",
+                  cursor: "grab",
+                },
+                // o TableSortLabel usa as cores do tema; aqui segue a do cabeçalho
+                "& .MuiTableSortLabel-root, & .MuiTableSortLabel-root:hover, & .MuiTableSortLabel-root.Mui-active, & .MuiTableSortLabel-root.Mui-active .MuiTableSortLabel-icon":
+                  { color: "inherit" },
+              },
+              estilos?.tabela,
+            )}
+          >
+            <TableHead>
+              <TableRow>
+                {visiveis.map((coluna) => {
+                  const o = prefs.ordenacao;
+                  const ativa = o?.chave === coluna.chave;
+                  return (
+                    <TableCell
+                      key={coluna.chave}
+                      align={coluna.alinhar}
+                      draggable
+                      sortDirection={ativa ? o!.direcao : false}
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = "move";
+                        setArrastando(coluna.chave);
+                      }}
+                      onDragOver={(e) => arrastando && e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (arrastando)
+                          mover(arrastando, prefs.ordem.indexOf(coluna.chave));
+                        setArrastando(null);
+                      }}
+                      onDragEnd={() => setArrastando(null)}
+                      sx={{
+                        opacity: arrastando === coluna.chave ? 0.5 : 1,
+                      }}
+                    >
+                      <TableSortLabel
+                        active={ativa}
+                        direction={ativa ? o!.direcao : "asc"}
+                        onClick={() => alternarOrdenacao(coluna.chave)}
+                      >
+                        {coluna.titulo}
+                      </TableSortLabel>
+                    </TableCell>
+                  );
+                })}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {!carregando &&
+                linhasOrdenadas.map((linha, indice) => (
+                  <TableRow
+                    key={chaveLinha(linha, indice)}
+                    hover={Boolean(onClicarLinha)}
+                    onClick={onClicarLinha && (() => onClicarLinha(linha))}
                     sx={{
-                      opacity: arrastando === coluna.chave ? 0.5 : 1,
+                      cursor: onClicarLinha ? "pointer" : undefined,
+                      "&.MuiTableRow-hover:hover": {
+                        bgcolor: "var(--fnc-linha-hover)",
+                      },
+                      "&:last-child td": { borderBottom: 0 },
                     }}
                   >
-                    <TableSortLabel
-                      active={ativa}
-                      direction={ativa ? o!.direcao : "asc"}
-                      onClick={() => alternarOrdenacao(coluna.chave)}
-                    >
-                      {coluna.titulo}
-                    </TableSortLabel>
-                  </TableCell>
-                );
-              })}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {!carregando && linhasOrdenadas.map((linha, indice) => (
-              <TableRow
-                key={chaveLinha(linha, indice)}
-                hover={Boolean(onClicarLinha)}
-                onClick={onClicarLinha && (() => onClicarLinha(linha))}
-                sx={{
-                  cursor: onClicarLinha ? "pointer" : undefined,
-                  "&.MuiTableRow-hover:hover": {
-                    bgcolor: "var(--fnc-linha-hover)",
-                  },
-                  "&:last-child td": { borderBottom: 0 },
-                }}
-              >
-                {visiveis.map((coluna) => (
-                  <TableCell key={coluna.chave} align={coluna.alinhar}>
-                    {coluna.exibir
-                      ? coluna.exibir(linha)
-                      : (linha[coluna.chave] as ReactNode)}
-                  </TableCell>
+                    {visiveis.map((coluna) => (
+                      <TableCell key={coluna.chave} align={coluna.alinhar}>
+                        {coluna.exibir
+                          ? coluna.exibir(linha)
+                          : (linha[coluna.chave] as ReactNode)}
+                      </TableCell>
+                    ))}
+                  </TableRow>
                 ))}
-              </TableRow>
-            ))}
-            {carregando && (
-              <TableRow>
-                <TableCell colSpan={visiveis.length} sx={{ py: 4 }}>
-                  <CircularProgress
-                    size={32}
-                    aria-label="Carregando dados da tabela"
-                    sx={{ display: "block", mx: "auto", color: "inherit" }}
-                  />
-                </TableCell>
-              </TableRow>
-            )}
-            {!carregando && linhas.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={visiveis.length} sx={{ py: 4 }}>
-                  {mensagemVazia}
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              {carregando && (
+                <TableRow>
+                  <TableCell colSpan={visiveis.length} sx={{ py: 4 }}>
+                    <CircularProgress
+                      size={32}
+                      aria-label="Carregando dados da tabela"
+                      sx={{ display: "block", mx: "auto", color: "inherit" }}
+                    />
+                  </TableCell>
+                </TableRow>
+              )}
+              {!carregando && linhas.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={visiveis.length} sx={{ py: 4 }}>
+                    {mensagemVazia}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
 
       <Snackbar
         open={Boolean(aviso)}

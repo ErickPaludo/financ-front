@@ -54,25 +54,22 @@ const ChipsFiltros: React.FC<PropChipsFiltros> = ({
         />
       )}
     />
-    {/* juntos: quando a linha quebra, Status e Tipo descem lado a lado */}
-    <Stack direction="row" sx={{ gap: 1 }}>
-      <ChipSelect
-        rotulo="Status"
-        opcoes={OPCOES_STATUS}
-        valor={filtros.status}
-        setValor={(valor) =>
-          alterarFiltros({ status: valor as FiltrosMovimentacao["status"] })
-        }
-      />
-      <ChipSelect
-        rotulo="Tipo"
-        opcoes={OPCOES_TIPO}
-        valor={filtros.tipo}
-        setValor={(valor) =>
-          alterarFiltros({ tipo: valor as FiltrosMovimentacao["tipo"] })
-        }
-      />
-    </Stack>
+    <ChipSelect
+      rotulo="Status"
+      opcoes={OPCOES_STATUS}
+      valor={filtros.status}
+      setValor={(valor) =>
+        alterarFiltros({ status: valor as FiltrosMovimentacao["status"] })
+      }
+    />
+    <ChipSelect
+      rotulo="Tipo"
+      opcoes={OPCOES_TIPO}
+      valor={filtros.tipo}
+      setValor={(valor) =>
+        alterarFiltros({ tipo: valor as FiltrosMovimentacao["tipo"] })
+      }
+    />
   </Stack>
 );
 

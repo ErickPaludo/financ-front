@@ -9,3 +9,6 @@ export const estiloBotaoSecundario = {
   color: "var(--fnc-tx-chip-texto)",
   "&:hover": { bgcolor: "var(--fnc-tx-chip-fundo)" },
 };
+
+// Largura em que a barra lateral vira barra superior (também em LayoutPrincipal.css).
+export const CONSULTA_CELULAR = "(max-width:768px)";

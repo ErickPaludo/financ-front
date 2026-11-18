@@ -41,7 +41,7 @@ import { nomePermissao, PERMISSAO } from "../../utils/permissao";
 import { estiloBotaoSecundario } from "../../estilos";
 import "./MovimentacaoesStyle.css";
 
-// "Nova transação": no cabeçalho e, no modo extrato, na barra da tabela
+// "Nova transação": no cabeçalho e, no modo extrato, no topo do card da tabela
 const estiloBotaoPrincipal = {
   borderRadius: "10px",
   bgcolor: "var(--fnc-tx-destaque)",
@@ -498,6 +498,28 @@ const Movimentacoes: React.FC = () => {
           overflow: "hidden",
         }}
       >
+        {/* no extrato o cabeçalho some: o botão de nova transação vai para o topo do card,
+            com o fundo da barra de filtros logo abaixo (parecem uma área só) */}
+        {modoSimples && podeEditar && (
+          <Stack
+            sx={{
+              alignItems: "flex-end",
+              px: 2.5,
+              pt: 1.5,
+              bgcolor:
+                "color-mix(in srgb, var(--fnc-tx-barra-filtros) 60%, transparent)",
+            }}
+          >
+            <Button
+              variant="contained"
+              startIcon={<Icon>add</Icon>}
+              onClick={() => setCadMovAberto(true)}
+              sx={{ ...estiloBotaoPrincipal, height: 36, px: 2 }}
+            >
+              Nova transação
+            </Button>
+          </Stack>
+        )}
         <TabelaMovimentacao
           movimentacao={movimentacoes}
           carregando={recarregando || filtrosCarregados !== chaveFiltros}
@@ -521,13 +543,11 @@ const Movimentacoes: React.FC = () => {
                 dataFinal={dataFinal}
                 setPeriodo={(inicio, fim) => alterarFiltros({ inicio, fim })}
               />
-              {!modoSimples && (
-                <ChipsFiltros
-                  categorias={categorias}
-                  filtros={filtros}
-                  alterarFiltros={alterarFiltros}
-                />
-              )}
+              <ChipsFiltros
+                categorias={categorias}
+                filtros={filtros}
+                alterarFiltros={alterarFiltros}
+              />
 
               {/* margem automática: sempre à direita, mesmo quando a linha quebra;
                   no celular a linha é inteira: "Ver detalhes" à esquerda, maximizar à direita */}
@@ -556,18 +576,6 @@ const Movimentacoes: React.FC = () => {
                       setMarcado={setMostraDetalhes}
                     />
                   </Box>
-                )}
-
-                {/* no extrato o cabeçalho some: o botão de nova transação vem para a barra da tabela */}
-                {modoSimples && podeEditar && (
-                  <Button
-                    variant="contained"
-                    startIcon={<Icon>add</Icon>}
-                    onClick={() => setCadMovAberto(true)}
-                    sx={{ ...estiloBotaoPrincipal, height: 36, px: 2 }}
-                  >
-                    Nova transação
-                  </Button>
                 )}
 
                 <Tooltip title="Recarregar">
