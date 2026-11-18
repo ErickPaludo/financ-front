@@ -24,6 +24,8 @@ import type {
 import { ContaContext } from "../../contexts/ContaContext";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useCategorias } from "../../hooks/useCategorias";
+import { useValoresOcultos } from "../../hooks/useValoresOcultos";
+import BotaoOcultarValores from "../../componentes/botao-ocultar-valores/BotaoOcultarValores";
 import Modal from "../../componentes/modal/Modal";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
 import Categorias from "../categorias/Categorias";
@@ -36,7 +38,7 @@ import { useFiltrosUrl } from "./useFiltrosUrl";
 import { passaNosFiltros, rotaMovimentacoes } from "./filtrosUrl";
 import {
   formatarDataHora,
-  formatarMoeda,
+  exibirMoeda,
   normalizarNome,
   valorComSinal,
 } from "../../utils/formatacao";
@@ -95,7 +97,8 @@ const CardDetalhe: React.FC<{
   icone: string;
   corIcone: string;
   valores: ValorDetalhe[];
-}> = ({ rotulo, icone, corIcone, valores }) => (
+  ocultos: boolean;
+}> = ({ rotulo, icone, corIcone, valores, ocultos }) => (
   <CardResumo rotulo={rotulo} icone={icone} corIcone={corIcone}>
     <Stack direction="row" sx={{ flexWrap: "wrap", gap: "6px 16px" }}>
       {valores.map(({ rotulo, valor, tipo }) => (
@@ -109,10 +112,10 @@ const CardDetalhe: React.FC<{
               fontWeight: 700,
               lineHeight: 1.3,
               fontVariantNumeric: "tabular-nums",
-              color: corDoValor(tipo, valor),
+              color: corDoValor(tipo, ocultos ? 0 : valor), // oculto: sem cor que entregue o sinal
             }}
           >
-            {formatarMoeda(valor)}
+            {exibirMoeda(valor ?? 0, ocultos)}
           </Typography>
         </Box>
       ))}
@@ -167,6 +170,7 @@ const Movimentacoes: React.FC = () => {
   } = filtros;
   const [mostraDetalhes, setMostraDetalhes] = useState(false);
   const [busca, setBusca] = useState("");
+  const { ocultos, alternarOcultos } = useValoresOcultos();
   const [modoSimples, setModoSimples] = useState(false);
   const [recarregando, setRecarregando] = useState(false);
   const ultimaBusca = useRef(0);
@@ -328,18 +332,20 @@ const Movimentacoes: React.FC = () => {
               }
             />
 
-            {podeEditar && (
-              <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5 }}>
-                {ehMestre && (
-                  <>
-                    <Button
-                      sx={{ ...estiloBotaoSecundario, px: 2.5 }}
-                      onClick={() => setCategoriasAberto(true)}
-                    >
-                      Categorias
-                    </Button>
-                  </>
-                )}
+            <Stack direction="row" sx={{ flexWrap: "wrap", gap: 1.5 }}>
+              <BotaoOcultarValores
+                ocultos={ocultos}
+                onAlternar={alternarOcultos}
+              />
+              {podeEditar && ehMestre && (
+                <Button
+                  sx={{ ...estiloBotaoSecundario, px: 2.5 }}
+                  onClick={() => setCategoriasAberto(true)}
+                >
+                  Categorias
+                </Button>
+              )}
+              {podeEditar && (
                 <Button
                   variant="contained"
                   startIcon={<Icon>add</Icon>}
@@ -348,15 +354,15 @@ const Movimentacoes: React.FC = () => {
                 >
                   Nova transação
                 </Button>
-              </Stack>
-            )}
+              )}
+            </Stack>
           </Stack>
 
           <Box sx={gradeCards}>
             <CardResumo
               destaque
               rotulo="Saldo atual"
-              valor={formatarMoeda(contaAtual.saldoAtual)}
+              valor={exibirMoeda(contaAtual.saldoAtual, ocultos)}
               icone="account_balance"
               corIcone="var(--fnc-tx-sobre-destaque)"
             >
@@ -368,17 +374,17 @@ const Movimentacoes: React.FC = () => {
                 }}
               >
                 Real e projetado da conta:{" "}
-                {formatarMoeda(resumo?.saldoRealProjetado)}
+                {exibirMoeda(resumo?.saldoRealProjetado ?? 0, ocultos)}
               </Typography>
             </CardResumo>
 
             <CardResumo
               rotulo="Saldo projetado"
-              valor={formatarMoeda(contaAtual.saldoProjetado)}
+              valor={exibirMoeda(contaAtual.saldoProjetado, ocultos)}
               icone="query_stats"
               corIcone="var(--fnc-tx-destaque)"
               corValor={
-                contaAtual.saldoProjetado < 0
+                contaAtual.saldoProjetado < 0 && !ocultos
                   ? "var(--fnc-tx-despesa)"
                   : undefined
               }
@@ -386,7 +392,7 @@ const Movimentacoes: React.FC = () => {
 
             <CardResumo
               rotulo="Receitas pendentes"
-              valor={formatarMoeda(contaAtual.entradaPendente)}
+              valor={exibirMoeda(contaAtual.entradaPendente, ocultos)}
               icone="trending_up"
               corIcone="var(--fnc-tx-receita)"
               corValor="var(--fnc-tx-receita)"
@@ -401,7 +407,7 @@ const Movimentacoes: React.FC = () => {
 
             <CardResumo
               rotulo="Despesas pendentes"
-              valor={formatarMoeda(contaAtual.saidaPendente)}
+              valor={exibirMoeda(contaAtual.saidaPendente, ocultos)}
               icone="trending_down"
               corIcone="var(--fnc-tx-despesa)"
               corValor="var(--fnc-tx-despesa)"
@@ -418,6 +424,7 @@ const Movimentacoes: React.FC = () => {
           {mostraDetalhes && (
             <Box sx={gradeCards}>
               <CardDetalhe
+                ocultos={ocultos}
                 rotulo="Geral período"
                 icone="swap_vert"
                 corIcone="var(--fnc-tx-destaque)"
@@ -435,6 +442,7 @@ const Movimentacoes: React.FC = () => {
                 ]}
               />
               <CardDetalhe
+                ocultos={ocultos}
                 rotulo="Resto período"
                 icone="account_balance_wallet"
                 corIcone="var(--fnc-tx-destaque)"
@@ -452,6 +460,7 @@ const Movimentacoes: React.FC = () => {
                 ]}
               />
               <CardDetalhe
+                ocultos={ocultos}
                 rotulo="Entradas período"
                 icone="trending_up"
                 corIcone="var(--fnc-tx-receita)"
@@ -474,6 +483,7 @@ const Movimentacoes: React.FC = () => {
                 ]}
               />
               <CardDetalhe
+                ocultos={ocultos}
                 rotulo="Saídas período"
                 icone="trending_down"
                 corIcone="var(--fnc-tx-despesa)"
@@ -581,6 +591,7 @@ const Movimentacoes: React.FC = () => {
           </Stack>
         )}
         <TabelaMovimentacao
+          ocultarValores={ocultos}
           movimentacao={
             movimentacoes && {
               ...movimentacoes,
@@ -651,23 +662,25 @@ const Movimentacoes: React.FC = () => {
             <>
               <ValorRodape
                 rotulo="Gastos no período"
-                valor={formatarMoeda(resumo?.saida.projetado)}
+                valor={exibirMoeda(resumo?.saida.projetado ?? 0, ocultos)}
                 cor="var(--fnc-tx-despesa)"
               />
               <ValorRodape
                 rotulo="Saldo atual"
-                valor={formatarMoeda(contaAtual.saldoAtual)}
+                valor={exibirMoeda(contaAtual.saldoAtual, ocultos)}
                 cor="var(--fnc-tx-texto)"
               />
             </>
           ) : (
             <ValorRodape
               rotulo="Saldo do período"
-              valor={valorComSinal(saldoPeriodo)}
+              valor={valorComSinal(saldoPeriodo, ocultos)}
               cor={
-                saldoPeriodo < 0
-                  ? "var(--fnc-tx-despesa)"
-                  : "var(--fnc-tx-receita)"
+                ocultos
+                  ? "var(--fnc-tx-texto)"
+                  : saldoPeriodo < 0
+                    ? "var(--fnc-tx-despesa)"
+                    : "var(--fnc-tx-receita)"
               }
             />
           )}

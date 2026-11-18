@@ -1,10 +1,10 @@
 import { useContext, type ReactNode } from "react";
-import { Box, Icon, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
+import BotaoOcultarValores from "../../componentes/botao-ocultar-valores/BotaoOcultarValores";
 
 import type { ConteudoContas } from "../../models/contas-usuarios/GetContasBancarias";
 import { AuthContext } from "../../contexts/AuthContext";
 import { exibirMoeda } from "../../utils/formatacao";
-import { estiloBotaoSecundario } from "../../estilos";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
 
 const saudacao = () => {
@@ -56,7 +56,6 @@ const ResumoContas: React.FC<PropResumoContas> = ({
   const { user } = useContext(AuthContext);
   const contas = conteudo?.contas ?? [];
   const noTotal = contas.filter((c) => c.somaSaldo).length;
-  const textoOlho = ocultarValores ? "Mostrar valores" : "Ocultar valores";
 
   return (
     <Stack spacing={3}>
@@ -79,16 +78,10 @@ const ResumoContas: React.FC<PropResumoContas> = ({
         </Box>
 
         <Stack direction="row" spacing={1.5}>
-          <Tooltip title={textoOlho}>
-            <IconButton
-              onClick={onAlternarOcultar}
-              aria-label={textoOlho}
-              aria-pressed={ocultarValores}
-              sx={{ ...estiloBotaoSecundario, width: 44 }}
-            >
-              <Icon>{ocultarValores ? "visibility_off" : "visibility"}</Icon>
-            </IconButton>
-          </Tooltip>
+          <BotaoOcultarValores
+            ocultos={ocultarValores}
+            onAlternar={onAlternarOcultar}
+          />
         </Stack>
       </Stack>
 

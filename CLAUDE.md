@@ -38,6 +38,7 @@ src/
     barra-lateral/        menu (MUI Drawer): Contas, conta atual (só na tela da conta, `/:idConta/contabancaria`) com subtópicos (Dashboard; Agendadas e Membros da conta abrem painéis; fechados, a seta ao lado abre; ao entrar em `/:idConta/contabancaria` abrem e fecham sozinhos em 3s, a menos que o usuário clique na seta ou num subtópico), no fim do menu, a versão (à esquerda) e, só na tela da conta, "Sair da conta" abaixo dela, Convites (abre o painel), "Última acessada" (fora das telas da conta: atalho para a última conta aberta, `useUltimaConta`; some se a conta não estiver mais ativa para o usuário), Favoritos; menu do usuário no rodapé
     carregamento/         tela de carregamento (sem fundo próprio, logo clara)
     titulo-pagina/        TituloPagina (h1 das telas logadas + subtítulo opcional)
+    botao-ocultar-valores/  BotaoOcultarValores (olho que esconde os valores em R$; Inicial, Dashboard e tela da conta, estado em useValoresOcultos)
     aviso-atualizacao/    AvisoAtualizacao (PWA: offline pronto / nova versão; Snackbar)
     painel-lateral/       PainelLateral + CabecalhoPainel + EstadoLista + DetalhePainel (esqueleto dos subpainéis ao lado da barra lateral)
     chip-categoria/       ChipCategoria (categoria na cor da API)

@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Box, Icon, Stack } from "@mui/material";
 import type {
   GetMovimentacoes,
@@ -17,6 +17,7 @@ type PropTabelaMovimentacao = {
   filtros?: ReactNode; // barra de filtros no topo da tabela
   acoes?: ReactNode; // botões da tela junto dos ícones da tabela
   carregando?: boolean;
+  ocultarValores?: boolean; // botão de olho: valores em R$ mascarados
 };
 
 const formatarData = (data: string) =>
@@ -35,7 +36,7 @@ const formatarData = (data: string) =>
 const ehReceita = (mov: Movimentacao) => mov.tipo === 0;
 
 // datas vêm em ISO do back-end, então ordenar o texto já ordena por data
-const COLUNAS: ColunaTabela<Movimentacao>[] = [
+const colunas = (ocultos: boolean): ColunaTabela<Movimentacao>[] => [
   {
     titulo: "Título",
     chave: "titulo",
@@ -87,7 +88,7 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
             : "var(--fnc-tx-despesa)",
         }}
       >
-        {valorComSinal(ehReceita(mov) ? mov.valor : -mov.valor)}
+        {valorComSinal(ehReceita(mov) ? mov.valor : -mov.valor, ocultos)}
       </Box>
     ),
   },
@@ -242,17 +243,20 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
   filtros,
   acoes,
   carregando = false,
+  ocultarValores = false,
 }) => {
   const [movSelecionada, setMovSelecionada] = useState<Movimentacao | null>(
     null,
   );
+  // memo: a TabelaDados reordena as linhas sempre que as colunas mudam
+  const colunasMemo = useMemo(() => colunas(ocultarValores), [ocultarValores]);
 
   return (
     <>
       <TabelaDados
         idPreferencias="movimentacoes"
         linhas={movimentacao?.conteudo?.movimentacaos ?? []}
-        colunas={COLUNAS}
+        colunas={colunasMemo}
         chaveLinha={(mov) =>
           mov.id > 0 ? mov.id : `${mov.idFixo} ${mov.dthrMovimentacao}`
         }

@@ -25,6 +25,7 @@ import {
   type Movimentacao,
 } from "../../models/movimentacoes/GetMovimentacoes";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
+import BotaoOcultarValores from "../../componentes/botao-ocultar-valores/BotaoOcultarValores";
 import { useBuscaApi } from "../../hooks/useBuscaApi";
 import { useCategorias } from "../../hooks/useCategorias";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
@@ -322,7 +323,7 @@ const Dashboard: React.FC = () => {
   const { conta } = useContext(ContaContext);
   // a rota (ContaDaRota) só mostra esta tela com a conta carregada
   const contaAtual = conta!;
-  const { ocultos } = useValoresOcultos();
+  const { ocultos, alternarOcultos } = useValoresOcultos();
   const [formato, setFormato] = useState<"linha" | "barra">("linha");
   const { user } = useContext(AuthContext);
 
@@ -474,10 +475,16 @@ const Dashboard: React.FC = () => {
 
   return (
     <Stack className="transacoes-container" spacing={3}>
-      <TituloPagina
-        titulo={`Dashboard · ${contaAtual.titulo}`}
-        subtitulo="Resumo do período"
-      />
+      <Stack
+        direction="row"
+        sx={{ justifyContent: "space-between", alignItems: "center", gap: 2 }}
+      >
+        <TituloPagina
+          titulo={`Dashboard · ${contaAtual.titulo}`}
+          subtitulo="Resumo do período"
+        />
+        <BotaoOcultarValores ocultos={ocultos} onAlternar={alternarOcultos} />
+      </Stack>
 
       <Stack
         direction="row"

@@ -13,8 +13,8 @@ export const exibirMoeda = (valor: number, oculto: boolean) =>
   oculto ? "R$ ••••" : formatarMoeda(valor);
 
 // Sinal além da cor (acessibilidade): "+R$ 105,00" / "−R$ 145,00" (sinal de menos tipográfico).
-export const valorComSinal = (valor: number) =>
-  `${valor < 0 ? "−" : "+"}${formatarMoeda(Math.abs(valor))}`;
+export const valorComSinal = (valor: number, oculto = false) =>
+  oculto ? "R$ ••••" : `${valor < 0 ? "−" : "+"}${formatarMoeda(Math.abs(valor))}`;
 
 // Data e hora local no formato do <input type="datetime-local">, usado pelos campos de data (dayjs.format).
 export const FORMATO_DATA_HORA = "YYYY-MM-DDTHH:mm";
