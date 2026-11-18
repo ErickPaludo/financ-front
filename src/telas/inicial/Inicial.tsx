@@ -7,8 +7,7 @@ import { useContext, useState } from "react";
 import { useBuscaApi } from "../../hooks/useBuscaApi";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
-import { moverId, ordenarPorIds } from "../../utils/ordem";
-import { useOrdemSalva } from "../../hooks/useOrdemSalva";
+import { useOrdemArrastavel } from "../../hooks/useOrdemArrastavel";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
 
 import CadContas from "../contas-bancarias/cad-conta/CadContas";
@@ -34,27 +33,15 @@ export const Inicial: React.FC = () => {
 
   // Ordem dos cards definida pelo usuário arrastando.
   const { user } = useContext(AuthContext);
-  const { ids: ordemSalva, salvarOrdem } = useOrdemSalva<number>(
+  const {
+    ordenados: contas,
+    arrastando: idArrastando,
+    propsArrastar,
+  } = useOrdemArrastavel(
     `ordemContas:${user?.id ?? "anonimo"}`,
-  );
-  const [idArrastando, setIdArrastando] = useState<number | null>(null);
-  const contas = ordenarPorIds(
     contasObtidas?.conteudo.contas ?? [],
-    ordemSalva,
     (conta) => conta.idConta,
   );
-
-  // Reposiciona enquanto arrasta: o card vai para o lugar do card que está embaixo do cursor.
-  const passarPorCima = (idDestino: number) => {
-    if (idArrastando === null || idArrastando === idDestino) return;
-    salvarOrdem(
-      moverId(
-        contas.map((conta) => conta.idConta),
-        idArrastando,
-        idDestino,
-      ),
-    );
-  };
   // depois de alterar uma conta: atualiza os cards e os favoritos da barra lateral
   const { contasAlteradas } = useContext(ContaContext);
   const atualizarContas = () => {
@@ -80,17 +67,8 @@ export const Inicial: React.FC = () => {
               {contas.map((conta) => (
                 <div
                   key={conta.idConta}
-                  draggable
+                  {...propsArrastar(conta.idConta)}
                   className={`conta-arrastavel${idArrastando === conta.idConta ? " conta-arrastando" : ""}`}
-                  onDragStart={(e) => {
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", String(conta.idConta)); // o Firefox exige algum dado
-                    setIdArrastando(conta.idConta);
-                  }}
-                  onDragEnter={() => passarPorCima(conta.idConta)}
-                  onDragOver={(e) => e.preventDefault()} // permite soltar sobre o card
-                  onDrop={(e) => e.preventDefault()}
-                  onDragEnd={() => setIdArrastando(null)}
                 >
                   <CardConta
                     conta={conta}

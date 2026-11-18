@@ -48,7 +48,7 @@ src/
     painel-convites/      PainelConvites (convites recebidos e enviados) + CadConvite (formulário; também usado pelo "Novo convite" da tela da conta, com a conta já escolhida)
     painel-agendadas/     PainelAgendadas (tabela, 920px) + FormularioAgendada (gaveta) + agendadas.ts (tipos e datas)
   estilos.ts              sx compartilhados (estiloBotaoSecundario)
-  hooks/                  useBuscaApi(rota) (GET com dados/erro/carregando/buscar: use em toda busca ao abrir), useEnvioFormulario, useModoCor, useValoresOcultos, useCategorias(idConta), useCoresBarra(), useUltimaConta(idUsuario, idContaAberta), useContasMestre() (contas em que o usuário é mestre: 1 requisição de permissão por conta, porque a lista não traz a permissão)
+  hooks/                  useBuscaApi(rota) (GET com dados/erro/carregando/buscar: use em toda busca ao abrir), useEnvioFormulario, useModoCor, useValoresOcultos, useCategorias(idConta), useCoresBarra(), useUltimaConta(idUsuario, idContaAberta), useContasMestre() (contas em que o usuário é mestre: 1 requisição de permissão por conta, porque a lista não traz a permissão), useOrdemArrastavel(chave, itens, idDe) (arrastar para reordenar com ordem salva: `ordenados`, `arrastando`, `propsArrastar(id)`; cards de conta e do dashboard), useEncerrarSessao() (revoga a sessão, faz logout e limpa a conta)
   props/                  componentes de formulário
     campo-texto/          CampoTexto (TextField padrão) + validacoes.ts
     campo-expiracao/      CampoExpiracao (checkbox "Tempo de expiração" + minutos; convite e membro)
@@ -60,9 +60,9 @@ src/
   services/
     api/api.ts            axios + token + interceptors de 401/refresh
     api/apiConnect.ts     Conecta<T>(rota, metodo, corpo) -> ApiResult<T> (nunca lança erro; importe como `Conecta`)
-    auth/tokenService.ts  autenticar()
+    auth/tokenService.ts  autenticar(), revogarSessao()
     usuario/usuarioService.ts  registrarUsuario()
-    contas/contaUsuarioService.ts  buscarContaUsuario(idConta, idUsuario) (permissão do usuário na conta)
+    contas/contaUsuarioService.ts  rotas de `/ContasUsuarios`: buscarContas(idConta?), buscarContaUsuario(idConta, idUsuario) (permissão do usuário na conta), sairDaConta, alternarFavorita, alternarSomaSaldo
     movimentacoes/movimentacaoService.ts  materializarMovimentacao, alterarCategoriasMovimentacao, mesmasCategorias
   telas/                  uma pasta por tela (kebab-case), arquivo em PascalCase
   utils/formatacao.ts     formatarMoeda, exibirMoeda, valorComSinal, dataHoraLocal, paraIsoUtc, periodoDoMes, formatarDataHora, iniciais, normalizarNome (comparar/pesquisar nomes sem acento, maiúscula e espaços nas pontas)
@@ -99,7 +99,7 @@ A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca
 - Cor primária: `#155dfc`. Itens selecionados, botões de ação e o card de resumo usam a primária **sólida**; não há mais degradê (o `Button` `contained` usa a primária do tema).
 - Modo claro/escuro: `useModoCor` (chave `modoCor`; sem escolha salva, segue o sistema). O `LayoutPrincipal` controla o modo; o botão fica no menu do usuário da barra lateral.
   - Só as rotas de `telaDeCards` (`LayoutPrincipal.tsx`: `/` e `/:idConta/contabancaria`) recebem o tema claro (e o fundo desfocado); os painéis e a gaveta seguem o modo em qualquer tela; as demais ficam no escuro até migrarem.
-  - Componentes antigos com CSS próprio usam variáveis `--fnc-*` geradas de `paleta.telas` (`variaveisTelas` em `cores.ts`), aplicadas no `<main>` (paleta do modo) e na gaveta `Modal` (paleta do modo, como a barra). `--fnc-texto`/`--fnc-apoio` são para o que fica sobre o fundo azul da página; cards, tabelas e listas redefinem as duas para `--fnc-texto-superficie`/`--fnc-apoio-superficie` no próprio CSS. O label do `TextField` e do checkbox também lê `--fnc-apoio`. Não use hex nesses CSS.
+  - Componentes antigos com CSS próprio usam variáveis `--fnc-*` geradas de `paleta.telas` (`variaveisTelas` em `cores.ts`), aplicadas no `<main>` (paleta do modo) e na gaveta `Modal` (paleta do modo, como a barra). `--fnc-texto`/`--fnc-apoio` são para o que fica sobre o fundo azul da página; o texto das tabelas usa `--fnc-texto-superficie`. O label do `TextField` e do checkbox também lê `--fnc-apoio`. Não use hex nesses CSS.
   - Fundo da área central: `telas.pagina` + marca d'água (`.fnc-fundo-marca` em `index.css`). No escuro, igual ao login (`#030a1f`, marca branca, texto claro); no claro, **branco gelo** (`#eaf0f7`, os cards brancos se destacam) com a marca azul-escura (`.fnc-fundo-marca--escura`) e `--fnc-texto`/`--fnc-apoio` escuros (cards e tabelas continuam azuis com texto branco). O fundo fica no invólucro `.area-central`; em `/` e `/:idConta/contabancaria` o `<main>` ganha `.fundo-desfocado` (`backdrop-filter: blur(12px)`), que desfoca só o fundo, não o conteúdo.
   - Barra lateral: **branca** no modo claro em todas as telas (`BarraLateralClara` em `cores.ts`), `#0f172b` no escuro. A gaveta `Modal` segue a barra: no claro, `BarraLateralClara` + tema claro + `variaveisTelas(CoresClaro)`; no escuro, `CoresEscuro.barraLateral` + tema escuro.
 - Logos em `src/assets/`: `pldprojects-logo-clara.svg` (login no escuro); na barra lateral só o SVG, sem quadro: `pldprojects-logo-azul.svg` no claro e `pldprojects-logo-azul-clara.svg` no escuro, `pldprojects-logo-azul-clara.svg` (toda branca, no carregamento sobre fundo escuro), `pldprojects-logo-azul.svg` (login e carregamento no modo claro; também a marca d'água do fundo claro, a 7% via `::before`), `pldprojects-marca-dagua.svg` (marca d'água do fundo escuro). A logo da barra sobe 10% (`translateY(-10%)`) porque o desenho pesa embaixo.

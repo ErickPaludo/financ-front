@@ -10,7 +10,11 @@ import { ThemeProvider } from "@mui/material/styles";
 
 import Conecta from "../../services/api/apiConnect";
 import type { UsuarioResponse3 } from "../../models/usuario/UsuarioResponse";
-import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
+import {
+  buscarContas,
+  sairDaConta,
+} from "../../services/contas/contaUsuarioService";
+import { useEncerrarSessao } from "../../hooks/useEncerrarSessao";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import Carregamento from "../carregamento/Carregamento";
@@ -27,7 +31,7 @@ const telaDeCards = (rota: string) => rota === "/" || ehTelaDaConta(rota);
 
 // Estrutura das telas logadas: barra lateral + a tela da rota atual (Outlet).
 const LayoutPrincipal: React.FC = () => {
-  const { user, logout, setUser, inicializando } = useContext(AuthContext);
+  const { user, setUser, inicializando } = useContext(AuthContext);
   const { conta, limparConta } = useContext(ContaContext);
   const navigate = useNavigate();
   const rotaAtual = useLocation().pathname;
@@ -55,18 +59,11 @@ const LayoutPrincipal: React.FC = () => {
     if (resposta.sucesso && resposta.dados) setUser(resposta.dados);
   };
 
-  const deslogar = async () => {
-    await Conecta("/Autenticacao/revoke", "POST");
-    logout();
-    limparConta();
-    navigate("/login", { replace: true });
-  };
+  const deslogar = useEncerrarSessao();
 
   const sairDaContaBancaria = async () => {
-    const resposta = await Conecta<string>(
-      `/ContasUsuarios/${conta?.idConta}/sair`,
-      "POST",
-    );
+    if (!conta) return navigate("/");
+    const resposta = await sairDaConta(conta.idConta);
     if (resposta.sucesso) {
       limparConta();
       navigate("/");
@@ -143,15 +140,13 @@ export const ContaDaRota: React.FC = () => {
   useEffect(() => {
     if (carregada || !Number.isInteger(id)) return;
     let ativo = true;
-    Conecta<ContaResponse>(`/ContasUsuarios?id=${id}`, "GET").then(
-      (resposta) => {
-        if (!ativo) return;
-        const encontrada = resposta.dados?.conteudo.contas[0];
-        if (encontrada?.idConta === id && encontrada.status === 0)
-          setConta(encontrada);
-        else setNaoEncontrada(true);
-      },
-    );
+    buscarContas(id).then((resposta) => {
+      if (!ativo) return;
+      const encontrada = resposta.dados?.conteudo.contas[0];
+      if (encontrada?.idConta === id && encontrada.status === 0)
+        setConta(encontrada);
+      else setNaoEncontrada(true);
+    });
     return () => {
       ativo = false;
     };

@@ -26,8 +26,13 @@ import {
 import { AuthContext } from "../../../contexts/AuthContext";
 import { ContaContext } from "../../../contexts/ContaContext";
 import type { ContaBancaria } from "../../../models/contas-usuarios/GetContasBancarias";
-import Conecta from "../../../services/api/apiConnect";
-import { buscarContaUsuario } from "../../../services/contas/contaUsuarioService";
+import type { ApiResult } from "../../../models/interface/ApiResult";
+import {
+  alternarFavorita,
+  alternarSomaSaldo,
+  buscarContaUsuario,
+  sairDaConta,
+} from "../../../services/contas/contaUsuarioService";
 import {
   exibirMoeda,
   formatarDataHora,
@@ -132,9 +137,12 @@ const CardConta: React.FC<PropCardConta> = ({
     setAdmin(resposta.dados?.conteudo[0]?.permissao === PERMISSAO.Mestre);
   };
 
-  const executar = async (rota: string, mensagemErro: string) => {
+  const executar = async (
+    acao: (idConta: number) => Promise<ApiResult<string>>,
+    mensagemErro: string,
+  ) => {
     setAncoraMenu(null);
-    const resposta = await Conecta<string>(rota, "POST");
+    const resposta = await acao(conta.idConta);
     if (resposta.sucesso) onAlterada();
     else setErro(resposta.erro ?? mensagemErro);
   };
@@ -256,7 +264,7 @@ const CardConta: React.FC<PropCardConta> = ({
                 <MenuItem
                   onClick={() =>
                     executar(
-                      `/ContasUsuarios/${conta.idConta}/Favorita`,
+                      alternarFavorita,
                       "Não foi possível favoritar a conta.",
                     )
                   }
@@ -277,7 +285,7 @@ const CardConta: React.FC<PropCardConta> = ({
                   aria-checked={conta.somaSaldo}
                   onClick={() =>
                     executar(
-                      `/ContasUsuarios/${conta.idConta}/AutoSoma`,
+                      alternarSomaSaldo,
                       "Não foi possível alterar a soma do saldo.",
                     )
                   }
@@ -342,7 +350,7 @@ const CardConta: React.FC<PropCardConta> = ({
                     onClick={() => {
                       setConfirmarSaida(false);
                       executar(
-                        `/ContasUsuarios/${conta.idConta}/sair`,
+                        sairDaConta,
                         "Não foi possível sair da conta.",
                       );
                     }}

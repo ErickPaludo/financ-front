@@ -27,9 +27,8 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import type {
   ContaBancaria,
-  ContaResponse,
 } from "../../models/contas-usuarios/GetContasBancarias";
-import Conecta from "../../services/api/apiConnect";
+import { buscarContas } from "../../services/contas/contaUsuarioService";
 import MsgBox from "../../props/msg-box/MsgBox";
 import TituloSecao from "../titulo-secao/TituloSecao";
 import PainelMembros from "../painel-membros/PainelMembros";
@@ -190,7 +189,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   // Rebusca ao navegar e ao trocar a conta: favoritar acontece em outras telas.
   useEffect(() => {
     let ativo = true;
-    Conecta<ContaResponse>("/ContasUsuarios", "GET").then((resposta) => {
+    buscarContas().then((resposta) => {
       if (ativo && resposta.sucesso && resposta.dados)
         setContasAtivas(
           resposta.dados.conteudo.contas.filter((c) => c.status === 0),

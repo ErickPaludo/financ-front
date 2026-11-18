@@ -13,12 +13,14 @@ import {
 } from "@mui/material";
 
 import Conecta from "../../services/api/apiConnect";
-import { buscarContaUsuario } from "../../services/contas/contaUsuarioService";
+import {
+  buscarContas,
+  buscarContaUsuario,
+} from "../../services/contas/contaUsuarioService";
 import type {
   GetMovimentacoes,
   Movimentacao,
 } from "../../models/movimentacoes/GetMovimentacoes";
-import type { ContaResponse } from "../../models/contas-usuarios/GetContasBancarias";
 import { ContaContext } from "../../contexts/ContaContext";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useCategorias } from "../../hooks/useCategorias";
@@ -180,12 +182,10 @@ const Movimentacoes: React.FC = () => {
   // atualiza saldos da conta (o card de resumo e a barra lateral leem do contexto)
   const buscarConta = useCallback(
     () =>
-      Conecta<ContaResponse>(`/ContasUsuarios?id=${idConta}`, "GET").then(
-        (resposta) => {
-          if (resposta.sucesso && resposta.dados)
-            setConta(resposta.dados.conteudo.contas[0]);
-        },
-      ),
+      buscarContas(idConta).then((resposta) => {
+        if (resposta.sucesso && resposta.dados)
+          setConta(resposta.dados.conteudo.contas[0]);
+      }),
     [idConta, setConta],
   );
 

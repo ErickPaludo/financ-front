@@ -17,8 +17,7 @@ import { ptBRLocaleText } from "@mui/x-charts/locales";
 
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
-import { useOrdemSalva } from "../../hooks/useOrdemSalva";
-import { moverId, ordenarPorIds } from "../../utils/ordem";
+import { useOrdemArrastavel } from "../../hooks/useOrdemArrastavel";
 import { CoresClaro, CoresEscuro } from "../../cores";
 import {
   TIPO_MOVIMENTACAO,
@@ -326,10 +325,6 @@ const Dashboard: React.FC = () => {
   const { ocultos } = useValoresOcultos();
   const [formato, setFormato] = useState<"linha" | "barra">("linha");
   const { user } = useContext(AuthContext);
-  const { ids: ordemSalva, salvarOrdem } = useOrdemSalva<IdGrafico>(
-    `ordemDashboard:${user?.id ?? "anonimo"}`,
-  );
-  const [arrastando, setArrastando] = useState<IdGrafico | null>(null);
 
   const { filtros, alterarFiltros } = useFiltrosUrl();
   const { inicio, fim, tipo } = filtros;
@@ -470,18 +465,12 @@ const Dashboard: React.FC = () => {
       ),
     },
   ];
-  const ordenados = ordenarPorIds(graficos, ordemSalva, (g) => g.id);
+  const { ordenados, arrastando, propsArrastar } = useOrdemArrastavel(
+    `ordemDashboard:${user?.id ?? "anonimo"}`,
+    graficos,
+    (g) => g.id,
+  );
   const graficosVisiveis = ordenados.filter((g) => g.visivel);
-  const passarPorCima = (destino: IdGrafico) => {
-    if (arrastando === null || arrastando === destino) return;
-    salvarOrdem(
-      moverId(
-        ordenados.map((g) => g.id),
-        arrastando,
-        destino,
-      ),
-    );
-  };
 
   return (
     <Stack className="transacoes-container" spacing={3}>
@@ -514,16 +503,7 @@ const Dashboard: React.FC = () => {
         {graficosVisiveis.map(({ id, elemento }) => (
           <Box
             key={id}
-            draggable
-            onDragStart={(e) => {
-              e.dataTransfer.effectAllowed = "move";
-              e.dataTransfer.setData("text/plain", id); // o Firefox exige algum dado
-              setArrastando(id);
-            }}
-            onDragEnter={() => passarPorCima(id)}
-            onDragOver={(e) => e.preventDefault()} // permite soltar sobre o card
-            onDrop={(e) => e.preventDefault()}
-            onDragEnd={() => setArrastando(null)}
+            {...propsArrastar(id)}
             sx={{
               opacity: arrastando === id ? 0.4 : 1,
               transition: "opacity 0.15s ease",

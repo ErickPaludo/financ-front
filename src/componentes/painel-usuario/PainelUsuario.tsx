@@ -1,5 +1,4 @@
 import { useContext, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -15,7 +14,7 @@ import {
 
 import Conecta from "../../services/api/apiConnect";
 import { AuthContext } from "../../contexts/AuthContext";
-import { ContaContext } from "../../contexts/ContaContext";
+import { useEncerrarSessao } from "../../hooks/useEncerrarSessao";
 import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
 import { useCoresBarra } from "../../hooks/useCoresBarra";
 import CampoTexto from "../../props/campo-texto/CampoTexto";
@@ -149,9 +148,7 @@ const OpcaoExpansivel: React.FC<PropOpcaoExpansivel> = ({
 
 // Alterar a senha; depois de alterar, a sessão é encerrada e volta ao login.
 const FormularioSenha: React.FC = () => {
-  const { logout } = useContext(AuthContext);
-  const { limparConta } = useContext(ContaContext);
-  const navigate = useNavigate();
+  const encerrarSessao = useEncerrarSessao();
 
   const [senhaAntiga, setSenhaAntiga] = useState("");
   const [senhaNova, setSenhaNova] = useState("");
@@ -180,10 +177,7 @@ const FormularioSenha: React.FC = () => {
 
     // a senha mudou: a sessão atual é encerrada
     setSucesso(true);
-    await Conecta<null>("/Autenticacao/revoke", "POST");
-    logout();
-    limparConta();
-    navigate("/login", { replace: true });
+    await encerrarSessao();
   };
 
   const envio = useEnvioFormulario(alterarSenha);

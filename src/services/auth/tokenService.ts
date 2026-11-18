@@ -8,3 +8,6 @@ export function autenticar(
 ): Promise<ApiResult<TokenResponse>> {
   return Conecta<TokenResponse>("Autenticacao/login", "POST", credenciais);
 }
+
+// Encerra a sessão no servidor (invalida o refresh token).
+export const revogarSessao = () => Conecta<null>("/Autenticacao/revoke", "POST");

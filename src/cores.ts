@@ -18,14 +18,13 @@ export type Paleta = {
 };
 
 // Componentes antigos (CSS próprio) das telas logadas: viram variáveis --fnc-<chave> (variaveisTelas).
-// "texto"/"apoio" são para o que fica direto sobre o fundo da página; cards, tabelas e listas
-// trocam por "textoSuperficie"/"apoioSuperficie" redefinindo as duas variáveis no próprio CSS.
+// "texto"/"apoio" são para o que fica direto sobre o fundo da página; o texto das tabelas
+// usa "textoSuperficie".
 export type CoresTelas = Record<
   | "pagina" // fundo da área central
   | "texto"
   | "apoio"
   | "textoSuperficie"
-  | "apoioSuperficie"
   | "superficie"
   | "cabecalho" // cabeçalho das tabelas
   | "bordaSuave"
@@ -171,7 +170,6 @@ export const CoresEscuro: Paleta = {
     texto: "#ffffff",
     apoio: "#90a1b9",
     textoSuperficie: "#ffffff",
-    apoioSuperficie: "#90a1b9",
     superficie: "rgba(29, 41, 61, 0.7)",
     cabecalho: "#314158",
     bordaSuave: "rgba(49, 65, 88, 0.5)",
@@ -271,7 +269,6 @@ export const CoresClaro: Paleta = {
     texto: "#0f172b",
     apoio: "#475569",
     textoSuperficie: "#ffffff",
-    apoioSuperficie: "#bedbff", // o mesmo rótulo do ResumoContas
     superficie: primaria.principal,
     // sólido (= branco 12% sobre a primária): o cabeçalho fixo não pode deixar ver as linhas rolando por baixo
     cabecalho: "#3170fc",
