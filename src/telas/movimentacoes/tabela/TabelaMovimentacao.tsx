@@ -15,6 +15,7 @@ type PropTabelaMovimentacao = {
   movimentacao?: GetMovimentacoes; // sem dados ainda: tabela vazia (ou carregando)
   buscaMovimentacoes: () => void;
   filtros?: ReactNode; // barra de filtros no topo da tabela
+  acoes?: ReactNode; // botões da tela junto dos ícones da tabela
   carregando?: boolean;
 };
 
@@ -163,6 +164,7 @@ const COLUNAS: ColunaTabela<Movimentacao>[] = [
 const ESTILOS = {
   // a barra de filtros é o topo do card da tabela
   barra: {
+    flexWrap: "wrap", // no celular os botões descem para baixo do "Filtros"
     px: 2.5,
     py: 1.5,
     bgcolor: "color-mix(in srgb, var(--fnc-tx-barra-filtros) 60%, transparent)",
@@ -176,7 +178,10 @@ const ESTILOS = {
   // o card (borda, cantos e o vidro fosco: translúcido + desfoque) fica em quem envolve a
   // tabela; aqui o fundo é transparente para as linhas mostrarem esse vidro
   container: {
-    maxHeight: 560,
+    // ocupa o que sobra do card (que preenche a tela) e rola por dentro: a página não rola
+    flex: 1,
+    minHeight: 0,
+    maxHeight: "none", // o padrão do TabelaDados/LinhasSeparadas (500px) deixaria sobra embaixo
     bgcolor: "transparent",
     border: 0,
     borderRadius: 0,
@@ -212,7 +217,10 @@ const ESTILOS = {
   },
   // linhas separadas: cards translúcidos sobre o mesmo vidro do card
   linhas: {
-    maxHeight: 560,
+    // ocupa o que sobra do card (que preenche a tela) e rola por dentro: a página não rola
+    flex: 1,
+    minHeight: 0,
+    maxHeight: "none", // o padrão do TabelaDados/LinhasSeparadas (500px) deixaria sobra embaixo
     p: 2,
     color: "var(--fnc-tx-texto-tabela)",
     "& .linha-separada": {
@@ -232,6 +240,7 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
   movimentacao,
   buscaMovimentacoes,
   filtros,
+  acoes,
   carregando = false,
 }) => {
   const [movSelecionada, setMovSelecionada] = useState<Movimentacao | null>(
@@ -250,6 +259,7 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
         onClicarLinha={setMovSelecionada}
         mensagemVazia="Nenhuma movimentação no período."
         barra={filtros}
+        acoes={acoes}
         carregando={carregando}
         estilos={ESTILOS}
         ordenacaoPadrao={{ chave: "dthrMovimentacao", direcao: "desc" }}

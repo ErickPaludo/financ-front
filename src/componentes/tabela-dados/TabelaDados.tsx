@@ -75,6 +75,8 @@ type PropTabelaDados<T> = {
   ordenacaoPadrao?: Ordenacao;
   // mostra o botão que alterna entre a tabela e as linhas separadas (LinhasSeparadas)
   permitirLinhas?: boolean;
+  // botões extras da tela, no mesmo grupo dos ícones da tabela (não se separam ao quebrar a linha)
+  acoes?: ReactNode;
 };
 
 // Tabela com colunas reordenáveis (arrastando o cabeçalho ou pelo menu "Colunas"),
@@ -93,6 +95,7 @@ function TabelaDados<T extends object>({
   estilos,
   ordenacaoPadrao = null,
   permitirLinhas = false,
+  acoes,
 }: PropTabelaDados<T>) {
   const chaves = colunas.map((c) => c.chave as string);
   const [prefs, setPrefs] = useState<PreferenciasTabela>(() => {
@@ -187,10 +190,15 @@ function TabelaDados<T extends object>({
   };
 
   return (
-    <Stack spacing={1} sx={{ flex: 1, minWidth: 0, width: "100%" }}>
+    // minHeight 0: dentro de um card de altura limitada, encolhe e a tabela rola por dentro
+    <Stack
+      spacing={1}
+      sx={{ flex: 1, minWidth: 0, minHeight: 0, width: "100%" }}
+    >
       <Stack
         direction="row"
         spacing={1}
+        useFlexGap // espaço por gap: com flexWrap no estilo, a linha de baixo não herda margem
         sx={somar(
           {
             alignItems: "center",
@@ -210,6 +218,7 @@ function TabelaDados<T extends object>({
           </Typography>
         )}
         <Stack direction="row" spacing={1}>
+          {acoes}
           {permitirLinhas && !telaEstreita && (
             <Tooltip
               title={emLinhas ? "Ver como tabela" : "Ver em linhas separadas"}
@@ -240,7 +249,8 @@ function TabelaDados<T extends object>({
               {/* span: o Tooltip precisa de um elemento ativo mesmo com o botão desabilitado */}
               <span>
                 <IconButton
-                  color="inherit"
+                  // primária só com alteração não salva
+                  color={alterado ? "primary" : "inherit"}
                   aria-label="Salvar preferências da tabela"
                   disabled={!alterado}
                   onClick={salvar}

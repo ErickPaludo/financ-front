@@ -1,11 +1,13 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
+  FormControlLabel,
   Icon,
   IconButton,
   LinearProgress,
   Stack,
+  Switch,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -22,23 +24,22 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useCategorias } from "../../hooks/useCategorias";
 import Modal from "../../componentes/modal/Modal";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
-import InputCheckBox from "../../props/input-check-box/InputCheckBox";
 import Categorias from "../categorias/Categorias";
-import FiltroPeriodo from "./filtro-periodo/FiltroPeriodo";
 import CadMov from "./cad-mov/CadMov";
 import CadConvite from "../../componentes/painel-convites/CadConvite";
 import TabelaMovimentacao from "./tabela/TabelaMovimentacao";
 import CardResumo from "./card-resumo/CardResumo";
-import ChipsFiltros from "./filtros/ChipsFiltros";
+import FiltrosConta from "./filtros/FiltrosConta";
 import { useFiltrosUrl } from "./useFiltrosUrl";
 import { passaNosFiltros, rotaMovimentacoes } from "./filtrosUrl";
 import {
   formatarDataHora,
   formatarMoeda,
+  normalizarNome,
   valorComSinal,
 } from "../../utils/formatacao";
 import { nomePermissao, PERMISSAO } from "../../utils/permissao";
-import { estiloBotaoSecundario } from "../../estilos";
+import { CONSULTA_CELULAR, estiloBotaoSecundario } from "../../estilos";
 import "./MovimentacaoesStyle.css";
 
 // "Nova transação": no cabeçalho e, no modo extrato, no topo do card da tabela
@@ -163,8 +164,10 @@ const Movimentacoes: React.FC = () => {
     tipo,
   } = filtros;
   const [mostraDetalhes, setMostraDetalhes] = useState(false);
+  const [busca, setBusca] = useState("");
   const [modoSimples, setModoSimples] = useState(false);
   const [recarregando, setRecarregando] = useState(false);
+  const ultimaBusca = useRef(0);
 
   const chaveFiltros = JSON.stringify([
     dataInicial,
@@ -196,11 +199,14 @@ const Movimentacoes: React.FC = () => {
   );
 
   const buscarMovimentacoes = useCallback(() => {
+    const busca = ++ultimaBusca.current;
     return buscarConta()
       .then(() =>
         Conecta<GetMovimentacoes>(rotaMovimentacoes(idConta, filtros), "GET"),
       )
       .then((resposta) => {
+        // os filtros mudam na hora (datas, atalhos): resposta de uma busca antiga não sobrescreve a nova
+        if (busca !== ultimaBusca.current) return;
         if (resposta.sucesso && resposta.dados)
           setMovimentacoes(resposta.dados);
         setFiltrosCarregados(chaveFiltros);
@@ -239,7 +245,14 @@ const Movimentacoes: React.FC = () => {
   };
 
   const resumo = movimentacoes?.conteudo.resumo;
-  const linhas = movimentacoes?.conteudo.movimentacaos ?? [];
+  // busca por texto só na tela: a API não filtra texto
+  const termo = normalizarNome(busca);
+  const linhas = (movimentacoes?.conteudo.movimentacaos ?? []).filter(
+    (mov) =>
+      !termo ||
+      normalizarNome(mov.titulo).includes(termo) ||
+      normalizarNome(mov.observacao ?? "").includes(termo),
+  );
   // soma das transações listadas: receitas menos despesas
   const saldoPeriodo = linhas.reduce(
     (soma, mov) => soma + (mov.tipo === 0 ? mov.valor : -mov.valor),
@@ -250,8 +263,50 @@ const Movimentacoes: React.FC = () => {
   const podeEditar = usuario?.permissao !== PERMISSAO.Visualizador;
   const textoMaximizar = modoSimples ? "Restaurar" : "Maximizar (extrato)";
 
+  // recarregar e maximizar: na barra da tabela e no rodapé do painel de filtros
+  const botoesTela = (cor: string) => (
+    <>
+      <Tooltip title="Recarregar">
+        <span>
+          <IconButton
+            aria-label="Recarregar"
+            disabled={recarregando}
+            sx={{ color: cor }}
+            onClick={recarregar}
+          >
+            <Icon>refresh</Icon>
+          </IconButton>
+        </span>
+      </Tooltip>
+      <Tooltip title={textoMaximizar}>
+        <IconButton
+          aria-label={textoMaximizar}
+          aria-pressed={modoSimples}
+          sx={{ color: cor }}
+          // mantém os filtros: mudar qualquer um dispararia outra busca
+          onClick={() => {
+            // quem rola é o <main> do LayoutPrincipal (não a janela); ao maximizar, volta ao topo
+            if (!modoSimples)
+              document
+                .querySelector("main")
+                ?.scrollTo({ top: 0, behavior: "smooth" });
+            setModoSimples(!modoSimples);
+          }}
+        >
+          <Icon>{modoSimples ? "fullscreen_exit" : "fullscreen"}</Icon>
+        </IconButton>
+      </Tooltip>
+    </>
+  );
+
   return (
-    <Stack className="transacoes-container" spacing={3}>
+    <Stack
+      className="transacoes-container"
+      spacing={3}
+      // ocupa a altura do <main>: o card da tabela fica com o resto e a página não rola
+      // (sem o padding-bottom de .transacoes-container, que passaria da altura)
+      sx={{ height: "100%", "&.transacoes-container": { pb: 0 } }}
+    >
       {!modoSimples && (
         <>
           <Stack
@@ -496,6 +551,11 @@ const Movimentacoes: React.FC = () => {
           border: "1px solid var(--fnc-tx-borda)",
           borderRadius: "16px",
           overflow: "hidden",
+          // preenche o que sobra da tela (a tabela rola por dentro); em tela baixa ou com os
+          // detalhes abertos fica com no mínimo 360px, e aí a página rola
+          display: "flex",
+          flexDirection: "column",
+          flex: "1 0 360px",
         }}
       >
         {/* no extrato o cabeçalho some: o botão de nova transação vai para o topo do card,
@@ -521,92 +581,54 @@ const Movimentacoes: React.FC = () => {
           </Stack>
         )}
         <TabelaMovimentacao
-          movimentacao={movimentacoes}
+          movimentacao={
+            movimentacoes && {
+              ...movimentacoes,
+              conteudo: { ...movimentacoes.conteudo, movimentacaos: linhas },
+            }
+          }
           carregando={recarregando || filtrosCarregados !== chaveFiltros}
           buscaMovimentacoes={buscarMovimentacoes}
           filtros={
-            <Stack
-              direction="row"
-              sx={{
-                flex: 1,
-                minWidth: 0,
-                flexWrap: "wrap",
-                // pelo pé: os campos de data têm rótulo em cima, os chips não
-                alignItems: "flex-end",
-                // na mesma linha, filtros à direita; quebrando, a linha de baixo começa à esquerda
-                justifyContent: "space-between",
-                gap: 1.5,
-              }}
-            >
-              <FiltroPeriodo
-                dataInicial={dataInicial}
-                dataFinal={dataFinal}
-                setPeriodo={(inicio, fim) => alterarFiltros({ inicio, fim })}
-              />
-              <ChipsFiltros
+            <>
+              <FiltrosConta
                 categorias={categorias}
                 filtros={filtros}
                 alterarFiltros={alterarFiltros}
+                busca={busca}
+                setBusca={setBusca}
+                rodape={
+                  <Stack direction="row" sx={{ justifyContent: "flex-end" }}>
+                    {botoesTela("inherit")}
+                  </Stack>
+                }
               />
-
-              {/* margem automática: sempre à direita, mesmo quando a linha quebra;
-                  no celular a linha é inteira: "Ver detalhes" à esquerda, maximizar à direita */}
-              <Stack
-                direction="row"
-                sx={{
-                  ml: "auto",
-                  width: { xs: "100%", sm: "auto" },
-                  justifyContent: "flex-end",
-                  height: 36,
-                  alignItems: "center",
-                  gap: 1,
-                }}
-              >
-                {!modoSimples && (
-                  <Box
-                    sx={{
-                      color: "var(--fnc-tx-texto)",
-                      pl: { xs: 0, sm: 1 },
-                      mr: { xs: "auto", sm: 0 },
-                    }}
-                  >
-                    <InputCheckBox
-                      rotulo="Ver detalhes"
-                      marcado={mostraDetalhes}
-                      setMarcado={setMostraDetalhes}
+              {/* no extrato os detalhes não aparecem (o cabeçalho some) */}
+              {!modoSimples && (
+                <FormControlLabel
+                  control={
+                    <Switch
+                      size="small"
+                      checked={mostraDetalhes}
+                      onChange={(e) => setMostraDetalhes(e.target.checked)}
                     />
-                  </Box>
-                )}
-
-                <Tooltip title="Recarregar">
-                  <span>
-                    <IconButton
-                      aria-label="Recarregar"
-                      disabled={recarregando}
-                      sx={{ color: "var(--fnc-tx-texto)" }}
-                      onClick={recarregar}
-                    >
-                      <Icon>refresh</Icon>
-                    </IconButton>
-                  </span>
-                </Tooltip>
-
-                <Tooltip title={textoMaximizar}>
-                  <IconButton
-                    aria-label={textoMaximizar}
-                    aria-pressed={modoSimples}
-                    sx={{ color: "var(--fnc-tx-texto)" }}
-                    // mantém os filtros: mudar qualquer um dispararia outra busca
-                    onClick={() => setModoSimples(!modoSimples)}
-                  >
-                    <Icon>
-                      {modoSimples ? "fullscreen_exit" : "fullscreen"}
-                    </Icon>
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-            </Stack>
+                  }
+                  label="Ver detalhes"
+                  sx={{
+                    height: 36,
+                    ml: 0,
+                    mr: 1,
+                    color: "var(--fnc-tx-texto)",
+                    "& .MuiFormControlLabel-label": { fontSize: 14 },
+                    // celular: fica na linha de baixo, à esquerda, com os ícones à direita
+                    [`@media ${CONSULTA_CELULAR}`]: { flexGrow: 1 },
+                  }}
+                />
+              )}
+            </>
           }
+          // recarregar e maximizar no mesmo grupo dos ícones da tabela: ficam sempre na mesma linha
+          acoes={botoesTela("var(--fnc-tx-texto)")}
         />
 
         <Stack

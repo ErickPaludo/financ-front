@@ -30,8 +30,7 @@ import { useBuscaApi } from "../../hooks/useBuscaApi";
 import { useCategorias } from "../../hooks/useCategorias";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
 import { exibirMoeda } from "../../utils/formatacao";
-import FiltroPeriodo from "../movimentacoes/filtro-periodo/FiltroPeriodo";
-import ChipsFiltros from "../movimentacoes/filtros/ChipsFiltros";
+import FiltrosConta from "../movimentacoes/filtros/FiltrosConta";
 import { rotaMovimentacoes } from "../movimentacoes/filtrosUrl";
 import { useFiltrosUrl } from "../movimentacoes/useFiltrosUrl";
 import {
@@ -495,16 +494,7 @@ const Dashboard: React.FC = () => {
         direction="row"
         sx={{ flexWrap: "wrap", alignItems: "flex-end", gap: 1.5 }}
       >
-        <Box sx={{ flex: "1 1 360px", maxWidth: 660 }}>
-          <FiltroPeriodo
-            dataInicial={inicio}
-            dataFinal={fim}
-            setPeriodo={(novoInicio, novoFim) =>
-              alterarFiltros({ inicio: novoInicio, fim: novoFim })
-            }
-          />
-        </Box>
-        <ChipsFiltros
+        <FiltrosConta
           categorias={categorias}
           filtros={filtros}
           alterarFiltros={alterarFiltros}
