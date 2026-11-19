@@ -31,7 +31,9 @@ const telaDeCards = (rota: string) => rota === "/" || ehTelaDaConta(rota);
 
 // Estrutura das telas logadas: barra lateral + a tela da rota atual (Outlet).
 const LayoutPrincipal: React.FC = () => {
-  const { user, setUser, inicializando } = useContext(AuthContext);
+  const { user, tokenData, setUser, inicializando } = useContext(AuthContext);
+  // sem usuário salvo e sem login nesta aba não há sessão (logo após o login só o token existe)
+  const semSessao = !user && !tokenData;
   const { conta, limparConta } = useContext(ContaContext);
   const navigate = useNavigate();
   const rotaAtual = useLocation().pathname;
@@ -73,7 +75,7 @@ const LayoutPrincipal: React.FC = () => {
   };
 
   useEffect(() => {
-    if (inicializando) return;
+    if (inicializando || semSessao) return;
     const carregarUsuario = async () => {
       if (!user) await buscarUsuario();
       setCarregando(false);
@@ -81,6 +83,8 @@ const LayoutPrincipal: React.FC = () => {
     carregarUsuario();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- roda uma vez, quando a sessão termina de inicializar
   }, [inicializando]);
+
+  if (semSessao) return <Navigate to="/login" replace />;
 
   // o Carregamento não tem fundo próprio: sem isso aparecia o preto do body ao recarregar
   if (carregando)

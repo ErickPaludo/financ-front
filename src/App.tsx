@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import { tema } from "./tema";
@@ -15,8 +16,11 @@ import LayoutPrincipal, {
   ContaDaRota,
 } from "./componentes/layout-principal/LayoutPrincipal";
 import Movimentacoes from "./telas/movimentacoes/Movimentacoes";
-import Dashboard from "./telas/dashboard/Dashboard";
 import AvisoAtualizacao from "./componentes/aviso-atualizacao/AvisoAtualizacao";
+import Carregamento from "./componentes/carregamento/Carregamento";
+
+// Os gráficos (@mui/x-charts) só são baixados ao abrir o dashboard.
+const Dashboard = lazy(() => import("./telas/dashboard/Dashboard"));
 
 function App() {
   return (
@@ -44,7 +48,14 @@ function App() {
                       path="/:idConta/contabancaria"
                       element={<Movimentacoes />}
                     />
-                    <Route path="/:idConta/dashboard" element={<Dashboard />} />
+                    <Route
+                      path="/:idConta/dashboard"
+                      element={
+                        <Suspense fallback={<Carregamento />}>
+                          <Dashboard />
+                        </Suspense>
+                      }
+                    />
                   </Route>
                 </Route>
                 {/* endereço antigo da tela inicial: links e favoritos salvos continuam funcionando */}

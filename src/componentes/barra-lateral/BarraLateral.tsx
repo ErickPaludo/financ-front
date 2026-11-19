@@ -32,10 +32,10 @@ import TituloSecao from "../titulo-secao/TituloSecao";
 import PainelMembros from "../painel-membros/PainelMembros";
 import PainelUsuario from "../painel-usuario/PainelUsuario";
 import PainelConvites from "../painel-convites/PainelConvites";
+import PainelNovidades from "../painel-novidades/PainelNovidades";
 import PainelLateral from "../painel-lateral/PainelLateral";
 import { iniciais } from "../../utils/formatacao";
 import { useUltimaConta } from "../../hooks/useUltimaConta";
-import APP_VERSION from "../../version";
 import { CoresClaro, CoresEscuro, coresDaBarra } from "../../cores";
 import type { ModoCor } from "../../tema";
 import logoAzul from "../../assets/pldprojects-logo-azul.svg";
@@ -63,7 +63,7 @@ type Item = {
 };
 
 // Subpainéis que abrem ao lado da barra (um por vez, no mesmo PainelLateral).
-type Painel = "membros" | "convites" | "usuario";
+type Painel = "membros" | "convites" | "usuario" | "novidades";
 type ConfigPainel = {
   rotulo: string; // nome do painel para leitores de tela
   Conteudo: React.FC<{ onClose: () => void }>;
@@ -77,6 +77,7 @@ const PAINEIS: Record<Painel, ConfigPainel> = {
     daConta: true,
   },
   convites: { rotulo: "Convites", Conteudo: PainelConvites, daConta: false },
+  novidades: { rotulo: "Novidades", Conteudo: PainelNovidades, daConta: false },
   usuario: {
     rotulo: "Opções do usuário",
     Conteudo: PainelUsuario,
@@ -455,8 +456,11 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
               color: barra.apoio,
             }}
           >
-            {APP_VERSION.toString()}
+            v{__APP_VERSION__}
           </Typography>
+          {botao("Novidades", "new_releases", () => alternarPainel("novidades"), {
+            selecionado: painel === "novidades",
+          })}
         </Box>
       </List>
       {/* Rodapé: cartão do usuário; ao clicar abre as opções do usuário */}

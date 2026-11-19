@@ -29,3 +29,11 @@ dist-ssr
 /*.jpeg
 /*.gif
 /*.webp
+
+# Gerado pelo npm run dev (service worker de desenvolvimento)
+dev-dist
+
+# Variáveis de ambiente (modelo em .env.example)
+.env
+.env.*
+!.env.example

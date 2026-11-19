@@ -1,7 +1,10 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import type { TokenResponse } from "../../models/autenticacao/TokenResponse";
 
-const baseURL = "https://api.pldprojects.com.br/api";
+// .env.development (/api, proxy do Vite) ou .env.production; modelo em .env.example.
+const baseURL = import.meta.env.VITE_API_URL;
+if (!baseURL)
+  throw new Error("VITE_API_URL não definida: crie o .env a partir do .env.example");
 
 const api = axios.create({ baseURL, withCredentials: true });
 

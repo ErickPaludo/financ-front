@@ -1,1 +1,0 @@
-if('serviceWorker' in navigator) navigator.serviceWorker.register('/financproject/dev-sw.js?dev-sw', { scope: '/financproject/', type: 'classic' })

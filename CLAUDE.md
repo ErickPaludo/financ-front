@@ -1,9 +1,11 @@
 # FinancHub (financproject)
 
-Front-end de gestão financeira pessoal: React 19 + Vite 8 + TypeScript, com MUI 9 (`@mui/material`, `@mui/icons-material`, Emotion). Back-end .NET separado (não está neste repositório) em `https://localhost:7147/api`.
+Front-end de gestão financeira pessoal: React 19 + Vite 8 + TypeScript, com MUI 9 (`@mui/material`, `@mui/icons-material`, Emotion). Back-end .NET separado (não está neste repositório) em `https://api.pldprojects.com.br/api` (produção; em dev, local em `https://localhost:7147`).
 
 ## Comandos
 
+- Antes do primeiro `dev`/`build`: crie `.env.development` e `.env.production` a partir do `.env.example` (`VITE_API_URL`). Os `.env*` ficam fora do git; sem a variável o app para com erro claro. Nada de segredo neles: `VITE_*` vai para o navegador.
+- `npm version patch|minor|major` — versão do front (única fonte: `package.json`; o `vite.config.ts` injeta como `__APP_VERSION__`, exibida no fim da barra lateral).
 - `npm run dev` — servidor de desenvolvimento (o Vite faz proxy de `/api` para o back-end).
 - `npm run build` — `tsc -b` + `vite build` + copia `dist/index.html` para `dist/404.html` (fallback de rotas no GitHub Pages).
 - `npx tsc -b --noEmit` — checagem de tipos. Rode antes de dar algo por pronto.
@@ -47,6 +49,7 @@ src/
     painel-membros/       PainelMembros (membros da conta) + EditMembro
     painel-usuario/       PainelUsuario (opções do usuário: alterar senha)
     painel-convites/      PainelConvites (convites recebidos e enviados) + CadConvite (formulário; também usado pelo "Novo convite" da tela da conta, com a conta já escolhida)
+    painel-novidades/     PainelNovidades ("Novidades" no fim do menu, abaixo da versão) + novidades.ts (o que mudou em cada versão; versão nova = entrada nova no topo, junto com o `npm version`)
     painel-agendadas/     PainelAgendadas (tabela, 920px) + FormularioAgendada (gaveta) + agendadas.ts (tipos e datas)
   estilos.ts              sx compartilhados (estiloBotaoSecundario)
   hooks/                  useBuscaApi(rota) (GET com dados/erro/carregando/buscar: use em toda busca ao abrir), useEnvioFormulario, useModoCor, useValoresOcultos, useCategorias(idConta), useCoresBarra(), useUltimaConta(idUsuario, idContaAberta), useContasMestre() (contas em que o usuário é mestre: 1 requisição de permissão por conta, porque a lista não traz a permissão), useOrdemArrastavel(chave, itens, idDe) (arrastar para reordenar com ordem salva: `ordenados`, `arrastando`, `propsArrastar(id)`; cards de conta e do dashboard), useEncerrarSessao() (revoga a sessão, faz logout e limpa a conta)
@@ -85,7 +88,7 @@ Convenções: pastas em kebab-case, componentes em PascalCase, nomes e comentár
 | `/:idConta/contabancaria` | Movimentacoes | `ContaDaRota` busca a conta pelo id da URL (recarregar funciona); inexistente/inativa/sem acesso volta para `/` |
 | `*` | → `/login` | |
 
-A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca pela URL (`ContaDaRota`), então recarregar funciona. As rotas logadas **não** são protegidas contra acesso sem sessão (pendência).
+A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca pela URL (`ContaDaRota`), então recarregar funciona. Sem sessão (sem usuário salvo e sem token), o `LayoutPrincipal` redireciona para `/login`.
 
 ## API e autenticação
 
@@ -94,7 +97,7 @@ A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca
 - `Conecta` devolve `{ sucesso, dados?, erro?, status? }`; quando o servidor não responde, `erro` vem com a mensagem do axios. Verifique `!resposta.sucesso`, não só `resposta.erro`.
 - Datas: envie sempre UTC de verdade com `paraIsoUtc` (cadastro, conclusão, agendadas **e filtros**, via `parametrosApi`). Os filtros mandavam o horário local com "Z" (deslocava o período 3h).
 - Lista vazia: a API responde **404** com mensagem ("Nenhum convite foi encontrado!") em vez de `[]`. O `useBuscaApi` trata 404 como lista vazia (sem erro) e, em qualquer falha, limpa os dados anteriores (senão o item recém-removido continuava na tela).
-- Em dev, `baseURL` é `/api` (proxy do Vite, cookie first-party). No build, `https://localhost:7147/api` — ainda não há URL de produção. Em produção cross-site o back-end precisa marcar o cookie como `SameSite=None; Secure; Partitioned`.
+- `baseURL` vem de `VITE_API_URL`: em dev `/api` (proxy do Vite, cookie first-party), no build `https://api.pldprojects.com.br/api`. Em produção cross-site o back-end precisa marcar o cookie como `SameSite=None; Secure; Partitioned`.
 
 ## Tema, cores e modo claro/escuro
 
@@ -166,11 +169,9 @@ A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca
 
 ## Pendências conhecidas
 
-- Proteger as rotas logadas (redirecionar para `/login` sem sessão).
 - Ordem das contas e preferências só no navegador; para valer entre dispositivos o back-end precisa guardar a posição.
 - Arrastar cards não funciona com toque nem teclado (considerar `@dnd-kit` se for necessário).
 - `ResumoContas.saudacao`: `hora >= 22 && hora <= 3` nunca é verdadeiro (mantido de propósito; decisão do usuário).
-- `dev-dist/` é gerado pelo `npm run dev` e está commitado; já fica fora do lint, mas vale tirar do git (`git rm -r --cached dev-dist` + `.gitignore`).
 - Deploy: sem o `base` do Vite, o GitHub Pages em `/financproject/` não funciona; precisa de domínio próprio/raiz.
 
 ## Como verificar mudanças

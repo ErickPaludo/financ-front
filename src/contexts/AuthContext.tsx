@@ -38,8 +38,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const navigate = useNavigate();
   const [tokenData, setTokenData] = useState<TokenData | null>(null);
   const [user, setUserObj] = useState<User | null>(() => {
-    const salvo = localStorage.getItem("user");
-    return salvo ? JSON.parse(salvo) : null;
+    // valor corrompido ou storage bloqueado (aba anônima) não pode derrubar o app: segue sem sessão
+    try {
+      const salvo = localStorage.getItem("user");
+      return salvo ? JSON.parse(salvo) : null;
+    } catch {
+      return null;
+    }
   });
   // sem usuário salvo não há sessão para restaurar
   const [inicializando, setInicializando] = useState(user !== null);
@@ -48,7 +53,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setAccessToken(null);
     setTokenData(null);
     setUserObj(null);
-    localStorage.clear();
+    try {
+      localStorage.clear();
+    } catch {
+      // storage bloqueado: nada salvo para limpar, o logout segue
+    }
 
     navigate("/login", { replace: true });
   }
@@ -79,7 +88,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
   function setUser(u: User) {
     setUserObj(u);
 
-    localStorage.setItem("user", JSON.stringify(u));
+    try {
+      localStorage.setItem("user", JSON.stringify(u));
+    } catch {
+      // sem storage o usuário vale só nesta aba
+    }
   }
 
   return (
