@@ -7,6 +7,7 @@ import {
   periodoDoMes,
 } from "../../utils/formatacao.ts";
 import type { Movimentacao } from "../../models/movimentacoes/GetMovimentacoes";
+import { foraDosLimites, passaDoMaximo } from "./filtro-periodo/periodo.ts";
 
 export const STATUS = ["todas", "pendente", "concluido"] as const;
 export const TIPOS = ["todas", "entrada", "saida"] as const;
@@ -59,9 +60,12 @@ export function lerFiltros(
   parametros: URLSearchParams,
   padrao: Periodo = periodoDoMes(),
 ): FiltrosMovimentacao {
-  return {
+  const periodo = {
     inicio: lerData(parametros.get("inicio"), padrao.inicio),
     fim: lerData(parametros.get("fim"), padrao.fim),
+  };
+  return {
+    ...(passaDoMaximo(periodo) || foraDosLimites(periodo) ? padrao : periodo),
     categorias: lerCategorias(parametros.get("categorias")),
     status: lerOpcao(parametros.get("status"), STATUS),
     tipo: lerOpcao(parametros.get("tipo"), TIPOS),

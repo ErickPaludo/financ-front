@@ -1,6 +1,6 @@
 // Rode com: node --experimental-strip-types scripts/testa-agrupamento.ts
 import assert from "node:assert/strict";
-import { agruparCategoriasPorPeriodo, agruparPorCategoria, agruparPorPeriodo } from "../src/telas/dashboard/agrupamento.ts";
+import { agruparCategoriasPorPeriodo, agruparPorCategoria, agruparPorPeriodo, semCategoriasIgnoradas } from "../src/telas/dashboard/agrupamento.ts";
 
 const mov = (tipo: number, valor: number, data: string) => ({ tipo, valor, dthrMovimentacao: data });
 
@@ -55,5 +55,11 @@ assert.deepEqual(noTempo.pontos, [
   { rotulo: "02/11", c1: 60, c2: 60, c0: 0 },
   { rotulo: "03/11", c1: 0, c2: 0, c0: 10 },
 ]);
+
+// ignorar categorias: tira só a ignorada; sai a que ficou sem nenhuma; sem categoria continua
+const comCats = (id: number, ...ids: number[]) => ({ id, categorias: ids.map((i) => cat(i, "c" + i)) });
+const restantes = semCategoriasIgnoradas([comCats(1, 1, 2), comCats(2, 2), comCats(3)], [2]);
+assert.deepEqual(restantes.map((m) => [m.id, m.categorias.map((c) => c.idCategoria)]), [[1, [1]], [3, []]]);
+assert.equal(semCategoriasIgnoradas([comCats(1, 2)], []).length, 1); // nada ignorado: tudo igual
 
 console.log("agrupamento: ok");

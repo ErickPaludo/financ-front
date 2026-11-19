@@ -1,5 +1,15 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { Box, Icon, Stack } from "@mui/material";
+import { useMemo, useState, type Key, type ReactNode } from "react";
+import {
+  Box,
+  Button,
+  Icon,
+  IconButton,
+  ListItemIcon,
+  Menu,
+  MenuItem,
+  Stack,
+  Tooltip,
+} from "@mui/material";
 import type {
   GetMovimentacoes,
   Movimentacao,
@@ -8,6 +18,10 @@ import TabelaDados, {
   type ColunaTabela,
 } from "../../../componentes/tabela-dados/TabelaDados";
 import ConclusaoMovimentacao from "../confirmacao/ConclusaoMovimentacao";
+import AcaoEmMassa, {
+  type TipoAcaoEmMassa,
+} from "../acoes-em-massa/AcaoEmMassa";
+import { CONSULTA_CELULAR, CONSULTA_ESTREITA } from "../../../estilos";
 import ChipCategoria from "../../../componentes/chip-categoria/ChipCategoria";
 import { valorComSinal } from "../../../utils/formatacao";
 
@@ -18,7 +32,12 @@ type PropTabelaMovimentacao = {
   acoes?: ReactNode; // botões da tela junto dos ícones da tabela
   carregando?: boolean;
   ocultarValores?: boolean; // botão de olho: valores em R$ mascarados
+  podeEditar?: boolean; // checkbox nas linhas + ações nas selecionadas (visualizador não tem)
 };
+
+// virtual (de agendamento) tem id 0: a chave usa o agendamento e a data
+const chaveMov = (mov: Movimentacao): Key =>
+  mov.id > 0 ? mov.id : `${mov.idFixo} ${mov.dthrMovimentacao}`;
 
 const formatarData = (data: string) =>
   new Intl.DateTimeFormat("pt-BR", {
@@ -174,7 +193,7 @@ const ESTILOS = {
     // pelo pé, como os filtros: os campos de data têm rótulo em cima
     alignItems: "flex-end",
     // último Stack = botões Colunas/Salvar do TabelaDados, na altura dos filtros (36px)
-    "& > .MuiStack-root:last-of-type": { height: 36, alignItems: "center" },
+    "& > .MuiStack-root:last-of-type": { minHeight: 36, alignItems: "center" },
   },
   // o card (borda, cantos e o vidro fosco: translúcido + desfoque) fica em quem envolve a
   // tabela; aqui o fundo é transparente para as linhas mostrarem esse vidro
@@ -223,6 +242,7 @@ const ESTILOS = {
     minHeight: 0,
     maxHeight: "none", // o padrão do TabelaDados/LinhasSeparadas (500px) deixaria sobra embaixo
     p: 2,
+    [`@media ${CONSULTA_ESTREITA}`]: { p: 1 }, // 380px: cada pixel vai para os cards
     color: "var(--fnc-tx-texto-tabela)",
     "& .linha-separada": {
       bgcolor:
@@ -244,7 +264,31 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
   acoes,
   carregando = false,
   ocultarValores = false,
+  podeEditar = false,
 }) => {
+  // os checkboxes só aparecem depois do botão "Selecionar"; desligar desmarca tudo
+  const [selecionando, setSelecionando] = useState(false);
+  const [selecionadas, setSelecionadas] = useState<Key[]>([]);
+  const alternarSelecionando = () => {
+    setSelecionando(!selecionando);
+    setSelecionadas([]);
+  };
+  const [ancoraAcoes, setAncoraAcoes] = useState<HTMLElement | null>(null);
+  const [acaoEmMassa, setAcaoEmMassa] = useState<TipoAcaoEmMassa | null>(null);
+  const linhas = movimentacao?.conteudo?.movimentacaos ?? [];
+  // só as que estão na tela (filtro ou busca podem ter tirado alguma selecionada)
+  const marcadas = linhas.filter((mov) => selecionadas.includes(chaveMov(mov)));
+  // cada ação só mexe nas que ainda não estão no estado pedido
+  const alvos: Record<TipoAcaoEmMassa, Movimentacao[]> = {
+    concluir: marcadas.filter((mov) => !mov.concluido),
+    extornar: marcadas.filter((mov) => mov.concluido),
+    excluir: marcadas,
+  };
+  const ACOES: { acao: TipoAcaoEmMassa; rotulo: string; icone: string }[] = [
+    { acao: "concluir", rotulo: "Concluir", icone: "check_circle" },
+    { acao: "extornar", rotulo: "Extornar", icone: "undo" },
+    { acao: "excluir", rotulo: "Excluir", icone: "delete" },
+  ];
   const [movSelecionada, setMovSelecionada] = useState<Movimentacao | null>(
     null,
   );
@@ -255,20 +299,110 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
     <>
       <TabelaDados
         idPreferencias="movimentacoes"
-        linhas={movimentacao?.conteudo?.movimentacaos ?? []}
+        linhas={linhas}
         colunas={colunasMemo}
-        chaveLinha={(mov) =>
-          mov.id > 0 ? mov.id : `${mov.idFixo} ${mov.dthrMovimentacao}`
+        chaveLinha={chaveMov}
+        selecao={
+          podeEditar && selecionando
+            ? { selecionadas, setSelecionadas }
+            : undefined
         }
         onClicarLinha={setMovSelecionada}
         mensagemVazia="Nenhuma movimentação no período."
         barra={filtros}
-        acoes={acoes}
+        acoes={
+          <>
+            {podeEditar && (
+              <Tooltip
+                title={selecionando ? "Cancelar seleção" : "Selecionar várias"}
+              >
+                <IconButton
+                  // primária enquanto a seleção está ligada, como o "Salvar" com alteração
+                  color={selecionando ? "primary" : "inherit"}
+                  aria-label={
+                    selecionando ? "Cancelar seleção" : "Selecionar várias"
+                  }
+                  aria-pressed={selecionando}
+                  onClick={alternarSelecionando}
+                >
+                  <Icon>{selecionando ? "close" : "checklist"}</Icon>
+                </IconButton>
+              </Tooltip>
+            )}
+            {selecionando && marcadas.length > 0 && (
+              <Button
+                variant="contained"
+                startIcon={<Icon>checklist</Icon>}
+                endIcon={<Icon>arrow_drop_down</Icon>}
+                aria-haspopup="menu"
+                aria-label={`Ações nas ${marcadas.length} selecionadas`}
+                onClick={(e) => setAncoraAcoes(e.currentTarget)}
+                // celular: só ícones e a contagem, senão o botão vaza da barra
+                sx={{
+                  flexShrink: 0,
+                  [`@media ${CONSULTA_CELULAR}`]: {
+                    minWidth: 0,
+                    px: 1.25,
+                    "& .MuiButton-startIcon": { mr: 0.5 },
+                    "& .MuiButton-endIcon": { ml: 0 },
+                  },
+                }}
+              >
+                <Box
+                  component="span"
+                  sx={{ [`@media ${CONSULTA_CELULAR}`]: { display: "none" } }}
+                >
+                  Selecionadas&nbsp;
+                </Box>
+                {marcadas.length}
+              </Button>
+            )}
+            {acoes}
+          </>
+        }
         carregando={carregando}
         estilos={ESTILOS}
         ordenacaoPadrao={{ chave: "dthrMovimentacao", direcao: "desc" }}
         permitirLinhas
       />
+
+      <Menu
+        anchorEl={ancoraAcoes}
+        open={Boolean(ancoraAcoes)}
+        onClose={() => setAncoraAcoes(null)}
+      >
+        {ACOES.map(({ acao, rotulo, icone }) => (
+          <MenuItem
+            key={acao}
+            // ex.: só concluídas marcadas: não há o que concluir
+            disabled={alvos[acao].length === 0}
+            onClick={() => {
+              setAncoraAcoes(null);
+              setAcaoEmMassa(acao);
+            }}
+            sx={acao === "excluir" ? { color: "error.main" } : undefined}
+          >
+            <ListItemIcon sx={{ color: "inherit" }}>
+              <Icon fontSize="small">{icone}</Icon>
+            </ListItemIcon>
+            {rotulo} ({alvos[acao].length})
+          </MenuItem>
+        ))}
+      </Menu>
+
+      {acaoEmMassa && (
+        <AcaoEmMassa
+          acao={acaoEmMassa}
+          movimentacoes={alvos[acaoEmMassa]}
+          ignoradas={marcadas.length - alvos[acaoEmMassa].length}
+          onClose={(alterou, falhas) => {
+            setAcaoEmMassa(null);
+            // as que falharam continuam marcadas, para tentar de novo
+            setSelecionadas(falhas.map(chaveMov));
+            if (alterou) buscaMovimentacoes();
+          }}
+        />
+      )}
 
       {movSelecionada && (
         <ConclusaoMovimentacao

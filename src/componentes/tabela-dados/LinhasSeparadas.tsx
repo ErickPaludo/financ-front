@@ -3,7 +3,9 @@ import {
   Box,
   Button,
   ButtonBase,
+  Checkbox,
   CircularProgress,
+  FormControlLabel,
   Divider,
   Icon,
   ListItemIcon,
@@ -16,6 +18,10 @@ import {
 } from "@mui/material";
 import type { ColunaTabela } from "./TabelaDados";
 import type { Ordenacao } from "./preferenciasTabela";
+import { CONSULTA_ESTREITA } from "../../estilos";
+
+// celular em pé (ex.: 380×800): menos respiro e colunas de 110px, para caberem duas por linha
+const ESTREITA = `@media ${CONSULTA_ESTREITA}`;
 
 type PropLinhasSeparadas<T> = {
   linhas: T[];
@@ -28,6 +34,13 @@ type PropLinhasSeparadas<T> = {
   ordenacao: Ordenacao;
   ordenacaoPadrao: Ordenacao; // "Redefinir ordenação" volta para ela
   setOrdenacao: (ordenacao: Ordenacao) => void;
+  // seleção já resolvida pelo TabelaDados (só as linhas da tela)
+  selecao?: {
+    marcadas: Key[];
+    todasMarcadas: boolean;
+    alternarTodas: () => void;
+    alternarLinha: (chave: Key) => void;
+  };
 };
 
 // Mesmas colunas do TabelaDados, mas cada linha é um card separado, com o nome da
@@ -44,6 +57,7 @@ function LinhasSeparadas<T extends object>({
   ordenacao,
   ordenacaoPadrao,
   setOrdenacao,
+  selecao,
 }: PropLinhasSeparadas<T>) {
   // cada célula do card: uma coluna ou as colunas do mesmo grupo, empilhadas
   const celulas: ColunaTabela<T>[][] = [];
@@ -77,18 +91,39 @@ function LinhasSeparadas<T extends object>({
         ...(Array.isArray(sx) ? sx : [sx]),
       ]}
     >
-      {/* sem cabeçalho: a ordenação fica neste botão */}
-      <Button
-        color="inherit"
-        startIcon={<Icon>sort</Icon>}
-        aria-haspopup="menu"
-        onClick={(e) => setAncora(e.currentTarget)}
-        sx={{ alignSelf: "flex-start", textTransform: "none" }}
-      >
-        {colunaAtiva
-          ? `Ordenar: ${colunaAtiva.titulo} ${ordenacao!.direcao === "asc" ? "↑" : "↓"}`
-          : "Ordenar por"}
-      </Button>
+      {/* sem cabeçalho: "selecionar tudo" e a ordenação ficam aqui */}
+      <Stack direction="row" sx={{ alignItems: "center", gap: 1 }}>
+        {selecao && (
+          <FormControlLabel
+            label="Selecionar tudo"
+            // mesmo recuo da caixa dos cards (1px de borda + respiro - 8px): uma coluna só
+            sx={{ ml: "9px", mr: 1, [ESTREITA]: { ml: "3px" } }}
+            control={
+              <Checkbox
+                size="small"
+                checked={selecao.todasMarcadas}
+                indeterminate={
+                  selecao.marcadas.length > 0 && !selecao.todasMarcadas
+                }
+                disabled={linhas.length === 0}
+                onChange={selecao.alternarTodas}
+                sx={{ color: "inherit" }}
+              />
+            }
+          />
+        )}
+        <Button
+          color="inherit"
+          startIcon={<Icon>sort</Icon>}
+          aria-haspopup="menu"
+          onClick={(e) => setAncora(e.currentTarget)}
+          sx={{ alignSelf: "flex-start", textTransform: "none" }}
+        >
+          {colunaAtiva
+            ? `Ordenar: ${colunaAtiva.titulo} ${ordenacao!.direcao === "asc" ? "↑" : "↓"}`
+            : "Ordenar por"}
+        </Button>
+      </Stack>
       <Menu
         anchorEl={ancora}
         open={Boolean(ancora)}
@@ -160,10 +195,12 @@ function LinhasSeparadas<T extends object>({
                   onClick={onClicarLinha && (() => onClicarLinha(linha))}
                   sx={{
                     flexShrink: 0,
-                    display: "grid",
-                    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-                    gap: 2,
+                    // caixa de seleção à esquerda, centralizada na altura do card; as colunas ao lado
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
                     p: 2,
+                    [ESTREITA]: { p: 1.25, gap: 0.5 },
                     borderRadius: "12px",
                     textAlign: "left",
                     color: "inherit",
@@ -172,40 +209,79 @@ function LinhasSeparadas<T extends object>({
                     "&.Mui-disabled": { color: "inherit" },
                   }}
                 >
-                  {celulas.map((grupo) => (
-                    <Stack
-                      key={grupo[0].chave}
-                      spacing={1.5}
-                      sx={{ minWidth: 0 }}
+                  {selecao && (
+                    // o clique na caixa não abre a linha
+                    <Box
+                      onClick={(e) => e.stopPropagation()}
+                      sx={{ flexShrink: 0, ml: -1 }}
                     >
-                      {grupo.map((coluna) => (
-                        <Box
-                          key={coluna.chave}
-                          sx={{
-                            minWidth: 0,
-                            fontSize: 14,
-                            textAlign: coluna.alinhar ?? "left",
-                          }}
-                        >
-                          <Typography
-                            className="linha-separada-rotulo"
+                      <Checkbox
+                        size="small"
+                        checked={selecao.marcadas.includes(
+                          chaveLinha(linha, indice),
+                        )}
+                        onChange={() =>
+                          selecao.alternarLinha(chaveLinha(linha, indice))
+                        }
+                        onMouseDown={(e) => e.stopPropagation()} // sem a "onda" do card
+                        sx={{ color: "inherit" }}
+                        slotProps={{
+                          input: { "aria-label": "Selecionar linha" },
+                        }}
+                      />
+                    </Box>
+                  )}
+                  <Box
+                    sx={{
+                      flex: 1,
+                      minWidth: 0,
+                      display: "grid",
+                      gridTemplateColumns:
+                        "repeat(auto-fit, minmax(150px, 1fr))",
+                      gap: 2,
+                      [ESTREITA]: {
+                        gridTemplateColumns:
+                          "repeat(auto-fit, minmax(110px, 1fr))",
+                        columnGap: 1.5,
+                        rowGap: 1.25,
+                      },
+                    }}
+                  >
+                    {celulas.map((grupo) => (
+                      <Stack
+                        key={grupo[0].chave}
+                        spacing={1.5}
+                        sx={{ minWidth: 0 }}
+                      >
+                        {grupo.map((coluna) => (
+                          <Box
+                            key={coluna.chave}
                             sx={{
-                              fontSize: 11,
-                              fontWeight: 600,
-                              letterSpacing: 1,
-                              textTransform: "uppercase",
-                              mb: 0.5,
+                              minWidth: 0,
+                              fontSize: 14,
+                              textAlign: coluna.alinhar ?? "left",
                             }}
                           >
-                            {coluna.titulo}
-                          </Typography>
-                          {coluna.exibir
-                            ? coluna.exibir(linha)
-                            : (linha[coluna.chave] as ReactNode)}
-                        </Box>
-                      ))}
-                    </Stack>
-                  ))}
+                            <Typography
+                              className="linha-separada-rotulo"
+                              sx={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                letterSpacing: 1,
+                                textTransform: "uppercase",
+                                mb: 0.5,
+                              }}
+                            >
+                              {coluna.titulo}
+                            </Typography>
+                            {coluna.exibir
+                              ? coluna.exibir(linha)
+                              : (linha[coluna.chave] as ReactNode)}
+                          </Box>
+                        ))}
+                      </Stack>
+                    ))}
+                  </Box>
                 </ButtonBase>
               ))}
       </Stack>

@@ -43,7 +43,11 @@ import {
   valorComSinal,
 } from "../../utils/formatacao";
 import { nomePermissao, PERMISSAO } from "../../utils/permissao";
-import { CONSULTA_CELULAR, estiloBotaoSecundario } from "../../estilos";
+import {
+  CONSULTA_CELULAR,
+  CONSULTA_ESTREITA,
+  estiloBotaoSecundario,
+} from "../../estilos";
 import "./MovimentacaoesStyle.css";
 
 // "Nova transação": no cabeçalho e, no modo extrato, no topo do card da tabela
@@ -58,6 +62,15 @@ const gradeCards = {
   display: "grid",
   gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
   gap: 2,
+};
+// cards do topo: em tela estreita, o saldo atual na linha toda e os outros três lado a lado
+const gradeTopo = {
+  ...gradeCards,
+  [`@media ${CONSULTA_ESTREITA}`]: {
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: 1,
+    "& > :first-of-type": { gridColumn: "1 / -1" },
+  },
 };
 
 type TipoValor = "receita" | "despesa" | "neutro";
@@ -223,7 +236,7 @@ const Movimentacoes: React.FC = () => {
   }, [buscarUsuarioDaConta, buscarMovimentacoes]);
 
   // Recém-cadastrada entra na tabela sem nova busca, se passar nos filtros atuais.
-  // Saldos e cards de resumo só mudam ao recarregar (vêm prontos da API).
+  // Os saldos da conta são rebuscados à parte (buscarConta); o resumo do período só muda ao recarregar.
   const incluirNaTabela = (cadastrada: Movimentacao) => {
     if (!passaNosFiltros(cadastrada, filtros)) return;
     setMovimentacoes(
@@ -358,7 +371,7 @@ const Movimentacoes: React.FC = () => {
             </Stack>
           </Stack>
 
-          <Box sx={gradeCards}>
+          <Box sx={gradeTopo}>
             <CardResumo
               destaque
               rotulo="Saldo atual"
@@ -379,6 +392,7 @@ const Movimentacoes: React.FC = () => {
             </CardResumo>
 
             <CardResumo
+              compacto
               rotulo="Saldo projetado"
               valor={exibirMoeda(contaAtual.saldoProjetado, ocultos)}
               icone="query_stats"
@@ -391,6 +405,7 @@ const Movimentacoes: React.FC = () => {
             />
 
             <CardResumo
+              compacto
               rotulo="Receitas pendentes"
               valor={exibirMoeda(contaAtual.entradaPendente, ocultos)}
               icone="trending_up"
@@ -406,6 +421,7 @@ const Movimentacoes: React.FC = () => {
             </CardResumo>
 
             <CardResumo
+              compacto
               rotulo="Despesas pendentes"
               valor={exibirMoeda(contaAtual.saidaPendente, ocultos)}
               icone="trending_down"
@@ -518,8 +534,10 @@ const Movimentacoes: React.FC = () => {
         <CadMov
           onClose={(cadastrada) => {
             setCadMovAberto(false);
-            if (cadastrada) incluirNaTabela(cadastrada);
-            else buscarMovimentacoes();
+            if (cadastrada) {
+              incluirNaTabela(cadastrada);
+              buscarConta(); // saldos e pendentes dos cards (e da barra lateral) vêm prontos da conta
+            } else buscarMovimentacoes(); // já busca a conta junto
           }}
         />
       </Modal>
@@ -566,6 +584,9 @@ const Movimentacoes: React.FC = () => {
           display: "flex",
           flexDirection: "column",
           flex: "1 0 360px",
+          // celular: os cards de saldo já tomam a tela; o card da tabela fica com quase a tela
+          // inteira (menos a barra superior de 60px) e a página rola até ele
+          [`@media ${CONSULTA_CELULAR}`]: { flexBasis: "calc(100dvh - 84px)" },
         }}
       >
         {/* no extrato o cabeçalho some: o botão de nova transação vai para o topo do card,
@@ -592,6 +613,7 @@ const Movimentacoes: React.FC = () => {
         )}
         <TabelaMovimentacao
           ocultarValores={ocultos}
+          podeEditar={podeEditar}
           movimentacao={
             movimentacoes && {
               ...movimentacoes,
@@ -658,30 +680,29 @@ const Movimentacoes: React.FC = () => {
           <span>
             {linhas.length} {linhas.length === 1 ? "transação" : "transações"}
           </span>
-          {modoSimples ? (
-            <>
-              <ValorRodape
-                rotulo="Gastos no período"
-                valor={exibirMoeda(resumo?.saida.projetado ?? 0, ocultos)}
-                cor="var(--fnc-tx-despesa)"
-              />
-              <ValorRodape
-                rotulo="Saldo atual"
-                valor={exibirMoeda(contaAtual.saldoAtual, ocultos)}
-                cor="var(--fnc-tx-texto)"
-              />
-            </>
-          ) : (
+          {modoSimples && (
             <ValorRodape
-              rotulo="Saldo do período"
-              valor={valorComSinal(saldoPeriodo, ocultos)}
-              cor={
-                ocultos
-                  ? "var(--fnc-tx-texto)"
-                  : saldoPeriodo < 0
-                    ? "var(--fnc-tx-despesa)"
-                    : "var(--fnc-tx-receita)"
-              }
+              rotulo="Gastos no período"
+              valor={exibirMoeda(resumo?.saida.projetado ?? 0, ocultos)}
+              cor="var(--fnc-tx-despesa)"
+            />
+          )}
+          <ValorRodape
+            rotulo="Saldo do período"
+            valor={valorComSinal(saldoPeriodo, ocultos)}
+            cor={
+              ocultos
+                ? "var(--fnc-tx-texto)"
+                : saldoPeriodo < 0
+                  ? "var(--fnc-tx-despesa)"
+                  : "var(--fnc-tx-receita)"
+            }
+          />
+          {modoSimples && (
+            <ValorRodape
+              rotulo="Saldo atual"
+              valor={exibirMoeda(contaAtual.saldoAtual, ocultos)}
+              cor="var(--fnc-tx-texto)"
             />
           )}
         </Stack>

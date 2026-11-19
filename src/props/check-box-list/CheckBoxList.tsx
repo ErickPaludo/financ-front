@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import {
   Box,
   Checkbox,
@@ -49,6 +49,7 @@ function CheckBoxList<T extends object>({
   // elemento do campo onde a lista abre; null = fechada
   const [ancora, setAncora] = useState<HTMLElement | null>(null);
   const [busca, setBusca] = useState("");
+  const campoBusca = useRef<HTMLInputElement>(null);
 
   const fechar = () => {
     setAncora(null);
@@ -137,6 +138,9 @@ function CheckBoxList<T extends object>({
         onClose={fechar}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         slotProps={{
+          // o autoFocus sozinho não basta: o Popover move o foco para a caixa ao abrir.
+          // Focar no fim da animação deixa digitar a pesquisa sem clicar no campo.
+          transition: { onEntered: () => campoBusca.current?.focus() },
           paper: {
             // com gatilho pequeno (chip), a lista não fica mais estreita que 260px
             sx: { width: Math.max(ancora?.offsetWidth ?? 0, 260), maxHeight: 360, mt: 0.5 },
@@ -155,6 +159,7 @@ function CheckBoxList<T extends object>({
         >
           <CampoTexto
             autoFocus
+            inputRef={campoBusca}
             placeholder="Pesquisar..."
             valor={busca}
             setValor={setBusca}

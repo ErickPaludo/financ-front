@@ -476,15 +476,6 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           >
             {APP_VERSION.toString()}
           </Typography>
-          {contaAberta &&
-            botao(
-              "Sair da conta",
-              "exit_to_app",
-              () => setConfirmarSaida(true),
-              {
-                cor: barra.perigo,
-              },
-            )}
         </Box>
       </List>
       {/* Rodapé: cartão do usuário; ao clicar abre as opções do usuário */}

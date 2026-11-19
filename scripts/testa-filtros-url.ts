@@ -82,3 +82,15 @@ const apiSemFiltro = parametrosApi({ inicio: "2026-11-01T00:00", fim: "2026-11-3
 assert.equal(apiSemFiltro.has("Concluido") || apiSemFiltro.has("TipoMovimentacao") || apiSemFiltro.has("IdCategoria"), false);
 
 console.log("filtros-url: ok");
+
+// período acima de 100 anos editado na URL volta ao padrão; exatamente 100 anos vale
+assert.deepEqual(
+  (({ inicio, fim }) => ({ inicio, fim }))(
+    ler("inicio=1900-01-01T00:00&fim=2026-11-30T23:59"),
+  ),
+  padrao,
+);
+assert.equal(ler("inicio=1950-01-01T00:00&fim=2050-01-01T00:00").inicio, "1950-01-01T00:00");
+// data além de 100 anos de hoje também volta ao padrão
+assert.equal(ler("inicio=2100-01-01T00:00&fim=2190-01-01T00:00").inicio, padrao.inicio);
+console.log("período máximo ok");

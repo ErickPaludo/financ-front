@@ -14,6 +14,7 @@ import {
   alterarInicio,
   atalhosPeriodo,
   diasDoPeriodo,
+  limitesDatas,
   mesmoPeriodo,
   moverPeriodo,
   type Periodo,
@@ -27,7 +28,7 @@ type PropFiltroPeriodo = {
 };
 
 // Período do painel de filtros: cabeçalho "Período · N dias" com as setas, "De" e "Até"
-// empilhados e atalhos. Cada mudança já vale (vai para a URL e dispara a busca).
+// empilhados e atalhos. No painel de filtros, as mudanças só valem ao clicar em "Pesquisar".
 const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
   dataInicial,
   dataFinal,
@@ -36,6 +37,7 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
   const periodo = { inicio: dataInicial, fim: dataFinal };
   const aplicar = (p: Periodo) => onChange(p.inicio, p.fim);
   const dias = diasDoPeriodo(periodo);
+  const { minimo, maximo } = limitesDatas();
 
   return (
     <Stack spacing={1.5}>
@@ -70,11 +72,15 @@ const FiltroPeriodo: React.FC<PropFiltroPeriodo> = ({
       <CampoDataHora
         rotulo="De"
         valor={dataInicial}
+        minimo={minimo}
+        maximo={maximo}
         setValor={(inicio) => aplicar(alterarInicio(periodo, inicio))}
       />
       <CampoDataHora
         rotulo="Até"
         valor={dataFinal}
+        minimo={minimo}
+        maximo={maximo}
         setValor={(fim) => aplicar(alterarFim(periodo, fim))}
       />
 

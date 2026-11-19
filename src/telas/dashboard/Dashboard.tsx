@@ -12,12 +12,13 @@ import {
 } from "@mui/material";
 import { BarChart } from "@mui/x-charts/BarChart";
 import { LineChart } from "@mui/x-charts/LineChart";
-import { PieChart } from "@mui/x-charts/PieChart";
+import { PieChart, pieClasses } from "@mui/x-charts/PieChart";
 import { ptBRLocaleText } from "@mui/x-charts/locales";
 
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
 import { useOrdemArrastavel } from "../../hooks/useOrdemArrastavel";
+import { useOrdemSalva } from "../../hooks/useOrdemSalva";
 import { CoresClaro, CoresEscuro } from "../../cores";
 import {
   TIPO_MOVIMENTACAO,
@@ -37,6 +38,7 @@ import {
   agruparCategoriasPorPeriodo,
   agruparPorCategoria,
   agruparPorPeriodo,
+  semCategoriasIgnoradas,
 } from "./agrupamento";
 import "../movimentacoes/MovimentacaoesStyle.css";
 
@@ -151,10 +153,12 @@ function SeletorFormato<T extends string>({
   opcoes,
   valor,
   setValor,
+  rotulo = "Formato do gráfico",
 }: {
   opcoes: OpcaoFormato<T>[];
   valor: T;
   setValor: (valor: T) => void;
+  rotulo?: string;
 }) {
   return (
     <ToggleButtonGroup
@@ -163,7 +167,7 @@ function SeletorFormato<T extends string>({
       value={valor}
       // clicar no já escolhido devolve null: mantém o atual
       onChange={(_, novo: T | null) => novo && setValor(novo)}
-      aria-label="Formato do gráfico"
+      aria-label={rotulo}
       sx={{
         "& .MuiToggleButton-root": {
           color: "var(--fnc-tx-apoio)",
@@ -186,6 +190,12 @@ function SeletorFormato<T extends string>({
 const FORMATOS_ENTRADAS_SAIDAS: OpcaoFormato<"linha" | "barra">[] = [
   { valor: "linha", rotulo: "Linhas", icone: "show_chart" },
   { valor: "barra", rotulo: "Barras", icone: "bar_chart" },
+];
+// quais séries o gráfico "Entradas e saídas" mostra
+const SERIES_ENTRADAS_SAIDAS: OpcaoFormato<"ambas" | "entradas" | "saidas">[] = [
+  { valor: "ambas", rotulo: "Entradas e saídas", icone: "swap_vert" },
+  { valor: "entradas", rotulo: "Só entradas", icone: "trending_up" },
+  { valor: "saidas", rotulo: "Só saídas", icone: "trending_down" },
 ];
 const FORMATOS_CATEGORIAS: OpcaoFormato<"pizza" | "linha">[] = [
   { valor: "pizza", rotulo: "Pizza", icone: "donut_large" },
@@ -310,7 +320,7 @@ const PizzaCategorias: React.FC<PropPizzaCategorias> = ({
           }}
           sx={{
             ...ESTILO_GRAFICO,
-            "& .MuiPieArcLabel-root": { fill: "white", fontWeight: 600 },
+            [`& .${pieClasses.arcLabel}`]: { fill: "white", fontWeight: 600 },
           }}
         />
       )}
@@ -325,11 +335,17 @@ const Dashboard: React.FC = () => {
   const contaAtual = conta!;
   const { ocultos, alternarOcultos } = useValoresOcultos();
   const [formato, setFormato] = useState<"linha" | "barra">("linha");
+  const [serieVisivel, setSerieVisivel] = useState<
+    "ambas" | "entradas" | "saidas"
+  >("ambas");
   const { user } = useContext(AuthContext);
 
   const { filtros, alterarFiltros } = useFiltrosUrl();
   const { inicio, fim, tipo } = filtros;
   const { categorias } = useCategorias(contaAtual.idConta);
+  // categorias ignoradas nos gráficos, lembradas por conta (lista de ids no localStorage)
+  const { ids: ignoradas, salvarOrdem: salvarIgnoradas } =
+    useOrdemSalva<number>(`dashboardIgnoradas:${contaAtual.idConta}`);
   // com o filtro de tipo, só a pizza e a linha daquele tipo aparecem
   const mostraEntradas = tipo !== "saida";
   const mostraSaidas = tipo !== "entrada";
@@ -338,10 +354,10 @@ const Dashboard: React.FC = () => {
     rotaMovimentacoes(contaAtual.idConta, filtros),
     "Não foi possível carregar as movimentações.",
   );
-  // exatamente o que a API devolve, como a tabela da tela da conta (mesma rota, sem filtro extra)
+  // o que a API devolve (mesma rota da tabela da tela da conta), sem as categorias ignoradas
   const movimentacoes = useMemo(
-    () => dados?.conteudo.movimentacaos ?? [],
-    [dados],
+    () => semCategoriasIgnoradas(dados?.conteudo.movimentacaos ?? [], ignoradas),
+    [dados, ignoradas],
   );
 
   const pontos = useMemo(
@@ -350,6 +366,10 @@ const Dashboard: React.FC = () => {
   );
   const total = (chave: "entradas" | "saidas") =>
     pontos.reduce((soma, p) => soma + p[chave], 0);
+  // no card "Entradas e saídas": o filtro de tipo manda; com Tipo = Todas, vale o seletor do card
+  const ambosTipos = mostraEntradas && mostraSaidas;
+  const linhaEntradas = mostraEntradas && serieVisivel !== "saidas";
+  const linhaSaidas = mostraSaidas && serieVisivel !== "entradas";
 
   // com muitos pontos (período longo por dia) os marcadores viram ruído: só a linha
   const marcarPontos = pontos.length <= 31;
@@ -360,13 +380,13 @@ const Dashboard: React.FC = () => {
   const cores = useCoresGrafico();
   // o mesmo gráfico em linhas ou barras: só o eixo X e os marcadores mudam
   const series = [
-    mostraEntradas && {
+    linhaEntradas && {
       dataKey: "entradas",
       label: "Entradas",
       color: cores.entrada,
       valueFormatter: moeda,
     },
-    mostraSaidas && {
+    linhaSaidas && {
       dataKey: "saidas",
       label: "Saídas",
       color: cores.saida,
@@ -433,9 +453,21 @@ const Dashboard: React.FC = () => {
           resumo={
             <Stack direction="row" sx={{ alignItems: "center", gap: 1.5 }}>
               <Typography sx={textoResumo}>
-                Entradas {moeda(total("entradas"))} · Saídas{" "}
-                {moeda(total("saidas"))}
+                {[
+                  linhaEntradas && `Entradas ${moeda(total("entradas"))}`,
+                  linhaSaidas && `Saídas ${moeda(total("saidas"))}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </Typography>
+              {ambosTipos && (
+                <SeletorFormato
+                  opcoes={SERIES_ENTRADAS_SAIDAS}
+                  valor={serieVisivel}
+                  setValor={setSerieVisivel}
+                  rotulo="Séries do gráfico"
+                />
+              )}
               <SeletorFormato
                 opcoes={FORMATOS_ENTRADAS_SAIDAS}
                 valor={formato}
@@ -494,6 +526,8 @@ const Dashboard: React.FC = () => {
           categorias={categorias}
           filtros={filtros}
           alterarFiltros={alterarFiltros}
+          ignoradas={ignoradas}
+          setIgnoradas={salvarIgnoradas}
         />
       </Stack>
 

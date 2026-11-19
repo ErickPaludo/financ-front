@@ -4,6 +4,8 @@ import dayjs from "dayjs";
 import {
   normalizarNome,
   dataHoraLocal,
+  datasMensais,
+  ehDataCompleta,
   formatarDataHora,
   formatarMoeda,
   iniciais,
@@ -11,6 +13,16 @@ import {
   valorComSinal,
 } from "../src/utils/formatacao.ts";
 import { nomePermissao, OPCOES_PERMISSAO } from "../src/utils/permissao.ts";
+
+// repetição mensal: janeiro 6x vai até junho; dia 31 volta a 31 quando o mês tem
+assert.deepEqual(datasMensais("2026-01-10T08:00", 6).map((d) => d.slice(0, 7)), ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06"]);
+assert.deepEqual(datasMensais("2026-01-31T08:00", 3), ["2026-01-31T08:00", "2026-02-28T08:00", "2026-03-31T08:00"]);
+assert.equal(datasMensais("2026-11-01T00:00", 48).at(-1), "2030-10-01T00:00");
+
+// ano no meio da digitação não conta como data
+assert.equal(ehDataCompleta(dayjs("0202-01-01")), false);
+assert.equal(ehDataCompleta(dayjs("2026-01-01")), true);
+assert.equal(ehDataCompleta(null), false);
 
 // moeda: sem valor vira R$ 0,00 (o Intl usa espaço não separável)
 const semEspacoEspecial = (texto: string) => texto.replace(/\s/g, " ");

@@ -12,3 +12,5 @@ export const estiloBotaoSecundario = {
 
 // Largura em que a barra lateral vira barra superior (também em LayoutPrincipal.css).
 export const CONSULTA_CELULAR = "(max-width:768px)";
+// celular em pé (ex.: 400×800): cards menores para caberem lado a lado
+export const CONSULTA_ESTREITA = "(max-width:600px)";

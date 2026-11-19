@@ -4,7 +4,11 @@ import dayjs from "dayjs";
 import { dataHoraLocal } from "../../utils/formatacao.ts";
 import type { Movimentacao } from "../../models/movimentacoes/GetMovimentacoes";
 
-export type PontoGrafico = { rotulo: string; entradas: number; saidas: number };
+export type PontoGrafico = {
+  rotulo: string;
+  entradas: number;
+  saidas: number;
+};
 
 // até ~2 meses, um ponto por dia; acima disso, por mês (senão as barras viram fios)
 const DIAS_MAXIMOS_POR_DIA = 62;
@@ -30,13 +34,19 @@ function eixoDoPeriodo(inicio: string, fim: string) {
 
 // Soma entradas e saídas do período em dias (ou meses), incluindo os vazios com zero.
 export function agruparPorPeriodo(
-  movimentacoes: Pick<Movimentacao, "tipo" | "valor" | "dthrMovimentacao">[],
+  movimentacoes: Pick<
+    Movimentacao,
+    "tipo" | "valor" | "dthrMovimentacao"
+  >[],
   inicio: string, // FORMATO_DATA_HORA
   fim: string,
 ): PontoGrafico[] {
   const { rotulos, rotuloDe } = eixoDoPeriodo(inicio, fim);
   const pontos = new Map<string, PontoGrafico>(
-    rotulos.map((rotulo) => [rotulo, { rotulo, entradas: 0, saidas: 0 }]),
+    rotulos.map((rotulo) => [
+      rotulo,
+      { rotulo, entradas: 0, saidas: 0 },
+    ]),
   );
 
   for (const mov of movimentacoes) {
@@ -120,4 +130,21 @@ export function agruparCategoriasPorPeriodo(
     for (const id of ids) if (`c${id}` in ponto) ponto[`c${id}`] += mov.valor;
   }
   return { categorias, pontos: [...pontos.values()] };
+}
+
+// "Ignorar categorias" do dashboard: tira só as categorias ignoradas de cada movimentação
+// (A e B, ignorando B, fica só A). Sai inteira só a que tinha categoria e ficou sem nenhuma;
+// a que já não tinha categoria continua ("Sem categoria").
+export function semCategoriasIgnoradas<T extends Pick<Movimentacao, "categorias">>(
+  movimentacoes: T[],
+  ignoradas: number[],
+): T[] {
+  if (ignoradas.length === 0) return movimentacoes;
+  return movimentacoes.flatMap((mov) => {
+    const categorias = mov.categorias.filter(
+      (c) => !ignoradas.includes(c.idCategoria),
+    );
+    if (mov.categorias.length > 0 && categorias.length === 0) return [];
+    return [{ ...mov, categorias }];
+  });
 }

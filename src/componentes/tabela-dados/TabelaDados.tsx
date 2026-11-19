@@ -59,6 +59,12 @@ type EstilosTabela = Partial<
 const somar = (base: SxProps<Theme>, extra?: SxProps<Theme>) =>
   [base, ...(Array.isArray(extra) ? extra : [extra])] as SxProps<Theme>;
 
+// Checkbox em cada linha + "selecionar tudo" (as linhas da tela). Chaves de chaveLinha.
+export type SelecaoTabela = {
+  selecionadas: Key[];
+  setSelecionadas: (chaves: Key[]) => void;
+};
+
 type PropTabelaDados<T> = {
   titulo?: string;
   linhas: T[];
@@ -77,6 +83,7 @@ type PropTabelaDados<T> = {
   permitirLinhas?: boolean;
   // botões extras da tela, no mesmo grupo dos ícones da tabela (não se separam ao quebrar a linha)
   acoes?: ReactNode;
+  selecao?: SelecaoTabela;
 };
 
 // Tabela com colunas reordenáveis (arrastando o cabeçalho ou pelo menu "Colunas"),
@@ -96,6 +103,7 @@ function TabelaDados<T extends object>({
   ordenacaoPadrao = null,
   permitirLinhas = false,
   acoes,
+  selecao,
 }: PropTabelaDados<T>) {
   const chaves = colunas.map((c) => c.chave as string);
   const [prefs, setPrefs] = useState<PreferenciasTabela>(() => {
@@ -133,6 +141,23 @@ function TabelaDados<T extends object>({
     const valor = coluna.ordenarPor ?? ((l: T) => l[coluna.chave]);
     return ordenarLinhas(linhas, valor, o.direcao);
   }, [linhas, colunas, prefs.ordenacao]);
+
+  // seleção: só conta o que está na tela (uma linha que saiu pelo filtro não fica "marcada" escondida)
+  const chavesTela = linhasOrdenadas.map(chaveLinha);
+  const marcadas = selecao
+    ? chavesTela.filter((c) => selecao.selecionadas.includes(c))
+    : [];
+  const todasMarcadas =
+    chavesTela.length > 0 && marcadas.length === chavesTela.length;
+  const alternarTodas = () =>
+    selecao?.setSelecionadas(todasMarcadas ? [] : chavesTela);
+  const alternarLinha = (chave: Key) =>
+    selecao?.setSelecionadas(
+      marcadas.includes(chave)
+        ? marcadas.filter((c) => c !== chave)
+        : [...marcadas, chave],
+    );
+  const colunasExtras = selecao ? 1 : 0;
 
   const alterado = JSON.stringify(prefs) !== salvas;
   // com a barra superior (celular) a tabela não cabe: força as linhas separadas (sem mudar a preferência)
@@ -217,7 +242,13 @@ function TabelaDados<T extends object>({
             {titulo}
           </Typography>
         )}
-        <Stack direction="row" spacing={1}>
+        {/* quebra por dentro (alinhado à direita) se não couber, em vez de vazar da barra */}
+        <Stack
+          direction="row"
+          spacing={1}
+          useFlexGap
+          sx={{ flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0 }}
+        >
           {acoes}
           {permitirLinhas && !telaEstreita && (
             <Tooltip
@@ -346,6 +377,14 @@ function TabelaDados<T extends object>({
           ordenacao={prefs.ordenacao}
           ordenacaoPadrao={ordenacaoPadrao}
           setOrdenacao={(ordenacao) => setPrefs({ ...prefs, ordenacao })}
+          selecao={
+            selecao && {
+              marcadas,
+              todasMarcadas,
+              alternarTodas,
+              alternarLinha,
+            }
+          }
         />
       ) : (
         <TableContainer
@@ -405,6 +444,19 @@ function TabelaDados<T extends object>({
           >
             <TableHead>
               <TableRow>
+                {selecao && (
+                  <TableCell padding="checkbox" sx={{ cursor: "default" }}>
+                    <Checkbox
+                      size="small"
+                      checked={todasMarcadas}
+                      indeterminate={marcadas.length > 0 && !todasMarcadas}
+                      disabled={chavesTela.length === 0}
+                      onChange={alternarTodas}
+                      sx={{ color: "inherit" }}
+                      slotProps={{ input: { "aria-label": "Selecionar tudo" } }}
+                    />
+                  </TableCell>
+                )}
                 {visiveis.map((coluna) => {
                   const o = prefs.ordenacao;
                   const ativa = o?.chave === coluna.chave;
@@ -457,6 +509,25 @@ function TabelaDados<T extends object>({
                       "&:last-child td": { borderBottom: 0 },
                     }}
                   >
+                    {selecao && (
+                      // o clique na caixa não abre a linha
+                      <TableCell
+                        padding="checkbox"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <Checkbox
+                          size="small"
+                          checked={marcadas.includes(chaveLinha(linha, indice))}
+                          onChange={() =>
+                            alternarLinha(chaveLinha(linha, indice))
+                          }
+                          sx={{ color: "inherit" }}
+                          slotProps={{
+                            input: { "aria-label": "Selecionar linha" },
+                          }}
+                        />
+                      </TableCell>
+                    )}
                     {visiveis.map((coluna) => (
                       <TableCell key={coluna.chave} align={coluna.alinhar}>
                         {coluna.exibir
@@ -468,7 +539,10 @@ function TabelaDados<T extends object>({
                 ))}
               {carregando && (
                 <TableRow>
-                  <TableCell colSpan={visiveis.length} sx={{ py: 4 }}>
+                  <TableCell
+                    colSpan={visiveis.length + colunasExtras}
+                    sx={{ py: 4 }}
+                  >
                     <CircularProgress
                       size={32}
                       aria-label="Carregando dados da tabela"
@@ -479,7 +553,10 @@ function TabelaDados<T extends object>({
               )}
               {!carregando && linhas.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={visiveis.length} sx={{ py: 4 }}>
+                  <TableCell
+                    colSpan={visiveis.length + colunasExtras}
+                    sx={{ py: 4 }}
+                  >
                     {mensagemVazia}
                   </TableCell>
                 </TableRow>

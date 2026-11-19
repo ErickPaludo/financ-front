@@ -1,6 +1,11 @@
 import type { ReactNode } from "react";
 import { Box, Icon, Stack, Typography } from "@mui/material";
 
+import { CONSULTA_ESTREITA } from "../../../estilos";
+
+// em tela estreita: um terço da largura, então menos respiro, sem ícone e valor menor
+const ESTREITA = `@media ${CONSULTA_ESTREITA}`;
+
 type PropCardResumo = {
   rotulo: string;
   valor?: string; // sem valor: o conteúdo fica só nos children (ex.: vários valores)
@@ -9,6 +14,7 @@ type PropCardResumo = {
   corValor?: string;
   destaque?: boolean; // fundo na cor de destaque, texto branco
   children?: ReactNode; // legenda, badge ou barra de progresso
+  compacto?: boolean; // encolhe em tela estreita (CONSULTA_ESTREITA)
 };
 
 // Card de saldo da tela da conta (topo e "Ver detalhes").
@@ -20,6 +26,7 @@ const CardResumo: React.FC<PropCardResumo> = ({
   corValor,
   destaque = false,
   children,
+  compacto = false,
 }) => (
   <Box
     sx={{
@@ -31,6 +38,10 @@ const CardResumo: React.FC<PropCardResumo> = ({
       display: "flex",
       flexDirection: "column",
       gap: 1,
+      minWidth: 0,
+      ...(compacto && {
+        [ESTREITA]: { p: 1.25, gap: 0.75, borderRadius: "12px" },
+      }),
     }}
   >
     <Stack
@@ -44,6 +55,7 @@ const CardResumo: React.FC<PropCardResumo> = ({
           color: destaque
             ? "var(--fnc-tx-legenda-destaque)"
             : "var(--fnc-tx-apoio)",
+          ...(compacto && { [ESTREITA]: { fontSize: 11, lineHeight: 1.3 } }),
         }}
       >
         {rotulo}
@@ -59,6 +71,8 @@ const CardResumo: React.FC<PropCardResumo> = ({
           color: corIcone,
           // fundo suave na própria cor do ícone
           bgcolor: "color-mix(in srgb, currentColor 15%, transparent)",
+          flexShrink: 0,
+          ...(compacto && { [ESTREITA]: { display: "none" } }),
         }}
       >
         <Icon sx={{ fontSize: 18 }}>{icone}</Icon>
@@ -73,6 +87,14 @@ const CardResumo: React.FC<PropCardResumo> = ({
           letterSpacing: "-0.02em",
           fontVariantNumeric: "tabular-nums",
           color: corValor ?? "inherit",
+          ...(compacto && {
+            // valor grande (R$ 123.456,78) quebra em vez de vazar do card
+            [ESTREITA]: {
+              fontSize: 15,
+              letterSpacing: 0,
+              overflowWrap: "anywhere",
+            },
+          }),
         }}
       >
         {valor}

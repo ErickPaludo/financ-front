@@ -23,8 +23,19 @@ export const FORMATO_DATA_HORA = "YYYY-MM-DDTHH:mm";
 export const dataHoraLocal = (data?: string | Date | Dayjs) =>
   dayjs(data).format(FORMATO_DATA_HORA);
 
+// Válida e com o ano de 4 dígitos: digitando o ano, o campo passa por 0002, 0020, 0202.
+export const ehDataCompleta = (data: Dayjs | null): data is Dayjs =>
+  Boolean(data?.isValid()) && data!.year() >= 1000;
+
 // FORMATO_DATA_HORA (horário local) -> ISO em UTC, como a API espera.
 export const paraIsoUtc = (data: string) => new Date(data).toISOString();
+
+// A data repetida mês a mês (FORMATO_DATA_HORA): 31/01 vezes 3 = 31/01, 28/02, 31/03.
+// Soma a partir da original, para o dia 31 não virar 28 nos meses seguintes.
+export const datasMensais = (data: string, vezes: number) =>
+  Array.from({ length: vezes }, (_, i) =>
+    dataHoraLocal(dayjs(data).add(i, "month")),
+  );
 
 // Mês inteiro da data: dia 1 às 00:00 até o último dia às 23:59.
 export const periodoDoMes = (data: Dayjs = dayjs()) => ({

@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 
-import { FORMATO_DATA_HORA } from "../../utils/formatacao";
+import { ehDataCompleta, FORMATO_DATA_HORA } from "../../utils/formatacao";
 
 type PropCampoDataHora = {
   rotulo: string;
@@ -22,9 +22,14 @@ const CampoDataHora: React.FC<PropCampoDataHora> = ({
   <DateTimePicker
     label={rotulo}
     value={dayjs(valor)}
-    // ignora a digitação incompleta (ex.: "12/0"): só salva datas válidas
+    // Digitando o ano, o campo passa por 0002, 0020, 0202: só salva com o ano completo e dentro
+    // dos limites. Salvar o meio do caminho fazia a tela corrigir a data (ex.: puxar até o limite
+    // de 100 anos) e a digitação virava outro ano. Fora dos limites, o campo fica em erro.
     onChange={(data) => {
-      if (data?.isValid()) setValor(data.format(FORMATO_DATA_HORA));
+      if (!ehDataCompleta(data)) return;
+      const texto = data.format(FORMATO_DATA_HORA);
+      if ((minimo && texto < minimo) || (maximo && texto > maximo)) return;
+      setValor(texto);
     }}
     minDateTime={minimo ? dayjs(minimo) : undefined}
     maxDateTime={maximo ? dayjs(maximo) : undefined}

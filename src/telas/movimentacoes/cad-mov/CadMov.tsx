@@ -1,5 +1,7 @@
-import { useContext, useState } from "react";
+import { useContext, useRef, useState } from "react";
 import { Alert, Button, Stack } from "@mui/material";
+import dayjs from "dayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
 import Conecta from "../../../services/api/apiConnect";
 import {
@@ -23,7 +25,17 @@ import InputPrice from "../../../props/input-price/InputPrice";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
 import SeletorTipoMovimentacao from "../../../props/seletor-tipo-movimentacao/SeletorTipoMovimentacao";
-import { dataHoraLocal, paraIsoUtc } from "../../../utils/formatacao";
+import {
+  dataHoraLocal,
+  datasMensais,
+  ehDataCompleta,
+  paraIsoUtc,
+} from "../../../utils/formatacao";
+
+const MAXIMO_REPETICOES = 48;
+// quantos meses do mês da data até o mês escolhido, contando os dois
+const mesesAte = (data: string, ate: string) =>
+  dayjs(ate).diff(dayjs(data).startOf("month"), "month") + 1;
 
 interface PropCadMov {
   // no cadastro, recebe a movimentação criada (se a API devolveu) para a tela incluir sem buscar de novo
@@ -57,28 +69,60 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
     number[]
   >(() => mov?.categorias.map((cat) => cat.idCategoria) ?? []);
 
+  // repetir: uma transação por mês a partir da data, uma requisição cada
+  const [repetir, setRepetir] = useState(false);
+  const [repetirAte, setRepetirAte] = useState(() =>
+    dayjs(dataMovimentacao).add(1, "month").format("YYYY-MM"),
+  );
+  const vezes = mesesAte(dataMovimentacao, repetirAte);
+  const erroRepetir =
+    vezes < 2
+      ? "Escolha um mês depois do da transação."
+      : vezes > MAXIMO_REPETICOES
+        ? `No máximo ${MAXIMO_REPETICOES} meses.`
+        : null;
+  // quantas já foram criadas: se uma falhar no meio, enviar de novo continua dela, sem duplicar
+  const criadas = useRef(0);
+
   const alterarDataMovimentacao = (data: string) => {
     setDataMovimentacao(data);
     setDataConclusao(data);
   };
 
-  const cadastrar = async () => {
-    const corpo: MovimentacaoPost = {
-      tipo,
-      valor,
-      concluido,
-      titulo,
-      observacao: descricao,
-      dthrMovimentacao: paraIsoUtc(dataMovimentacao),
-      dthrConclusao: concluido ? paraIsoUtc(dataConclusao) : null,
-      idsCategoria: categoriasSelecionadas,
-    };
-    // a API devolve { valor: Movimentacao }, como nos outros cadastros
-    const resposta = await Conecta<{ valor?: Movimentacao }>(
+  // a API devolve { valor: Movimentacao }, como nos outros cadastros
+  const enviarPost = (dthrMovimentacao: string, conclui: boolean) =>
+    Conecta<{ valor?: Movimentacao }>(
       `/Contas/${conta!.idConta}/Movimentacoes`,
       "POST",
-      corpo,
+      {
+        tipo,
+        valor,
+        concluido: conclui,
+        titulo,
+        observacao: descricao,
+        dthrMovimentacao: paraIsoUtc(dthrMovimentacao),
+        dthrConclusao: conclui ? paraIsoUtc(dataConclusao) : null,
+        idsCategoria: categoriasSelecionadas,
+      } satisfies MovimentacaoPost,
     );
+
+  // Uma por mês, em sequência. Só a primeira pode sair concluída: as dos meses seguintes ainda não
+  // aconteceram. No fim a tela busca de novo (onClose sem movimentação).
+  const cadastrarRepetidas = async () => {
+    if (erroRepetir) return erroRepetir;
+    const datas = datasMensais(dataMovimentacao, vezes);
+    for (let i = criadas.current; i < datas.length; i++) {
+      const resposta = await enviarPost(datas[i], concluido && i === 0);
+      if (!resposta.sucesso)
+        return `${i} de ${datas.length} criadas. ${resposta.erro ?? "Erro ao cadastrar movimentação."} Cadastre de novo para criar as que faltam.`;
+      criadas.current = i + 1;
+    }
+    onClose();
+  };
+
+  const cadastrar = async () => {
+    if (repetir) return cadastrarRepetidas();
+    const resposta = await enviarPost(dataMovimentacao, concluido);
     if (!resposta.sucesso)
       return resposta.erro ?? "Erro ao cadastrar movimentação.";
 
@@ -187,6 +231,36 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
           rotulo="Movimentação concluída"
           marcado={concluido}
           setMarcado={setConcluido}
+        />
+      )}
+
+      {!edicao && (
+        <InputCheckBox
+          rotulo="Repetir nos meses seguintes"
+          marcado={repetir}
+          setMarcado={setRepetir}
+        />
+      )}
+
+      {repetir && (
+        <DatePicker
+          label="Repetir até"
+          views={["year", "month"]}
+          openTo="month"
+          format="MM/YYYY"
+          value={dayjs(repetirAte)}
+          onChange={(data) => {
+            if (ehDataCompleta(data)) setRepetirAte(data.format("YYYY-MM"));
+          }}
+          minDate={dayjs(dataMovimentacao).add(1, "month")}
+          maxDate={dayjs(dataMovimentacao).add(MAXIMO_REPETICOES - 1, "month")}
+          slotProps={{
+            textField: {
+              fullWidth: true,
+              error: Boolean(erroRepetir),
+              helperText: erroRepetir ?? `${vezes} transações, uma por mês`,
+            },
+          }}
         />
       )}
 
