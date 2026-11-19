@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link as RouterLink, useLocation } from "react-router-dom";
 import {
   AppBar,
   Avatar,
@@ -25,9 +25,7 @@ import {
 import { CONSULTA_CELULAR } from "../../estilos";
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
-import type {
-  ContaBancaria,
-} from "../../models/contas-usuarios/GetContasBancarias";
+import type { ContaBancaria } from "../../models/contas-usuarios/GetContasBancarias";
 import { buscarContas } from "../../services/contas/contaUsuarioService";
 import MsgBox from "../../props/msg-box/MsgBox";
 import TituloSecao from "../titulo-secao/TituloSecao";
@@ -93,6 +91,8 @@ type OpcoesBotao = {
   selecionado?: boolean;
   cor?: string; // ex.: vermelho do "Sair"
   subitem?: boolean; // recuado, abaixo da conta atual
+  // vira link de verdade: o botão direito mostra "Abrir em nova guia" e Ctrl/meio-clique abrem outra aba
+  rota?: string;
 };
 
 type PropBarraLateral = {
@@ -117,7 +117,6 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
 
   const nomeUsuario = user?.nomeCompleto || "Usuário";
   const { conta, setConta, versaoContas } = useContext(ContaContext);
-  const navigate = useNavigate();
   const ehCelular = useMediaQuery(CONSULTA_CELULAR);
   const [recolhida, setRecolhida] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
@@ -164,7 +163,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   // a conta selecionada, só nas telas dela; fora delas, null
   const contaAberta = conta && ehTelaDaConta(rotaAtual) ? conta : null;
   const naConta = contaAberta !== null;
-  // painel visível (os da conta só na tela da conta; navegar pelo menu fecha, em irPara)
+  // painel visível (os da conta só na tela da conta; navegar pelo menu fecha, em aoNavegar)
   const painelVisivel =
     painel && (!PAINEIS[painel].daConta || naConta) ? painel : null;
   const painelAberto = painelVisivel !== null;
@@ -192,16 +191,22 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     };
   }, [rotaAtual, conta, versaoContas]);
 
-  const irPara = (rota: string) => {
-    navigate(rota);
+  // ao seguir um link do menu: fecha a gaveta do celular e o subpainel
+  const aoNavegar = () => {
     setMobileAberto(false);
     setPainel(null);
   };
 
-  const abrirConta = (contaFavorita: ContaBancaria) => {
-    setConta(contaFavorita);
-    irPara(`/${contaFavorita.idConta}/contabancaria`);
-  };
+  const linkConta = (c: ContaBancaria, icone = "wallet") =>
+    botao(
+      c.titulo,
+      icone,
+      () => {
+        setConta(c);
+        aoNavegar();
+      },
+      { rota: `/${c.idConta}/contabancaria` },
+    );
 
   const titulo = (texto: string) =>
     !compacta && <TituloSecao cor={barra.apoio}>{texto}</TituloSecao>;
@@ -210,10 +215,11 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     texto: string,
     icone: string,
     onClick: () => void,
-    { selecionado = false, cor, subitem = false }: OpcoesBotao = {},
+    { selecionado = false, cor, subitem = false, rota }: OpcoesBotao = {},
   ) => (
     <Tooltip key={texto} title={compacta ? texto : ""} placement="right">
       <ListItemButton
+        {...(rota && { component: RouterLink, to: rota })}
         selected={selecionado}
         onClick={onClick}
         sx={{
@@ -261,16 +267,12 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     { rota, titulo, icone, manterFiltros = false }: Item,
     subitem = false,
   ) =>
-    botao(
-      titulo,
-      icone,
-      () => irPara(manterFiltros ? rota + filtrosUrl : rota),
-      {
-        // com um painel aberto, só o item dele fica selecionado (não a tela atrás)
-        selecionado: rotaAtual === rota && !painelAberto,
-        subitem,
-      },
-    );
+    botao(titulo, icone, aoNavegar, {
+      // com um painel aberto, só o item dele fica selecionado (não a tela atrás)
+      selecionado: rotaAtual === rota && !painelAberto,
+      subitem,
+      rota: manterFiltros ? rota + filtrosUrl : rota,
+    });
 
   // Só o SVG, sem quadro: azul-escuro na barra branca, branco na barra escura.
   const logo = (tamanho: number) => (
@@ -292,7 +294,9 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const conteudo = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <ButtonBase
-        onClick={() => irPara("/")}
+        component={RouterLink}
+        to="/"
+        onClick={aoNavegar}
         aria-label="FinancHub: ir para a tela inicial"
         sx={{
           height: 100,
@@ -426,9 +430,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
             {compacta && (
               <Divider sx={{ my: 1, borderColor: barra.divisoria }} />
             )}
-            {botao(ultimaConta.titulo, "history", () =>
-              abrirConta(ultimaConta),
-            )}
+            {linkConta(ultimaConta, "history")}
           </>
         )}
 
@@ -438,9 +440,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
             {compacta && (
               <Divider sx={{ my: 1, borderColor: barra.divisoria }} />
             )}
-            {favoritas.map((c) =>
-              botao(c.titulo, "wallet", () => abrirConta(c)),
-            )}
+            {favoritas.map((c) => linkConta(c))}
           </>
         )}
 
@@ -651,8 +651,16 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           >
             {logo(28)}
             <Typography
-              onClick={() => irPara("/")}
-              sx={{ flex: 1, fontSize: 18, fontWeight: 700, cursor: "pointer" }}
+              component={RouterLink}
+              to="/"
+              onClick={aoNavegar}
+              sx={{
+                flex: 1,
+                fontSize: 18,
+                fontWeight: 700,
+                color: "inherit",
+                textDecoration: "none",
+              }}
             >
               FinancHub
             </Typography>

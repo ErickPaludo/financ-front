@@ -30,6 +30,7 @@ import Modal from "../../componentes/modal/Modal";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
 import Categorias from "../categorias/Categorias";
 import CadMov from "./cad-mov/CadMov";
+import CadTransferencia from "./cad-transferencia/CadTransferencia";
 import CadConvite from "../../componentes/painel-convites/CadConvite";
 import TabelaMovimentacao from "./tabela/TabelaMovimentacao";
 import CardResumo from "./card-resumo/CardResumo";
@@ -156,7 +157,7 @@ const ValorRodape: React.FC<{ rotulo: string; valor: string; cor: string }> = ({
 // valores iguais aos da URL (filtrosUrl.ts)
 
 const Movimentacoes: React.FC = () => {
-  const { conta, setConta, setContaUsuario, usuario } =
+  const { conta, setConta, setContaUsuario, usuario, contasAlteradas } =
     useContext(ContaContext);
   const { user } = useContext(AuthContext);
   // a rota (ContaDaRota) só mostra esta tela com a conta carregada
@@ -169,6 +170,7 @@ const Movimentacoes: React.FC = () => {
   const [filtrosCarregados, setFiltrosCarregados] = useState<string>();
   const [cadMovAberto, setCadMovAberto] = useState(false);
   const [conviteAberto, setConviteAberto] = useState(false);
+  const [transferenciaAberta, setTransferenciaAberta] = useState(false);
   const [categoriasAberto, setCategoriasAberto] = useState(false);
   const { categorias, buscarCategorias } = useCategorias(idConta);
 
@@ -360,6 +362,15 @@ const Movimentacoes: React.FC = () => {
               )}
               {podeEditar && (
                 <Button
+                  startIcon={<Icon>swap_horiz</Icon>}
+                  onClick={() => setTransferenciaAberta(true)}
+                  sx={{ ...estiloBotaoSecundario, px: 2.5 }}
+                >
+                  Transferir
+                </Button>
+              )}
+              {podeEditar && (
+                <Button
                   variant="contained"
                   startIcon={<Icon>add</Icon>}
                   onClick={() => setCadMovAberto(true)}
@@ -538,6 +549,20 @@ const Movimentacoes: React.FC = () => {
               incluirNaTabela(cadastrada);
               buscarConta(); // saldos e pendentes dos cards (e da barra lateral) vêm prontos da conta
             } else buscarMovimentacoes(); // já busca a conta junto
+          }}
+        />
+      </Modal>
+
+      <Modal
+        aberto={transferenciaAberta}
+        titulo="Transferência entre contas"
+        onClose={() => setTransferenciaAberta(false)}
+      >
+        <CadTransferencia
+          onClose={() => {
+            setTransferenciaAberta(false);
+            buscarMovimentacoes(); // já busca a conta junto
+            contasAlteradas(); // saldo da outra conta na barra lateral
           }}
         />
       </Modal>

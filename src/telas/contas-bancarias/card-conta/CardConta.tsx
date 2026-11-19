@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
   Box,
@@ -122,7 +122,6 @@ const CardConta: React.FC<PropCardConta> = ({
 }) => {
   const { setConta } = useContext(ContaContext);
   const { user } = useContext(AuthContext);
-  const navigate = useNavigate();
 
   // Menu de 3 pontos: as mesmas opções da tela de configurações da conta.
   const [ancoraMenu, setAncoraMenu] = useState<HTMLElement | null>(null);
@@ -150,33 +149,22 @@ const CardConta: React.FC<PropCardConta> = ({
   const ativa = conta.status === 0;
   // a cor escolhida, escurecida se preciso para o texto branco do avatar
   const corConta = corParaTextoBranco(conta.cor);
-  const descricao = [
-    "Corrente",
-    conta.contaFavorita && "Favorita",
-  ]
+  const descricao = ["Corrente", conta.contaFavorita && "Favorita"]
     .filter(Boolean)
     .join(" · ");
-
-  const abrirConta = () => {
-    if (!ativa) return;
-    setConta(conta);
-    navigate(`/${conta.idConta}/contabancaria`);
-  };
 
   return (
     <Card
       elevation={0}
-      onClick={abrirConta}
-      role={ativa ? "button" : undefined}
-      tabIndex={ativa ? 0 : undefined}
-      aria-label={ativa ? `Abrir conta ${conta.titulo}` : undefined}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          abrirConta();
-        }
-      }}
+      // conta ativa: o card é um link (botão direito "Abrir em nova guia", Ctrl/meio-clique)
+      {...(ativa && {
+        component: RouterLink,
+        to: `/${conta.idConta}/contabancaria`,
+        onClick: () => setConta(conta),
+        "aria-label": `Abrir conta ${conta.titulo}`,
+      })}
       sx={{
+        textDecoration: "none",
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -241,9 +229,13 @@ const CardConta: React.FC<PropCardConta> = ({
             </Typography>
           </Box>
           {ativa && (
-            // Barra cliques e teclas do menu (inclusive do portal) para não abrir a conta.
+            // Barra cliques e teclas do menu (inclusive do portal) para não abrir a conta: o
+            // preventDefault impede o link do card de seguir ao clicar no botão dentro dele.
             <Box
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+              }}
               onKeyDown={(e) => e.stopPropagation()}
               sx={{ display: "flex", mr: -1 }}
             >
@@ -349,10 +341,7 @@ const CardConta: React.FC<PropCardConta> = ({
                     color="error"
                     onClick={() => {
                       setConfirmarSaida(false);
-                      executar(
-                        sairDaConta,
-                        "Não foi possível sair da conta.",
-                      );
+                      executar(sairDaConta, "Não foi possível sair da conta.");
                     }}
                   >
                     Sair

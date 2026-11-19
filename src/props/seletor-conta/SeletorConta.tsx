@@ -8,6 +8,7 @@ type PropSeletorConta = {
   valor: number | null; // idConta escolhida
   setValor: (idConta: number) => void;
   rotulo?: string;
+  bloqueado?: boolean; // ex.: a conta aberta na transferência
 };
 
 // Escolha de uma conta bancária (ex.: para qual conta vai o convite), com a cor de cada conta.
@@ -16,9 +17,11 @@ const SeletorConta: React.FC<PropSeletorConta> = ({
   valor,
   setValor,
   rotulo = "Conta",
+  bloqueado = false,
 }) => (
   <CampoTexto
     select
+    disabled={bloqueado}
     label={rotulo}
     valor={valor === null ? "" : String(valor)}
     setValor={(id) => setValor(Number(id))}
@@ -30,7 +33,11 @@ const SeletorConta: React.FC<PropSeletorConta> = ({
     </MenuItem>
     {contas.map((conta) => (
       <MenuItem key={conta.idConta} value={String(conta.idConta)}>
-        <Stack direction="row" spacing={1.25} sx={{ alignItems: "center", minWidth: 0 }}>
+        <Stack
+          direction="row"
+          spacing={1.25}
+          sx={{ alignItems: "center", minWidth: 0 }}
+        >
           <Box
             aria-hidden
             sx={{
@@ -41,7 +48,10 @@ const SeletorConta: React.FC<PropSeletorConta> = ({
               bgcolor: conta.cor,
             }}
           />
-          <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+          <Box
+            component="span"
+            sx={{ overflow: "hidden", textOverflow: "ellipsis" }}
+          >
             {conta.titulo}
           </Box>
         </Stack>

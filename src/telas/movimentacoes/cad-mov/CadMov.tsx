@@ -1,7 +1,5 @@
 import { useContext, useRef, useState } from "react";
 import { Alert, Button, Stack } from "@mui/material";
-import dayjs from "dayjs";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 
 import Conecta from "../../../services/api/apiConnect";
 import {
@@ -24,18 +22,14 @@ import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
 import InputPrice from "../../../props/input-price/InputPrice";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
+import CampoRepetir from "../../../props/campo-repetir/CampoRepetir";
+import { useRepeticao } from "../../../hooks/useRepeticao";
 import SeletorTipoMovimentacao from "../../../props/seletor-tipo-movimentacao/SeletorTipoMovimentacao";
 import {
   dataHoraLocal,
   datasMensais,
-  ehDataCompleta,
   paraIsoUtc,
 } from "../../../utils/formatacao";
-
-const MAXIMO_REPETICOES = 48;
-// quantos meses do mês da data até o mês escolhido, contando os dois
-const mesesAte = (data: string, ate: string) =>
-  dayjs(ate).diff(dayjs(data).startOf("month"), "month") + 1;
 
 interface PropCadMov {
   // no cadastro, recebe a movimentação criada (se a API devolveu) para a tela incluir sem buscar de novo
@@ -70,17 +64,8 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
   >(() => mov?.categorias.map((cat) => cat.idCategoria) ?? []);
 
   // repetir: uma transação por mês a partir da data, uma requisição cada
-  const [repetir, setRepetir] = useState(false);
-  const [repetirAte, setRepetirAte] = useState(() =>
-    dayjs(dataMovimentacao).add(1, "month").format("YYYY-MM"),
-  );
-  const vezes = mesesAte(dataMovimentacao, repetirAte);
-  const erroRepetir =
-    vezes < 2
-      ? "Escolha um mês depois do da transação."
-      : vezes > MAXIMO_REPETICOES
-        ? `No máximo ${MAXIMO_REPETICOES} meses.`
-        : null;
+  const repeticao = useRepeticao(dataMovimentacao);
+  const { repetir, vezes, erro: erroRepetir } = repeticao;
   // quantas já foram criadas: se uma falhar no meio, enviar de novo continua dela, sem duplicar
   const criadas = useRef(0);
 
@@ -235,32 +220,9 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
       )}
 
       {!edicao && (
-        <InputCheckBox
-          rotulo="Repetir nos meses seguintes"
-          marcado={repetir}
-          setMarcado={setRepetir}
-        />
-      )}
-
-      {repetir && (
-        <DatePicker
-          label="Repetir até"
-          views={["year", "month"]}
-          openTo="month"
-          format="MM/YYYY"
-          value={dayjs(repetirAte)}
-          onChange={(data) => {
-            if (ehDataCompleta(data)) setRepetirAte(data.format("YYYY-MM"));
-          }}
-          minDate={dayjs(dataMovimentacao).add(1, "month")}
-          maxDate={dayjs(dataMovimentacao).add(MAXIMO_REPETICOES - 1, "month")}
-          slotProps={{
-            textField: {
-              fullWidth: true,
-              error: Boolean(erroRepetir),
-              helperText: erroRepetir ?? `${vezes} transações, uma por mês`,
-            },
-          }}
+        <CampoRepetir
+          repeticao={repeticao}
+          texto={(vezes) => `${vezes} transações, uma por mês`}
         />
       )}
 
