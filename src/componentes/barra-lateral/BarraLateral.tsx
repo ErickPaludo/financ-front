@@ -34,11 +34,9 @@ import TituloSecao from "../titulo-secao/TituloSecao";
 import PainelMembros from "../painel-membros/PainelMembros";
 import PainelUsuario from "../painel-usuario/PainelUsuario";
 import PainelConvites from "../painel-convites/PainelConvites";
-import PainelAgendadas from "../painel-agendadas/PainelAgendadas";
 import PainelLateral from "../painel-lateral/PainelLateral";
 import { iniciais } from "../../utils/formatacao";
 import { useUltimaConta } from "../../hooks/useUltimaConta";
-import { PERMISSAO } from "../../utils/permissao";
 import APP_VERSION from "../../version";
 import { CoresClaro, CoresEscuro, coresDaBarra } from "../../cores";
 import type { ModoCor } from "../../tema";
@@ -67,7 +65,7 @@ type Item = {
 };
 
 // Subpainéis que abrem ao lado da barra (um por vez, no mesmo PainelLateral).
-type Painel = "membros" | "agendadas" | "convites" | "usuario";
+type Painel = "membros" | "convites" | "usuario";
 type ConfigPainel = {
   rotulo: string; // nome do painel para leitores de tela
   Conteudo: React.FC<{ onClose: () => void }>;
@@ -79,12 +77,6 @@ const PAINEIS: Record<Painel, ConfigPainel> = {
     rotulo: "Membros da conta",
     Conteudo: PainelMembros,
     daConta: true,
-  },
-  agendadas: {
-    rotulo: "Movimentações agendadas",
-    Conteudo: PainelAgendadas,
-    daConta: true,
-    largura: 920, // tabela
   },
   convites: { rotulo: "Convites", Conteudo: PainelConvites, daConta: false },
   usuario: {
@@ -124,7 +116,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const barra = coresDaBarra(cores === CoresClaro);
 
   const nomeUsuario = user?.nomeCompleto || "Usuário";
-  const { conta, usuario, setConta, versaoContas } = useContext(ContaContext);
+  const { conta, setConta, versaoContas } = useContext(ContaContext);
   const navigate = useNavigate();
   const ehCelular = useMediaQuery(CONSULTA_CELULAR);
   const [recolhida, setRecolhida] = useState(false);
@@ -132,7 +124,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const [confirmarSaida, setConfirmarSaida] = useState(false);
   // subpainel aberto ao lado da barra (um por vez)
   const [painel, setPainel] = useState<Painel | null>(null);
-  // Subtópicos da conta atual (Dashboard, Agendadas, Membros): fechados, mas ao entrar na tela da
+  // Subtópicos da conta atual (Dashboard, Membros): fechados, mas ao entrar na tela da
   // conta abrem para mostrar as opções e fecham sozinhos depois de 3s, se ninguém clicar neles.
   const [subtopicosAbertos, setSubtopicosAbertos] = useState(() =>
     ehTelaDaConta(rotaAtual),
@@ -408,17 +400,6 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
                   },
                   true,
                 )}
-                {/* abre o subpainel (largo) de agendadas ao lado da barra */}
-                {usuario?.permissao !== PERMISSAO.Visualizador &&
-                  botao(
-                    "Agendadas",
-                    "browse_gallery",
-                    () => alternarPainel("agendadas"),
-                    {
-                      selecionado: painel === "agendadas",
-                      subitem: true,
-                    },
-                  )}
                 {/* abre o subpainel de membros ao lado da barra */}
                 {botao(
                   "Membros da conta",
