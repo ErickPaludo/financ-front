@@ -1,5 +1,6 @@
 import type { Movimentacao } from "../../models/movimentacoes/GetMovimentacoes";
 import type { ApiResult } from "../../models/interface/ApiResult";
+import type { MovimentacaoPatch } from "../../models/movimentacoes/MovimentacaoPatch";
 import Conecta from "../api/apiConnect";
 
 // Movimentação virtual (id 0, gerada por um agendamento) vira uma movimentação real.
@@ -63,6 +64,20 @@ export const concluirMovimentacao = (
         dthrConclusao,
       }),
     "Não foi possível concluir a movimentação.",
+  );
+
+// dthrMovimentacao em ISO UTC; os outros campos ficam como estão (null no PATCH = não altera)
+export const alterarDataMovimentacao = (
+  mov: Movimentacao,
+  dthrMovimentacao: string,
+) =>
+  naMovimentacao(
+    mov,
+    (id) =>
+      Conecta<string>(`Contas/Movimentacoes/${id}/Alterar`, "PATCH", {
+        dthrMovimentacao,
+      } satisfies MovimentacaoPatch),
+    "Não foi possível alterar a data da movimentação.",
   );
 
 export const extornarMovimentacao = (mov: Movimentacao) =>

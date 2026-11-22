@@ -5,8 +5,10 @@ import {
   Chip,
   Divider,
   Icon,
+  IconButton,
   InputAdornment,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 
@@ -18,7 +20,11 @@ import InputSelect from "../../../props/input-select/InputSelect";
 import { estiloBotaoSecundario } from "../../../estilos";
 import { formatarData, periodoDoMes } from "../../../utils/formatacao";
 import FiltroPeriodo from "../filtro-periodo/FiltroPeriodo";
-import { atalhosPeriodo, mesmoPeriodo } from "../filtro-periodo/periodo";
+import {
+  atalhosPeriodo,
+  mesmoPeriodo,
+  moverPeriodo,
+} from "../filtro-periodo/periodo";
 import {
   OPCOES_STATUS,
   OPCOES_TIPO,
@@ -135,6 +141,11 @@ const chips = (lista: FiltroAplicado[]) =>
     />
   ));
 
+const SETAS = [
+  { direcao: -1, rotulo: "Período anterior", icone: "chevron_left" },
+  { direcao: 1, rotulo: "Próximo período", icone: "chevron_right" },
+] as const;
+
 // Filtros das telas da conta (transações e dashboard): na barra, o botão "Filtros" e os chips
 // dos filtros aplicados (o X remove na hora); o botão abre o painel na gaveta Modal.
 const FiltrosConta: React.FC<PropFiltrosConta> = ({
@@ -183,6 +194,26 @@ const FiltrosConta: React.FC<PropFiltrosConta> = ({
         >
           Filtros{ativos.length > 0 && ` (${ativos.length})`}
         </Button>
+        {/* mesmas setas do painel, mas valem na hora (sem "Pesquisar") */}
+        <Stack direction="row" sx={{ flexShrink: 0 }}>
+          {SETAS.map(({ direcao, rotulo, icone }) => (
+            <Tooltip key={direcao} title={rotulo}>
+              <IconButton
+                aria-label={rotulo}
+                onClick={() =>
+                  alterarFiltros(
+                    moverPeriodo(
+                      { inicio: filtros.inicio, fim: filtros.fim },
+                      direcao,
+                    ),
+                  )
+                }
+              >
+                <Icon>{icone}</Icon>
+              </IconButton>
+            </Tooltip>
+          ))}
+        </Stack>
         {chips(aplicados)}
       </Stack>
 

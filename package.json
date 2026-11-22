@@ -2,7 +2,7 @@
   "homepage": "https://financ-gestaofinanceira.github.io/financproject",
   "name": "vite-project",
   "private": true,
-  "version": "1.0.1-alpha",
+  "version": "1.0.2-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",

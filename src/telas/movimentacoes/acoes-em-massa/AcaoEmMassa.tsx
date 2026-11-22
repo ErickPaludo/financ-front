@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   Alert,
+  Box,
   Button,
   Dialog,
   DialogActions,
@@ -16,14 +17,20 @@ import {
 
 import type { Movimentacao } from "../../../models/movimentacoes/GetMovimentacoes";
 import {
+  alterarDataMovimentacao,
   concluirMovimentacao,
   extornarMovimentacao,
   removerMovimentacao,
 } from "../../../services/movimentacoes/movimentacaoService";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
-import { formatarData } from "../../../utils/formatacao";
+import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
+import {
+  dataHoraLocal,
+  formatarData,
+  paraIsoUtc,
+} from "../../../utils/formatacao";
 
-export type TipoAcaoEmMassa = "concluir" | "extornar" | "excluir";
+export type TipoAcaoEmMassa = "concluir" | "extornar" | "excluir" | "data";
 
 // textos de cada ação; "feitas" completa "N de M ..."
 const TEXTOS: Record<
@@ -47,6 +54,12 @@ const TEXTOS: Record<
     andamento: "Excluindo",
     feitas: "excluídas",
     falhou: "excluída",
+  },
+  data: {
+    verbo: "Alterar data de",
+    andamento: "Alterando a data das",
+    feitas: "alteradas",
+    falhou: "alterada",
   },
 };
 
@@ -72,6 +85,8 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
   const [iniciado, setIniciado] = useState(false);
   // concluir: agora (como o popup da linha) ou a data de cada movimentação
   const [usarDataMov, setUsarDataMov] = useState(false);
+  // alterar data: a mesma data para todas
+  const [novaData, setNovaData] = useState(() => dataHoraLocal());
   const [feitas, setFeitas] = useState(0);
   const [falhas, setFalhas] = useState<Falha[]>([]);
   const total = movimentacoes.length;
@@ -83,10 +98,14 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
       ? removerMovimentacao(mov)
       : acao === "extornar"
         ? extornarMovimentacao(mov)
-        : concluirMovimentacao(
-            mov,
-            usarDataMov ? new Date(mov.dthrMovimentacao).toISOString() : agora,
-          );
+        : acao === "data"
+          ? alterarDataMovimentacao(mov, paraIsoUtc(novaData))
+          : concluirMovimentacao(
+              mov,
+              usarDataMov
+                ? new Date(mov.dthrMovimentacao).toISOString()
+                : agora,
+            );
 
   // uma por vez: o progresso anda a cada resposta
   const iniciar = async () => {
@@ -144,6 +163,16 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
                 marcado={usarDataMov}
                 setMarcado={setUsarDataMov}
               />
+            )}
+            {acao === "data" && (
+              // respiro: o rótulo do campo fica acima da borda e o DialogContent corta
+              <Box sx={{ pt: 1 }}>
+                <CampoDataHora
+                  rotulo="Nova data da movimentação"
+                  valor={novaData}
+                  setValor={setNovaData}
+                />
+              </Box>
             )}
           </>
         ) : (

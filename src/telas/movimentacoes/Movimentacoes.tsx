@@ -17,26 +17,25 @@ import {
   buscarContas,
   buscarContaUsuario,
 } from "../../services/contas/contaUsuarioService";
-import type {
-  GetMovimentacoes,
-  Movimentacao,
-} from "../../models/movimentacoes/GetMovimentacoes";
+import type { GetMovimentacoes } from "../../models/movimentacoes/GetMovimentacoes";
 import { ContaContext } from "../../contexts/ContaContext";
 import { AuthContext } from "../../contexts/AuthContext";
 import { useCategorias } from "../../hooks/useCategorias";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
+import { useExperimentais } from "../../hooks/useExperimentais";
 import BotaoOcultarValores from "../../componentes/botao-ocultar-valores/BotaoOcultarValores";
 import Modal from "../../componentes/modal/Modal";
 import TituloPagina from "../../componentes/titulo-pagina/TituloPagina";
 import Categorias from "../categorias/Categorias";
 import CadMov from "./cad-mov/CadMov";
 import CadTransferencia from "./cad-transferencia/CadTransferencia";
+import ImportarCsv from "./importar-csv/ImportarCsv";
 import CadConvite from "../../componentes/painel-convites/CadConvite";
 import TabelaMovimentacao from "./tabela/TabelaMovimentacao";
 import CardResumo from "./card-resumo/CardResumo";
 import FiltrosConta from "./filtros/FiltrosConta";
 import { useFiltrosUrl } from "./useFiltrosUrl";
-import { passaNosFiltros, rotaMovimentacoes } from "./filtrosUrl";
+import { rotaMovimentacoes } from "./filtrosUrl";
 import {
   formatarDataHora,
   exibirMoeda,
@@ -171,6 +170,7 @@ const Movimentacoes: React.FC = () => {
   const [cadMovAberto, setCadMovAberto] = useState(false);
   const [conviteAberto, setConviteAberto] = useState(false);
   const [transferenciaAberta, setTransferenciaAberta] = useState(false);
+  const [importarAberto, setImportarAberto] = useState(false);
   const [categoriasAberto, setCategoriasAberto] = useState(false);
   const { categorias, buscarCategorias } = useCategorias(idConta);
 
@@ -186,6 +186,8 @@ const Movimentacoes: React.FC = () => {
   const [mostraDetalhes, setMostraDetalhes] = useState(false);
   const [busca, setBusca] = useState("");
   const { ocultos, alternarOcultos } = useValoresOcultos();
+  // Importar CSV ainda é experimental: só aparece com a opção ligada no painel do usuário
+  const { ativas: experimentais } = useExperimentais();
   const [modoSimples, setModoSimples] = useState(false);
   const [recarregando, setRecarregando] = useState(false);
   const ultimaBusca = useRef(0);
@@ -236,22 +238,6 @@ const Movimentacoes: React.FC = () => {
     buscarUsuarioDaConta();
     buscarMovimentacoes();
   }, [buscarUsuarioDaConta, buscarMovimentacoes]);
-
-  // Recém-cadastrada entra na tabela sem nova busca, se passar nos filtros atuais.
-  // Os saldos da conta são rebuscados à parte (buscarConta); o resumo do período só muda ao recarregar.
-  const incluirNaTabela = (cadastrada: Movimentacao) => {
-    if (!passaNosFiltros(cadastrada, filtros)) return;
-    setMovimentacoes(
-      (atual) =>
-        atual && {
-          ...atual,
-          conteudo: {
-            ...atual.conteudo,
-            movimentacaos: [...atual.conteudo.movimentacaos, cadastrada],
-          },
-        },
-    );
-  };
 
   // botão de recarregar: busca de novo conta, permissões, categorias e movimentações
   const recarregar = () => {
@@ -367,6 +353,15 @@ const Movimentacoes: React.FC = () => {
                   sx={{ ...estiloBotaoSecundario, px: 2.5 }}
                 >
                   Transferir
+                </Button>
+              )}
+              {podeEditar && experimentais && (
+                <Button
+                  startIcon={<Icon>upload_file</Icon>}
+                  onClick={() => setImportarAberto(true)}
+                  sx={{ ...estiloBotaoSecundario, px: 2.5 }}
+                >
+                  Importar CSV
                 </Button>
               )}
               {podeEditar && (
@@ -543,12 +538,10 @@ const Movimentacoes: React.FC = () => {
         onClose={() => setCadMovAberto(false)}
       >
         <CadMov
-          onClose={(cadastrada) => {
+          onClose={() => {
             setCadMovAberto(false);
-            if (cadastrada) {
-              incluirNaTabela(cadastrada);
-              buscarConta(); // saldos e pendentes dos cards (e da barra lateral) vêm prontos da conta
-            } else buscarMovimentacoes(); // já busca a conta junto
+            // conta + movimentações: saldos dos cards e resumo do período (vem no GET) atualizam juntos
+            buscarMovimentacoes();
           }}
         />
       </Modal>
@@ -563,6 +556,19 @@ const Movimentacoes: React.FC = () => {
             setTransferenciaAberta(false);
             buscarMovimentacoes(); // já busca a conta junto
             contasAlteradas(); // saldo da outra conta na barra lateral
+          }}
+        />
+      </Modal>
+
+      <Modal
+        aberto={importarAberto}
+        titulo="Importar CSV"
+        onClose={() => setImportarAberto(false)}
+      >
+        <ImportarCsv
+          onClose={() => {
+            setImportarAberto(false);
+            buscarMovimentacoes(); // já busca a conta junto
           }}
         />
       </Modal>

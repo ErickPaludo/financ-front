@@ -8,6 +8,30 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "1.0.2-alpha",
+    data: "22/11/2026",
+    grupos: [
+      {
+        titulo: "Novidades",
+        icone: "auto_awesome",
+        itens: [
+          "Funções experimentais: ligue em Opções de usuário › Experimental para testar o que ainda está em desenvolvimento.",
+          "Importar CSV da fatura do cartão do Nubank (experimental): cada compra vira uma despesa na data da fatura e cada estorno vira uma receita. Aceita vários arquivos de uma vez, e o dia da virada e as categorias ficam salvos por conta.",
+          "Alterar data em massa: selecione várias transações e mude a data de todas de uma vez.",
+          "Setas na barra de filtros para ir ao mês anterior ou ao próximo sem abrir o painel.",
+        ],
+      },
+      {
+        titulo: "Correções",
+        icone: "build",
+        itens: [
+          "Depois de cadastrar uma transação, os saldos e o resumo do período se atualizam na hora.",
+          'No celular, segurar um card de conta para arrastar não abre mais o menu "Abrir em nova guia".',
+        ],
+      },
+    ],
+  },
+  {
     versao: "1.0.1-alpha",
     data: "19/11/2026",
     grupos: [
@@ -63,7 +87,7 @@ export const NOVIDADES: Novidade[] = [
         titulo: "Removido",
         icone: "remove_circle_outline",
         itens: [
-          "Agendamentos foram desativados por enquanto. Para lançamentos recorrentes, use \"Repetir nos meses seguintes\".",
+          'Agendamentos foram desativados por enquanto. Para lançamentos recorrentes, use "Repetir nos meses seguintes".',
           "O chat de suporte foi removido.",
         ],
       },

@@ -5,6 +5,7 @@ import CampoTexto from "../campo-texto/CampoTexto";
 export interface OpcaoSelect {
   rotulo: string;
   valor: string;
+  desabilitado?: boolean;
 }
 
 interface PropInputSelect {
@@ -37,7 +38,11 @@ const InputSelect: React.FC<PropInputSelect> = ({
       </MenuItem>
     )}
     {opcoes.map((opcao) => (
-      <MenuItem key={opcao.valor} value={opcao.valor}>
+      <MenuItem
+        key={opcao.valor}
+        value={opcao.valor}
+        disabled={opcao.desabilitado}
+      >
         {opcao.rotulo}
       </MenuItem>
     ))}

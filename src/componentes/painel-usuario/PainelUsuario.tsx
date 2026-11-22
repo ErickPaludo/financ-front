@@ -10,6 +10,7 @@ import {
   ListItemIcon,
   ListItemText,
   Stack,
+  Switch,
 } from "@mui/material";
 
 import Conecta from "../../services/api/apiConnect";
@@ -17,6 +18,7 @@ import { AuthContext } from "../../contexts/AuthContext";
 import { useEncerrarSessao } from "../../hooks/useEncerrarSessao";
 import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
 import { useCoresBarra } from "../../hooks/useCoresBarra";
+import { useExperimentais } from "../../hooks/useExperimentais";
 import CampoTexto from "../../props/campo-texto/CampoTexto";
 import { validarConfirmacaoSenha } from "../../props/campo-texto/validacoes";
 import { iniciais } from "../../utils/formatacao";
@@ -65,6 +67,10 @@ const PainelUsuario: React.FC<{ onClose: () => void }> = ({ onClose }) => {
           >
             <FormularioSenha />
           </OpcaoExpansivel>
+        </Topico>
+
+        <Topico titulo="Experimental">
+          <OpcaoExperimentais />
         </Topico>
       </Box>
     </>
@@ -143,6 +149,44 @@ const OpcaoExpansivel: React.FC<PropOpcaoExpansivel> = ({
         <Box sx={{ px: 1, pt: 1.5, pb: 1 }}>{children}</Box>
       </Collapse>
     </>
+  );
+};
+
+// Liga/desliga as funções em teste (hoje: Importar CSV na tela da conta).
+const OpcaoExperimentais: React.FC = () => {
+  const barra = useCoresBarra();
+  const { ativas, alternarExperimentais } = useExperimentais();
+  return (
+    <ListItemButton
+      onClick={alternarExperimentais}
+      role="switch"
+      aria-checked={ativas}
+      sx={{
+        borderRadius: 1,
+        color: barra.item,
+        "&:hover": { bgcolor: barra.itemHover, color: barra.itemHoverTexto },
+      }}
+    >
+      <ListItemIcon sx={{ minWidth: 0, mr: 1.5, color: "inherit" }}>
+        <Icon>science</Icon>
+      </ListItemIcon>
+      <ListItemText
+        primary="Funções experimentais"
+        secondary="Importar CSV da fatura. Podem mudar ou ter erros"
+        slotProps={{
+          primary: { sx: { fontSize: 14, fontWeight: 600 } },
+          secondary: { sx: { fontSize: 12, color: barra.apoio } },
+        }}
+      />
+      {/* o clique é da linha inteira; o Switch só mostra o estado */}
+      <Switch
+        checked={ativas}
+        tabIndex={-1}
+        size="small"
+        slotProps={{ input: { "aria-hidden": true } }}
+        sx={{ pointerEvents: "none" }}
+      />
+    </ListItemButton>
   );
 };
 
