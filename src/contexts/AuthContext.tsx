@@ -54,7 +54,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setTokenData(null);
     setUserObj(null);
     try {
+      // a versão vista sobrevive: senão todo login destacaria as Novidades
+      const versaoVista = localStorage.getItem("versaoVista");
       localStorage.clear();
+      if (versaoVista) localStorage.setItem("versaoVista", versaoVista);
     } catch {
       // storage bloqueado: nada salvo para limpar, o logout segue
     }

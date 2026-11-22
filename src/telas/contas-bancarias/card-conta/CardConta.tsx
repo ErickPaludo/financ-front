@@ -1,5 +1,6 @@
 import { useContext, useState } from "react";
 import { Link as RouterLink } from "react-router-dom";
+import { PROPS_ALCA } from "../../../hooks/useOrdemArrastavel";
 import {
   Alert,
   Box,
@@ -192,6 +193,19 @@ const CardConta: React.FC<PropCardConta> = ({
 
       <Stack spacing={2} sx={{ p: 2.5, pt: 2, flex: 1 }}>
         <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+          {/* só indica que o card arrasta (o card inteiro é arrastável), como no dashboard */}
+          <Icon
+            aria-hidden
+            {...PROPS_ALCA}
+            sx={{
+              fontSize: 20,
+              color: "var(--fnc-tx-apoio)",
+              ml: -1, // encosta na borda: o respiro do card já separa
+              cursor: "grab",
+            }}
+          >
+            drag_indicator
+          </Icon>
           <Box
             aria-hidden
             sx={{

@@ -3,6 +3,7 @@ import { Link as RouterLink, useLocation } from "react-router-dom";
 import {
   AppBar,
   Avatar,
+  Badge,
   Box,
   ButtonBase,
   Collapse,
@@ -94,6 +95,17 @@ type OpcoesBotao = {
   subitem?: boolean; // recuado, abaixo da conta atual
   // vira link de verdade: o botão direito mostra "Abrir em nova guia" e Ctrl/meio-clique abrem outra aba
   rota?: string;
+  destaque?: boolean; // ponto no ícone (ex.: novidades não vistas)
+};
+
+// versão do app cujas novidades o usuário já abriu
+const CHAVE_VERSAO_VISTA = "versaoVista";
+const lerVersaoVista = () => {
+  try {
+    return localStorage.getItem(CHAVE_VERSAO_VISTA);
+  } catch {
+    return null;
+  }
 };
 
 type PropBarraLateral = {
@@ -124,6 +136,10 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const [confirmarSaida, setConfirmarSaida] = useState(false);
   // subpainel aberto ao lado da barra (um por vez)
   const [painel, setPainel] = useState<Painel | null>(null);
+  // lido ao montar (login ou recarregar): versão nova destaca o botão Novidades
+  const [novidadesNaoVistas, setNovidadesNaoVistas] = useState(
+    () => lerVersaoVista() !== __APP_VERSION__,
+  );
   // Subtópicos da conta atual (Dashboard, Membros): fechados, mas ao entrar na tela da
   // conta abrem para mostrar as opções e fecham sozinhos depois de 3s, se ninguém clicar neles.
   const [subtopicosAbertos, setSubtopicosAbertos] = useState(() =>
@@ -216,7 +232,13 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
     texto: string,
     icone: string,
     onClick: () => void,
-    { selecionado = false, cor, subitem = false, rota }: OpcoesBotao = {},
+    {
+      selecionado = false,
+      cor,
+      subitem = false,
+      rota,
+      destaque = false,
+    }: OpcoesBotao = {},
   ) => (
     <Tooltip key={texto} title={compacta ? texto : ""} placement="right">
       <ListItemButton
@@ -246,7 +268,9 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
         <ListItemIcon
           sx={{ minWidth: 0, mr: compacta ? 0 : 1.5, color: "inherit" }}
         >
-          <Icon sx={{ fontSize: subitem ? 18 : undefined }}>{icone}</Icon>
+          <Badge variant="dot" color="error" invisible={!destaque}>
+            <Icon sx={{ fontSize: subitem ? 18 : undefined }}>{icone}</Icon>
+          </Badge>
         </ListItemIcon>
         {!compacta && (
           <ListItemText
@@ -458,9 +482,23 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
           >
             v{__APP_VERSION__}
           </Typography>
-          {botao("Novidades", "new_releases", () => alternarPainel("novidades"), {
-            selecionado: painel === "novidades",
-          })}
+          {botao(
+            "Novidades",
+            "new_releases",
+            () => {
+              alternarPainel("novidades");
+              setNovidadesNaoVistas(false);
+              try {
+                localStorage.setItem(CHAVE_VERSAO_VISTA, __APP_VERSION__);
+              } catch {
+                // storage bloqueado: o destaque volta ao recarregar
+              }
+            },
+            {
+              selecionado: painel === "novidades",
+              destaque: novidadesNaoVistas,
+            },
+          )}
         </Box>
       </List>
       {/* Rodapé: cartão do usuário; ao clicar abre as opções do usuário */}

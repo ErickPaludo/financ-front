@@ -17,7 +17,7 @@ import { ptBRLocaleText } from "@mui/x-charts/locales";
 
 import { AuthContext } from "../../contexts/AuthContext";
 import { ContaContext } from "../../contexts/ContaContext";
-import { useOrdemArrastavel } from "../../hooks/useOrdemArrastavel";
+import { PROPS_ALCA, useOrdemArrastavel } from "../../hooks/useOrdemArrastavel";
 import { useOrdemSalva } from "../../hooks/useOrdemSalva";
 import { CoresClaro, CoresEscuro } from "../../cores";
 import {
@@ -121,7 +121,11 @@ const CardGrafico: React.FC<PropCardGrafico> = ({
         sx={{ alignItems: "center", gap: 0.5, cursor: "grab" }}
       >
         {/* só indica que o card arrasta (o card inteiro é arrastável) */}
-        <Icon aria-hidden sx={{ fontSize: 20, color: "var(--fnc-tx-apoio)" }}>
+        <Icon
+          aria-hidden
+          {...PROPS_ALCA}
+          sx={{ fontSize: 20, color: "var(--fnc-tx-apoio)" }}
+        >
           drag_indicator
         </Icon>
         <Typography
@@ -192,11 +196,12 @@ const FORMATOS_ENTRADAS_SAIDAS: OpcaoFormato<"linha" | "barra">[] = [
   { valor: "barra", rotulo: "Barras", icone: "bar_chart" },
 ];
 // quais séries o gráfico "Entradas e saídas" mostra
-const SERIES_ENTRADAS_SAIDAS: OpcaoFormato<"ambas" | "entradas" | "saidas">[] = [
-  { valor: "ambas", rotulo: "Entradas e saídas", icone: "swap_vert" },
-  { valor: "entradas", rotulo: "Só entradas", icone: "trending_up" },
-  { valor: "saidas", rotulo: "Só saídas", icone: "trending_down" },
-];
+const SERIES_ENTRADAS_SAIDAS: OpcaoFormato<"ambas" | "entradas" | "saidas">[] =
+  [
+    { valor: "ambas", rotulo: "Entradas e saídas", icone: "swap_vert" },
+    { valor: "entradas", rotulo: "Só entradas", icone: "trending_up" },
+    { valor: "saidas", rotulo: "Só saídas", icone: "trending_down" },
+  ];
 const FORMATOS_CATEGORIAS: OpcaoFormato<"pizza" | "linha">[] = [
   { valor: "pizza", rotulo: "Pizza", icone: "donut_large" },
   { valor: "linha", rotulo: "Linhas no período", icone: "show_chart" },
@@ -356,7 +361,8 @@ const Dashboard: React.FC = () => {
   );
   // o que a API devolve (mesma rota da tabela da tela da conta), sem as categorias ignoradas
   const movimentacoes = useMemo(
-    () => semCategoriasIgnoradas(dados?.conteudo.movimentacaos ?? [], ignoradas),
+    () =>
+      semCategoriasIgnoradas(dados?.conteudo.movimentacaos ?? [], ignoradas),
     [dados, ignoradas],
   );
 

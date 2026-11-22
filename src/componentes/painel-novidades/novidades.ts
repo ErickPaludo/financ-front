@@ -16,9 +16,11 @@ export const NOVIDADES: Novidade[] = [
         icone: "auto_awesome",
         itens: [
           "Funções experimentais: ligue em Opções de usuário › Experimental para testar o que ainda está em desenvolvimento.",
-          "Importar CSV da fatura do cartão do Nubank (experimental): cada compra vira uma despesa na data da fatura e cada estorno vira uma receita. Aceita vários arquivos de uma vez, e o dia da virada e as categorias ficam salvos por conta.",
+          "Importar CSV da fatura do cartão do Nubank: é uma função experimental, então primeiro ligue Opções de usuário › Experimental › Funções experimentais; depois o botão Importar CSV aparece na tela da conta. Cada compra vira uma despesa na data da fatura e cada estorno vira uma receita. Aceita vários arquivos de uma vez, e o dia da virada e as categorias ficam salvos por conta.",
           "Alterar data em massa: selecione várias transações e mude a data de todas de uma vez.",
           "Setas na barra de filtros para ir ao mês anterior ou ao próximo sem abrir o painel.",
+          "Reorganize os cards pelo celular: segure o ícone de 6 pontos e arraste. Vale para os cards de conta e para os gráficos do dashboard.",
+          "O botão Novidades ganha um ponto quando sai uma versão nova, e o ponto some depois que você abre as novidades.",
         ],
       },
       {
@@ -27,6 +29,7 @@ export const NOVIDADES: Novidade[] = [
         itens: [
           "Depois de cadastrar uma transação, os saldos e o resumo do período se atualizam na hora.",
           'No celular, segurar um card de conta para arrastar não abre mais o menu "Abrir em nova guia".',
+          "No celular, um card não fica mais apagado depois de uma tentativa de arrastar.",
         ],
       },
     ],

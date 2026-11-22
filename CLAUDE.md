@@ -52,7 +52,7 @@ src/
     painel-novidades/     PainelNovidades ("Novidades" no fim do menu, abaixo da versão) + novidades.ts (o que mudou em cada versão; versão nova = entrada nova no topo, junto com o `npm version`)
     painel-agendadas/     PainelAgendadas (tabela, 920px) + FormularioAgendada (gaveta) + agendadas.ts (tipos e datas)
   estilos.ts              sx compartilhados (estiloBotaoSecundario)
-  hooks/                  useBuscaApi(rota) (GET com dados/erro/carregando/buscar: use em toda busca ao abrir), useEnvioFormulario, useModoCor, useValoresOcultos, useCategorias(idConta), useCoresBarra(), useUltimaConta(idUsuario, idContaAberta), useContasMestre() (contas em que o usuário é mestre: 1 requisição de permissão por conta, porque a lista não traz a permissão), useOrdemArrastavel(chave, itens, idDe) (arrastar para reordenar com ordem salva: `ordenados`, `arrastando`, `propsArrastar(id)`; cards de conta e do dashboard), useEncerrarSessao() (revoga a sessão, faz logout e limpa a conta)
+  hooks/                  useBuscaApi(rota) (GET com dados/erro/carregando/buscar: use em toda busca ao abrir), useEnvioFormulario, useModoCor, useValoresOcultos, useCategorias(idConta), useCoresBarra(), useUltimaConta(idUsuario, idContaAberta), useContasMestre() (contas em que o usuário é mestre: 1 requisição de permissão por conta, porque a lista não traz a permissão), useOrdemArrastavel(chave, itens, idDe) (arrastar para reordenar com ordem salva: `ordenados`, `arrastando`, `propsArrastar(id)`; cards de conta e do dashboard; `PROPS_ALCA` no ícone de 6 pontos: com o dedo só a alça arrasta, seguindo o ponteiro e achando o item pelo `data-arrastavel`; o HTML5 fica só para o mouse, porque não funciona com toque e o toque longo às vezes nem dispara o dragend, deixando o item transparente), useEncerrarSessao() (revoga a sessão, faz logout e limpa a conta)
   props/                  componentes de formulário
     campo-texto/          CampoTexto (TextField padrão) + validacoes.ts
     campo-expiracao/      CampoExpiracao (checkbox "Tempo de expiração" + minutos; convite e membro)
@@ -148,7 +148,7 @@ A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca
   - Layout "G · Cards brancos": cores `--fnc-tx-*` (as mesmas da tela da conta), direto sobre o fundo da página (sem camada por cima).
   - `ResumoContas`: saudação + primeiro nome, "Minhas contas", botão de olho 44×44 e "Nova conta bancária"; abaixo um card branco com 4 colunas (patrimônio com "n de total contas no total", projetado com selo se negativo, receitas e despesas pendentes). Divisórias por `box-shadow` de 1px cortadas pelo `overflow: hidden` do card, para funcionar com 4, 2 ou 1 coluna.
   - `CardConta` (`contas-bancarias/card-conta`): card branco com faixa de 4px e avatar (iniciais) na cor da conta, escurecida por `corParaTextoBranco` (`utils/corCategoria.ts`) até 4.5:1 com o branco; "Corrente · Favorita"; ícone `money_off` (com tooltip) ao lado de "Saldo" quando a conta não soma no total; blocos ↑ Receitas / ↓ Despesas (neutros quando zerados ou com valores ocultos). Grade `.grid-contas` (auto-fill, mínimo 260px) termina no card tracejado "Adicionar conta".
-  - Cards **arrastáveis** (HTML5 drag and drop nativo) — ordem em `utils/ordem.ts` (`ordenarPorIds`/`moverId`, ids número ou texto; testadas por `scripts/testa-ordem.ts`) + `hooks/useOrdemSalva(chave)` (localStorage). Os gráficos do dashboard usam os mesmos.
+  - Cards **arrastáveis** (HTML5 drag and drop nativo), com o ícone `drag_indicator` antes do avatar (como no dashboard) — ordem em `utils/ordem.ts` (`ordenarPorIds`/`moverId`, ids número ou texto; testadas por `scripts/testa-ordem.ts`) + `hooks/useOrdemSalva(chave)` (localStorage). Os gráficos do dashboard usam os mesmos.
   - Menu de 3 pontos no card (só contas ativas): favoritar, somar saldo, editar nome/cor (só admin; a permissão é buscada ao abrir o menu) e sair da conta (confirmação em `Dialog` do MUI; POST `ContasUsuarios/{id}/sair`). Após alterar, `Inicial` rebusca as contas e chama `contasAlteradas()` do `ContaContext`, que faz a barra lateral rebuscar os favoritos.
   - `CadContas`: `Drawer` da direita com prévia do card, nome e `SeletorCor`. Com a prop `conta` edita (PATCH `Contas/{id}/atualiza`); sem ela cadastra.
 
@@ -169,12 +169,14 @@ A conta selecionada (`ContaContext`) fica só em memória: a tela da conta busca
 | `tabela:<id>` | `{ ordem, ocultas, ordenacao }` de cada `TabelaDados` (ids: `movimentacoes`, `movimentacoes-fixas`) |
 | `linhasSeparadas:<id>` | `"true"` / `"false"`: modo de linhas separadas do `TabelaDados` (gravado ao clicar no botão) |
 
-`logout()` chama `localStorage.clear()` (pedido do usuário), então **todas** essas preferências somem ao deslogar. Leituras e escritas ficam em `try/catch` (aba anônima pode bloquear).
+| `versaoVista` | versão do app cujas Novidades o usuário já abriu; diferente de `__APP_VERSION__` ao montar a barra (login/recarregar), o botão Novidades ganha um ponto (`Badge`) até ser clicado |
+
+`logout()` chama `localStorage.clear()` (pedido do usuário), então **todas** essas preferências somem ao deslogar, menos `versaoVista` (senão todo login destacaria as Novidades). Leituras e escritas ficam em `try/catch` (aba anônima pode bloquear).
 
 ## Pendências conhecidas
 
 - Ordem das contas e preferências só no navegador; para valer entre dispositivos o back-end precisa guardar a posição.
-- Arrastar cards não funciona com toque nem teclado (considerar `@dnd-kit` se for necessário).
+- Arrastar com toque só pela alça (`PROPS_ALCA`, cards de conta e do dashboard); por teclado não funciona (considerar `@dnd-kit` se for necessário).
 - `ResumoContas.saudacao`: `hora >= 22 && hora <= 3` nunca é verdadeiro (mantido de propósito; decisão do usuário).
 - Deploy: sem o `base` do Vite, o GitHub Pages em `/financproject/` não funciona; precisa de domínio próprio/raiz.
 
