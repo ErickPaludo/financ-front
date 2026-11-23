@@ -24,7 +24,7 @@ export type UsuarioCriador = {
   nomeCompleto: string;
 };
 
-import type { Categoria } from "../categorias/Categorias";
+import type { Categoria } from "../categorias/Categoria";
 
 export type { Categoria };
 

@@ -4,7 +4,7 @@ import { Alert, Box, Button, Stack, Icon, Typography } from "@mui/material";
 import ListaPesquisa from "../../componentes/lista-pesquisa/ListaPesquisa";
 import ChipCategoria from "../../componentes/chip-categoria/ChipCategoria";
 import Conecta from "../../services/api/apiConnect";
-import type { Categoria } from "../../models/categorias/Categorias";
+import type { Categoria } from "../../models/categorias/Categoria";
 import CampoTexto from "../../props/campo-texto/CampoTexto";
 import SeletorCor from "../../props/seletor-cor/SeletorCor";
 import { existeCampoVazio } from "../../props/campo-texto/validacoes";

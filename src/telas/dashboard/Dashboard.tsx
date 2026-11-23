@@ -40,7 +40,7 @@ import {
   agruparPorPeriodo,
   semCategoriasIgnoradas,
 } from "./agrupamento";
-import "../movimentacoes/MovimentacaoesStyle.css";
+import "../movimentacoes/Movimentacoes.css";
 
 // marcas do eixo curtas ("R$ 1,2 mil"): o valor exato fica no tooltip
 const moedaCompacta = new Intl.NumberFormat("pt-BR", {

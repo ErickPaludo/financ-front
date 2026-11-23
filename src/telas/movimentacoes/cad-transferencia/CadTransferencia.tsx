@@ -9,9 +9,8 @@ import {
   Tooltip,
 } from "@mui/material";
 
-import Conecta from "../../../services/api/apiConnect";
+import { cadastrarMovimentacao } from "../../../services/movimentacoes/movimentacaoService";
 import { TIPO_MOVIMENTACAO } from "../../../models/movimentacoes/GetMovimentacoes";
-import type { MovimentacaoPost } from "../../../models/movimentacoes/MovimentacaoPost";
 import { ContaContext } from "../../../contexts/ContaContext";
 import { useContasMestre } from "../../../hooks/useContasMestre";
 import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
@@ -96,7 +95,7 @@ const CadTransferencia: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     data: string,
     conclui: boolean,
   ) =>
-    Conecta<unknown>(`/Contas/${idConta}/Movimentacoes`, "POST", {
+    cadastrarMovimentacao(idConta, {
       tipo,
       valor,
       concluido: conclui,
@@ -105,7 +104,7 @@ const CadTransferencia: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       dthrMovimentacao: paraIsoUtc(data),
       dthrConclusao: conclui ? paraIsoUtc(dataConclusao) : null,
       idsCategoria,
-    } satisfies MovimentacaoPost);
+    });
 
   const transferir = async () => {
     if (!de || !para) return "Escolha a outra conta.";

@@ -6,6 +6,8 @@ import {
   Icon,
   IconButton,
   LinearProgress,
+  Menu,
+  MenuItem,
   Stack,
   Switch,
   Tooltip,
@@ -36,6 +38,13 @@ import CardResumo from "./card-resumo/CardResumo";
 import FiltrosConta from "./filtros/FiltrosConta";
 import { useFiltrosUrl } from "./useFiltrosUrl";
 import { rotaMovimentacoes } from "./filtrosUrl";
+import { resumoSem } from "./resumo";
+import {
+  exportarCsv,
+  exportarPdf,
+} from "../../services/movimentacoes/exportacao/exportacaoService";
+import logoAzul from "../../assets/pldprojects-logo-azul.svg";
+import MsgBox from "../../props/msg-box/MsgBox";
 import {
   formatarDataHora,
   exibirMoeda,
@@ -48,7 +57,7 @@ import {
   CONSULTA_ESTREITA,
   estiloBotaoSecundario,
 } from "../../estilos";
-import "./MovimentacaoesStyle.css";
+import "./Movimentacoes.css";
 
 // "Nova transação": no cabeçalho e, no modo extrato, no topo do card da tabela
 const estiloBotaoPrincipal = {
@@ -185,8 +194,9 @@ const Movimentacoes: React.FC = () => {
   } = filtros;
   const [mostraDetalhes, setMostraDetalhes] = useState(false);
   const [busca, setBusca] = useState("");
+  const [ignoradas, setIgnoradas] = useState<number[]>([]);
   const { ocultos, alternarOcultos } = useValoresOcultos();
-  // Importar CSV ainda é experimental: só aparece com a opção ligada no painel do usuário
+  // Importar e Exportar ainda são experimentais: só aparecem com a opção ligada no painel do usuário
   const { ativas: experimentais } = useExperimentais();
   const [modoSimples, setModoSimples] = useState(false);
   const [recarregando, setRecarregando] = useState(false);
@@ -249,15 +259,24 @@ const Movimentacoes: React.FC = () => {
     ]).finally(() => setRecarregando(false));
   };
 
-  const resumo = movimentacoes?.conteudo.resumo;
-  // busca por texto só na tela: a API não filtra texto
+  // busca por texto e categorias ignoradas só na tela: a API não filtra nenhum dos dois
   const termo = normalizarNome(busca);
   const linhas = (movimentacoes?.conteudo.movimentacaos ?? []).filter(
     (mov) =>
-      !termo ||
-      normalizarNome(mov.titulo).includes(termo) ||
-      normalizarNome(mov.observacao ?? "").includes(termo),
+      (!termo ||
+        normalizarNome(mov.titulo).includes(termo) ||
+        normalizarNome(mov.observacao ?? "").includes(termo)) &&
+      // basta uma categoria ignorada para sumir (pedido do usuário; o dashboard só tira a categoria)
+      !mov.categorias.some((c) => ignoradas.includes(c.idCategoria)),
   );
+  // resumo da API sem o que a busca e as categorias ignoradas esconderam
+  const todas = movimentacoes?.conteudo.movimentacaos ?? [];
+  const resumo =
+    movimentacoes &&
+    resumoSem(
+      movimentacoes.conteudo.resumo,
+      todas.filter((mov) => !linhas.includes(mov)),
+    );
   // soma das transações listadas: receitas menos despesas
   const saldoPeriodo = linhas.reduce(
     (soma, mov) => soma + (mov.tipo === 0 ? mov.valor : -mov.valor),
@@ -267,6 +286,25 @@ const Movimentacoes: React.FC = () => {
   const ehMestre = usuario?.permissao === PERMISSAO.Mestre;
   const podeEditar = usuario?.permissao !== PERMISSAO.Visualizador;
   const textoMaximizar = modoSimples ? "Restaurar" : "Maximizar (extrato)";
+
+  // exporta as transações da tela (com filtros, busca e ignoradas)
+  const dadosExportacao = {
+    conta: contaAtual.titulo,
+    inicio: filtros.inicio,
+    fim: filtros.fim,
+    movimentacoes: linhas,
+  };
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [erroPdf, setErroPdf] = useState(false);
+  const baixarPdf = () => {
+    setGerandoPdf(true);
+    exportarPdf(dadosExportacao, logoAzul)
+      .catch(() => setErroPdf(true))
+      .finally(() => setGerandoPdf(false));
+  };
+  const [ancoraExportar, setAncoraExportar] = useState<HTMLElement | null>(
+    null,
+  );
 
   // recarregar e maximizar: na barra da tabela e no rodapé do painel de filtros
   const botoesTela = (cor: string) => (
@@ -364,6 +402,54 @@ const Movimentacoes: React.FC = () => {
                   Importar CSV
                 </Button>
               )}
+              {experimentais && (
+                <Button
+                  startIcon={<Icon>download</Icon>}
+                  endIcon={<Icon>expand_more</Icon>}
+                  onClick={(e) => setAncoraExportar(e.currentTarget)}
+                  disabled={!linhas.length || gerandoPdf}
+                  aria-haspopup="menu"
+                  aria-expanded={!!ancoraExportar}
+                  sx={{ ...estiloBotaoSecundario, px: 2.5 }}
+                >
+                  {gerandoPdf ? "Gerando PDF..." : "Exportar"}
+                </Button>
+              )}
+              {erroPdf && (
+                <MsgBox
+                  tipo="aviso"
+                  titulo="Não foi possível gerar o PDF"
+                  descricao="Verifique a conexão e tente de novo."
+                  aoResponder={() => setErroPdf(false)}
+                />
+              )}
+              <Menu
+                anchorEl={ancoraExportar}
+                open={!!ancoraExportar}
+                onClose={() => setAncoraExportar(null)}
+              >
+                {[
+                  {
+                    rotulo: "CSV (Excel)",
+                    icone: "table_view",
+                    acao: () => exportarCsv(dadosExportacao),
+                  },
+                  { rotulo: "PDF", icone: "picture_as_pdf", acao: baixarPdf },
+                ].map(({ rotulo, icone, acao }) => (
+                  <MenuItem
+                    key={rotulo}
+                    onClick={() => {
+                      setAncoraExportar(null);
+                      acao();
+                    }}
+                  >
+                    <Icon fontSize="small" sx={{ mr: 1.5 }}>
+                      {icone}
+                    </Icon>
+                    {rotulo}
+                  </MenuItem>
+                ))}
+              </Menu>
               {podeEditar && (
                 <Button
                   variant="contained"
@@ -661,6 +747,8 @@ const Movimentacoes: React.FC = () => {
                 alterarFiltros={alterarFiltros}
                 busca={busca}
                 setBusca={setBusca}
+                ignoradas={ignoradas}
+                setIgnoradas={setIgnoradas}
                 rodape={
                   <Stack direction="row" sx={{ justifyContent: "flex-end" }}>
                     {botoesTela("inherit")}

@@ -37,3 +37,5 @@ dev-dist
 .env
 .env.*
 !.env.example
+
+RELEASE_NOTES_v1.0.3-alpha.md

@@ -2,7 +2,7 @@
   "homepage": "https://financ-gestaofinanceira.github.io/financproject",
   "name": "vite-project",
   "private": true,
-  "version": "1.0.2-alpha",
+  "version": "1.0.3-alpha",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -21,6 +21,8 @@
     "@mui/x-date-pickers": "^9.18.0",
     "axios": "^1.14.0",
     "dayjs": "^1.11.23",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.9",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-router-dom": "^7.13.2"

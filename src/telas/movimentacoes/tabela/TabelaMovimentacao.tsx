@@ -17,7 +17,7 @@ import type {
 import TabelaDados, {
   type ColunaTabela,
 } from "../../../componentes/tabela-dados/TabelaDados";
-import ConclusaoMovimentacao from "../confirmacao/ConclusaoMovimentacao";
+import ConclusaoMovimentacao from "../conclusao-movimentacao/ConclusaoMovimentacao";
 import AcaoEmMassa, {
   type TipoAcaoEmMassa,
 } from "../acoes-em-massa/AcaoEmMassa";

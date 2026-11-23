@@ -4,6 +4,7 @@ import { Alert, Button, Stack } from "@mui/material";
 import Conecta from "../../../services/api/apiConnect";
 import {
   alterarCategoriasMovimentacao,
+  cadastrarMovimentacao,
   materializarMovimentacao,
   mesmasCategorias,
 } from "../../../services/movimentacoes/movimentacaoService";
@@ -12,7 +13,6 @@ import {
   type Categoria,
   type Movimentacao,
 } from "../../../models/movimentacoes/GetMovimentacoes";
-import type { MovimentacaoPost } from "../../../models/movimentacoes/MovimentacaoPost";
 import type { MovimentacaoPatch } from "../../../models/movimentacoes/MovimentacaoPatch";
 import { ContaContext } from "../../../contexts/ContaContext";
 import { useCategorias } from "../../../hooks/useCategorias";
@@ -74,22 +74,17 @@ const CadMov: React.FC<PropCadMov> = ({ onClose, movimentacao: mov }) => {
     setDataConclusao(data);
   };
 
-  // a API devolve { valor: Movimentacao }, como nos outros cadastros
   const enviarPost = (dthrMovimentacao: string, conclui: boolean) =>
-    Conecta<{ valor?: Movimentacao }>(
-      `/Contas/${conta!.idConta}/Movimentacoes`,
-      "POST",
-      {
-        tipo,
-        valor,
-        concluido: conclui,
-        titulo,
-        observacao: descricao,
-        dthrMovimentacao: paraIsoUtc(dthrMovimentacao),
-        dthrConclusao: conclui ? paraIsoUtc(dataConclusao) : null,
-        idsCategoria: categoriasSelecionadas,
-      } satisfies MovimentacaoPost,
-    );
+    cadastrarMovimentacao(conta!.idConta, {
+      tipo,
+      valor,
+      concluido: conclui,
+      titulo,
+      observacao: descricao,
+      dthrMovimentacao: paraIsoUtc(dthrMovimentacao),
+      dthrConclusao: conclui ? paraIsoUtc(dataConclusao) : null,
+      idsCategoria: categoriasSelecionadas,
+    });
 
   // Uma por mês, em sequência. Só a primeira pode sair concluída: as dos meses seguintes ainda não
   // aconteceram. No fim a tela busca de novo (onClose sem movimentação).

@@ -9,7 +9,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import type { Categoria } from "../../../models/categorias/Categorias";
+import type { Categoria } from "../../../models/categorias/Categoria";
 import ChipCategoria from "../../../componentes/chip-categoria/ChipCategoria";
 import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import SeletorCor from "../../../props/seletor-cor/SeletorCor";

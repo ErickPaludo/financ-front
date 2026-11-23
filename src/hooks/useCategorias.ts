@@ -1,4 +1,4 @@
-import type { CategoriaResponse } from "../models/categorias/Categorias";
+import type { CategoriaResponse } from "../models/categorias/Categoria";
 import { useBuscaApi } from "./useBuscaApi";
 
 // Categorias da conta: busca ao montar; buscarCategorias atualiza depois de alterar.

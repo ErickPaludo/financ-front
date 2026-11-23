@@ -10,8 +10,8 @@ import { ContaContext } from "../../contexts/ContaContext";
 import { useOrdemArrastavel } from "../../hooks/useOrdemArrastavel";
 import { useValoresOcultos } from "../../hooks/useValoresOcultos";
 
-import CadContas from "../contas-bancarias/cad-conta/CadContas";
-import CardConta from "../contas-bancarias/card-conta/CardConta";
+import CadContas from "./cad-contas/CadContas";
+import CardConta from "./card-conta/CardConta";
 import Carregamento from "../../componentes/carregamento/Carregamento";
 import ResumoContas from "./ResumoContas";
 import "./Inicial.css";

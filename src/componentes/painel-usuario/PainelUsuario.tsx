@@ -152,7 +152,7 @@ const OpcaoExpansivel: React.FC<PropOpcaoExpansivel> = ({
   );
 };
 
-// Liga/desliga as funções em teste (hoje: Importar CSV na tela da conta).
+// Liga/desliga as funções em teste (hoje: Importar CSV e Exportar na tela da conta).
 const OpcaoExperimentais: React.FC = () => {
   const barra = useCoresBarra();
   const { ativas, alternarExperimentais } = useExperimentais();
@@ -172,7 +172,7 @@ const OpcaoExperimentais: React.FC = () => {
       </ListItemIcon>
       <ListItemText
         primary="Funções experimentais"
-        secondary="Importar CSV da fatura. Podem mudar ou ter erros"
+        secondary="Importar CSV e exportar em CSV ou PDF. Podem mudar ou ter erros"
         slotProps={{
           primary: { sx: { fontSize: 14, fontWeight: 600 } },
           secondary: { sx: { fontSize: 12, color: barra.apoio } },

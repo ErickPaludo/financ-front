@@ -14,40 +14,49 @@ import {
   Typography,
 } from "@mui/material";
 
-import Conecta from "../../../services/api/apiConnect";
-import { TIPO_MOVIMENTACAO } from "../../../models/movimentacoes/GetMovimentacoes";
-import type { MovimentacaoPost } from "../../../models/movimentacoes/MovimentacaoPost";
+import {
+  lerArquivos,
+  type ArquivoLido,
+} from "../../../services/movimentacoes/importacao/leitorCsv";
+import {
+  sugerirMapa,
+  type Campo,
+  type Mapa,
+} from "../../../services/movimentacoes/importacao/mapeamentoColunas";
+import {
+  converterArquivos,
+  type TipoArquivo,
+} from "../../../services/movimentacoes/importacao/conversaoMovimentacoes";
+import { importarMovimentacoes } from "../../../services/movimentacoes/importacao/importacaoService";
 import { ContaContext } from "../../../contexts/ContaContext";
 import { useEnvioFormulario } from "../../../hooks/useEnvioFormulario";
-import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import InputSelect from "../../../props/input-select/InputSelect";
 import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
+import TituloSecao from "../../../componentes/titulo-secao/TituloSecao";
 import { useCategorias } from "../../../hooks/useCategorias";
 import type { Categoria } from "../../../models/movimentacoes/GetMovimentacoes";
 import { estiloBotaoSecundario } from "../../../estilos";
+import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
 import {
+  dataHoraLocal,
   formatarData,
   formatarMoeda,
-  paraIsoUtc,
 } from "../../../utils/formatacao";
-import {
-  dataDaFatura,
-  lerCsvNubank,
-  type LinhaNubank,
-} from "./importacaoNubank";
 
 const OPCOES_TIPO = [
-  { rotulo: "Cartão de crédito", valor: "credito" },
-  { rotulo: "Débito (em breve)", valor: "debito", desabilitado: true },
+  { rotulo: "Fatura do cartão de crédito", valor: "credito" },
+  { rotulo: "Extrato da conta (débito)", valor: "debito" },
 ];
 
-const validarDia = (dia: string) =>
-  /^\d+$/.test(dia) && Number(dia) >= 1 && Number(dia) <= 28
-    ? null
-    : "Informe um dia entre 1 e 28.";
+// a ordem dos campos na tela; descrição é a única opcional
+const CAMPOS: { campo: Campo; rotulo: string }[] = [
+  { campo: "titulo", rotulo: "Título" },
+  { campo: "valor", rotulo: "Valor" },
+  { campo: "data", rotulo: "Data" },
+  { campo: "descricao", rotulo: "Descrição (opcional)" },
+];
 
-// Importa a fatura do cartão do Nubank (CSV): Despesa por compra e Receita por reembolso, pendentes, na data da fatura.
-// aba anônima pode bloquear o localStorage: o campo só não fica salvo
+// aba anônima pode bloquear o localStorage: a escolha só não fica salva
 const lerSalvo = (chave: string) => {
   try {
     return localStorage.getItem(chave);
@@ -62,23 +71,36 @@ const salvar = (chave: string, valor: string) => {
     // sem localStorage, segue sem salvar
   }
 };
+const lerJson = <T,>(chave: string): T | null => {
+  try {
+    return JSON.parse(lerSalvo(chave) ?? "null") as T;
+  } catch {
+    return null;
+  }
+};
 
+// última importação da conta: o tipo e o nome da coluna de cada campo
+type Salvo = {
+  tipo: TipoArquivo;
+  colunas: Partial<Record<Campo, string | null>>;
+};
+
+// Importa um CSV com cabeçalho (fatura do cartão ou extrato da conta): o usuário diz qual coluna
+// é cada campo. Uma movimentação pendente por linha: no extrato, na data da linha; na fatura,
+// todas na data escolhida (a da fatura).
 const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const { conta } = useContext(ContaContext);
-  const [tipo, setTipo] = useState("credito");
   const { categorias } = useCategorias(conta!.idConta);
-  // dia da virada e categorias são do cartão: ficam salvos por conta para a próxima importação
-  const chaveDia = `diaViradaFatura:${conta!.idConta}`;
+  // tipo, colunas e categorias são do banco/cartão: ficam salvos por conta
   const chaveCategorias = `categoriasImportacao:${conta!.idConta}`;
-  // valem para todas as movimentações importadas
+  const chaveColunas = `importacaoCsv:${conta!.idConta}`;
+  const [salvo] = useState(() => lerJson<Salvo>(chaveColunas));
+  const [tipo, setTipo] = useState<TipoArquivo>(
+    salvo?.tipo === "debito" ? "debito" : "credito",
+  );
   const [idsSalvos, setIdsSalvos] = useState<number[]>(() => {
-    const salvo = lerSalvo(chaveCategorias);
-    try {
-      const ids: unknown = salvo ? JSON.parse(salvo) : [];
-      return Array.isArray(ids) ? ids.filter(Number.isInteger) : [];
-    } catch {
-      return [];
-    }
+    const ids = lerJson<unknown>(chaveCategorias);
+    return Array.isArray(ids) ? ids.filter(Number.isInteger) : [];
   });
   // categoria apagada depois de salva não vai para a API
   const idsCategoria = idsSalvos.filter((id) =>
@@ -88,31 +110,54 @@ const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     setIdsSalvos(ids);
     salvar(chaveCategorias, JSON.stringify(ids));
   };
-  const [diaVirada, setDiaVirada] = useState(() => lerSalvo(chaveDia) ?? "");
-  const alterarDia = (dia: string) => {
-    setDiaVirada(dia);
-    salvar(chaveDia, dia);
-  };
-  const [arquivo, setArquivo] = useState<{
-    nomes: string[];
-    linhas: LinhaNubank[];
-    ignoradas: number;
-  } | null>(null);
+  const [arquivo, setArquivo] = useState<ArquivoLido | null>(null);
+  const [mapa, setMapa] = useState<Mapa | null>(null);
   const [erroArquivo, setErroArquivo] = useState<string | null>(null);
   const [feitas, setFeitas] = useState(0);
   // quantos POSTs já deram certo: se um falhar, enviar de novo continua dele, sem duplicar
   const criadas = useRef(0);
 
-  const diaValido = !validarDia(diaVirada);
-  const linhas = arquivo?.linhas ?? [];
-  const comData = linhas.map((linha) => ({
-    ...linha,
-    fatura: diaValido ? dataDaFatura(linha.data, Number(diaVirada)) : null,
-  }));
-  const reembolsos = linhas.filter((linha) => linha.receita).length;
-  // líquido da importação: gastos menos reembolsos
-  const total = linhas.reduce(
-    (soma, linha) => soma + (linha.receita ? -linha.valor : linha.valor),
+  const guardar = (novoTipo: TipoArquivo, novoMapa: Mapa | null) => {
+    const colunas = arquivo?.colunas ?? [];
+    const nome = (i: number | null) => (i === null ? null : colunas[i]);
+    salvar(
+      chaveColunas,
+      JSON.stringify({
+        tipo: novoTipo,
+        colunas: novoMapa
+          ? {
+              titulo: nome(novoMapa.titulo),
+              valor: nome(novoMapa.valor),
+              data: nome(novoMapa.data),
+              descricao: nome(novoMapa.descricao),
+            }
+          : (salvo?.colunas ?? {}),
+      } satisfies Salvo),
+    );
+  };
+  const alterarTipo = (valor: string) => {
+    const novo = valor as TipoArquivo;
+    setTipo(novo);
+    guardar(novo, mapa);
+  };
+  const alterarColuna = (campo: Campo, valor: string) => {
+    if (!mapa) return;
+    const novo = { ...mapa, [campo]: valor === "" ? null : Number(valor) };
+    setMapa(novo);
+    guardar(tipo, novo);
+  };
+
+  const credito = tipo === "credito";
+  // fatura: todas as compras entram nesta data (pedido do usuário)
+  const [dataFatura, setDataFatura] = useState(() => dataHoraLocal());
+  const lido =
+    arquivo && mapa ? converterArquivos(arquivo.partes, mapa, tipo) : null;
+  const erroLeitura = lido && "erro" in lido ? lido.erro : null;
+  const linhas = lido && "linhas" in lido ? lido.linhas : [];
+  const ignoradas = lido && "ignoradas" in lido ? lido.ignoradas : 0;
+  const receitas = linhas.filter((linha) => linha.receita);
+  const saldo = linhas.reduce(
+    (soma, linha) => soma + (linha.receita ? linha.valor : -linha.valor),
     0,
   );
 
@@ -122,64 +167,41 @@ const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const escolhidos = [...(evento.target.files ?? [])];
     evento.target.value = ""; // escolher os mesmos arquivos de novo dispara o onChange
     if (!escolhidos.length) return;
-    const lidos = await Promise.all(
-      escolhidos.map(async (f) => ({
-        nome: f.name,
-        lido: lerCsvNubank(await f.text()),
-      })),
+    const lido = lerArquivos(
+      await Promise.all(
+        escolhidos.map(async (f) => ({ nome: f.name, texto: await f.text() })),
+      ),
     );
     criadas.current = 0;
     setFeitas(0);
-    // um arquivo inválido barra todos: melhor corrigir a escolha do que importar só parte
-    const erros = lidos.flatMap(({ nome, lido }) =>
-      "erro" in lido ? [`${nome}: ${lido.erro}`] : [],
-    );
-    if (erros.length) {
-      setArquivo(null);
-      setErroArquivo(erros.join("\n"));
-      return;
-    }
-    setArquivo({
-      nomes: lidos.map(({ nome }) => nome),
-      linhas: lidos.flatMap(({ lido }) =>
-        "linhas" in lido ? lido.linhas : [],
-      ),
-      ignoradas: lidos.reduce(
-        (soma, { lido }) => soma + ("ignoradas" in lido ? lido.ignoradas : 0),
-        0,
-      ),
-    });
+    setArquivo(null);
+    setMapa(null);
+    if ("erro" in lido) return setErroArquivo(lido.erro);
+    setArquivo(lido);
+    // a escolha mais recente, mesmo desta abertura
+    setMapa(sugerirMapa(lido.colunas, lerJson<Salvo>(chaveColunas)?.colunas));
     setErroArquivo(null);
   };
 
   const importar = async () => {
-    if (!diaValido) return "Informe o dia da virada da fatura.";
+    if (erroLeitura) return erroLeitura;
     if (!linhas.length) return "Escolha um arquivo com movimentações.";
-    for (let i = criadas.current; i < comData.length; i++) {
-      const { titulo, valor, receita, data, fatura } = comData[i];
-      const resposta = await Conecta<unknown>(
-        `/Contas/${conta!.idConta}/Movimentacoes`,
-        "POST",
-        {
-          tipo: receita ? TIPO_MOVIMENTACAO.Receita : TIPO_MOVIMENTACAO.Despesa,
-          valor,
-          concluido: false,
-          titulo,
-          observacao: `Importado do Nubank · ${receita ? "reembolso" : "compra"} em ${formatarData(data)}`,
-          dthrMovimentacao: paraIsoUtc(fatura!),
-          dthrConclusao: null,
-          idsCategoria,
-        } satisfies MovimentacaoPost,
-      );
-      if (!resposta.sucesso)
-        return `${i} de ${comData.length} movimentações criadas (falhou em "${titulo}"). ${resposta.erro ?? "Erro ao cadastrar movimentação."} Envie de novo para criar as que faltam.`;
-      criadas.current = i + 1;
-      setFeitas(i + 1);
-    }
+    const resultado = await importarMovimentacoes(
+      conta!.idConta,
+      linhas,
+      { tipo, dataFatura, idsCategoria },
+      { aPartirDe: criadas.current, aoCriar: setFeitas },
+    );
+    criadas.current = resultado.criadas;
+    if (resultado.erro) return resultado.erro;
     onClose();
   };
 
   const envio = useEnvioFormulario(importar);
+  const opcoesColuna = (arquivo?.colunas ?? []).map((nome, i) => ({
+    rotulo: nome || `Coluna ${i + 1}`,
+    valor: String(i),
+  }));
 
   return (
     <Stack component="form" onSubmit={envio.enviar} noValidate spacing={1.5}>
@@ -187,20 +209,16 @@ const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         rotulo="Tipo do arquivo"
         opcoes={OPCOES_TIPO}
         valor={tipo}
-        setValor={setTipo}
+        setValor={alterarTipo}
       />
 
-      <CampoTexto
-        label="Dia da virada da fatura"
-        type="number"
-        valor={diaVirada}
-        setValor={alterarDia}
-        validar={validarDia}
-        mostrarErro={envio.tentouEnviar || diaVirada !== ""}
-        helperText="Compras antes deste dia ficam na fatura do mês; a partir dele, na do mês seguinte. A data lançada é o dia anterior à virada."
-        slotProps={{ htmlInput: { min: 1, max: 28 } }}
-        disabled={envio.enviando}
-      />
+      {credito && (
+        <CampoDataHora
+          rotulo="Data da fatura (todas as compras entram nela)"
+          valor={dataFatura}
+          setValor={setDataFatura}
+        />
+      )}
 
       <CheckBoxList<Categoria>
         itens={categorias}
@@ -219,9 +237,9 @@ const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
       >
         {!arquivo
           ? "Escolher arquivos CSV"
-          : arquivo.nomes.length === 1
-            ? `Arquivo: ${arquivo.nomes[0]}`
-            : `${arquivo.nomes.length} arquivos`}
+          : arquivo.partes.length === 1
+            ? `Arquivo: ${arquivo.partes[0].nome}`
+            : `${arquivo.partes.length} arquivos`}
         <input
           type="file"
           accept=".csv,text/csv"
@@ -237,14 +255,47 @@ const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
         </Alert>
       )}
 
-      {arquivo && (
+      {arquivo && mapa && (
+        <>
+          <TituloSecao semRecuo>Colunas do arquivo</TituloSecao>
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 1.5,
+            }}
+          >
+            {CAMPOS.map(({ campo, rotulo }) => (
+              <InputSelect
+                key={campo}
+                rotulo={rotulo}
+                opcoes={
+                  campo === "descricao"
+                    ? [{ rotulo: "Nenhuma", valor: "" }, ...opcoesColuna]
+                    : opcoesColuna
+                }
+                valor={mapa[campo] === null ? "" : String(mapa[campo])}
+                setValor={(valor) => alterarColuna(campo, valor)}
+                placeholder={campo === "descricao" ? undefined : "Escolha"}
+              />
+            ))}
+          </Box>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            {credito
+              ? "Na fatura, valor positivo é gasto e negativo é reembolso; o pagamento da fatura fica de fora."
+              : "No extrato, valor negativo é despesa e positivo é receita."}
+          </Typography>
+        </>
+      )}
+
+      {erroLeitura && <Alert severity="error">{erroLeitura}</Alert>}
+
+      {linhas.length > 0 && (
         <>
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {linhas.length - reembolsos} gastos
-            {reembolsos > 0 && ` · ${reembolsos} reembolso(s)`} · total{" "}
-            {formatarMoeda(total)}
-            {arquivo.ignoradas > 0 &&
-              ` · ${arquivo.ignoradas} pagamento(s) da fatura ignorado(s)`}
+            {linhas.length - receitas.length} despesa(s) · {receitas.length}{" "}
+            receita(s) · saldo {formatarMoeda(saldo)}
+            {ignoradas > 0 && ` · ${ignoradas} ignorada(s)`}
           </Typography>
           <Box
             sx={{
@@ -259,17 +310,28 @@ const ImportarCsv: React.FC<{ onClose: () => void }> = ({ onClose }) => {
               <TableHead>
                 <TableRow>
                   <TableCell>Título</TableCell>
-                  <TableCell>Compra → fatura</TableCell>
+                  <TableCell>{credito ? "Compra → fatura" : "Data"}</TableCell>
                   <TableCell align="right">Valor</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {comData.map((linha, i) => (
+                {linhas.map((linha, i) => (
                   <TableRow key={i}>
-                    <TableCell>{linha.titulo}</TableCell>
+                    <TableCell>
+                      {linha.titulo}
+                      {linha.descricao && (
+                        <Typography
+                          variant="caption"
+                          component="div"
+                          sx={{ color: "text.secondary" }}
+                        >
+                          {linha.descricao}
+                        </Typography>
+                      )}
+                    </TableCell>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {formatarData(linha.data)} →{" "}
-                      {linha.fatura ? formatarData(linha.fatura) : "?"}
+                      {formatarData(linha.data)}
+                      {credito && ` → ${formatarData(dataFatura)}`}
                     </TableCell>
                     <TableCell
                       align="right"

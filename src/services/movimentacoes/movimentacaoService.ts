@@ -1,7 +1,19 @@
 import type { Movimentacao } from "../../models/movimentacoes/GetMovimentacoes";
 import type { ApiResult } from "../../models/interface/ApiResult";
 import type { MovimentacaoPatch } from "../../models/movimentacoes/MovimentacaoPatch";
+import type { MovimentacaoPost } from "../../models/movimentacoes/MovimentacaoPost";
 import Conecta from "../api/apiConnect";
+
+// Cadastro (nova transação, transferência, importação). A API devolve { valor: Movimentacao }.
+export const cadastrarMovimentacao = (
+  idConta: number,
+  movimentacao: MovimentacaoPost,
+) =>
+  Conecta<{ valor?: Movimentacao }>(
+    `/Contas/${idConta}/Movimentacoes`,
+    "POST",
+    movimentacao,
+  );
 
 // Movimentação virtual (id 0, gerada por um agendamento) vira uma movimentação real.
 export const materializarMovimentacao = (mov: Movimentacao) =>

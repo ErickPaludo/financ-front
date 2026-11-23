@@ -12,7 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 
-import type { Categoria } from "../../../models/categorias/Categorias";
+import type { Categoria } from "../../../models/categorias/Categoria";
 import Modal from "../../../componentes/modal/Modal";
 import CampoTexto from "../../../props/campo-texto/CampoTexto";
 import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
@@ -44,7 +44,7 @@ type PropFiltrosConta = {
   // busca por texto (só na tela, a API não filtra texto); sem setBusca o campo não aparece
   busca?: string;
   setBusca?: (busca: string) => void;
-  // categorias fora da conta (só o dashboard; vale na hora, sem ir à API); sem setIgnoradas o campo não aparece
+  // categorias ignoradas (vale na hora, sem ir à API); sem setIgnoradas o campo não aparece
   ignoradas?: number[];
   setIgnoradas?: (ids: number[]) => void;
   rodape?: ReactNode; // fim do painel, depois de um Divider (ex.: "Ver detalhes" e botões da tela)

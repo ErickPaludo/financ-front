@@ -8,6 +8,28 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "1.0.3-alpha",
+    data: "23/11/2026",
+    grupos: [
+      {
+        titulo: "Novidades",
+        icone: "auto_awesome",
+        itens: [
+          "Exportar (experimental): baixe as transações da tela em CSV, que abre direto no Excel, ou em PDF, um relatório com a logo da PldProjects e o nome da conta. Sai o que está na tela, já com os filtros aplicados, e com todas as colunas da tabela.",
+          "Importar CSV de qualquer banco (experimental): agora também o extrato da conta, além da fatura do cartão. Você escolhe qual coluna do arquivo é o título, o valor, a data e a descrição, e a escolha fica salva para a próxima vez.",
+          "Ignorar categorias também nos filtros das transações: as transações dessas categorias saem da lista na hora.",
+          "Para ligar as funções experimentais: Opções de usuário › Experimental › Funções experimentais.",
+        ],
+      },
+      {
+        titulo: "Correções",
+        icone: "build",
+        itens: [
+          "Os detalhes do período (Geral, Resto, Entradas e Saídas) e o total de gastos agora acompanham a busca por texto e as categorias ignoradas, como a lista e o saldo do período.",        ],
+      },
+    ],
+  },
+  {
     versao: "1.0.2-alpha",
     data: "22/11/2026",
     grupos: [
