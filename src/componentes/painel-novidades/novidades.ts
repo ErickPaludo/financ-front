@@ -25,7 +25,9 @@ export const NOVIDADES: Novidade[] = [
         titulo: "Correções",
         icone: "build",
         itens: [
-          "Os detalhes do período (Geral, Resto, Entradas e Saídas) e o total de gastos agora acompanham a busca por texto e as categorias ignoradas, como a lista e o saldo do período.",        ],
+          "Os detalhes do período (Geral, Resto, Entradas e Saídas) e o total de gastos agora acompanham a busca por texto e as categorias ignoradas, como a lista e o saldo do período.",
+          'O "Real e projetado da conta" agora desconta as transações das categorias ignoradas.',
+        ],
       },
     ],
   },

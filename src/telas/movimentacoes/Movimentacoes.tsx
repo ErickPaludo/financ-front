@@ -277,6 +277,14 @@ const Movimentacoes: React.FC = () => {
       movimentacoes.conteudo.resumo,
       todas.filter((mov) => !linhas.includes(mov)),
     );
+  // "Real e projetado da conta" desconta só as ignoradas (pedido do usuário), não a busca
+  const realProjetado = todas.reduce(
+    (soma, mov) =>
+      mov.categorias.some((c) => ignoradas.includes(c.idCategoria))
+        ? soma - (mov.tipo === 0 ? mov.valor : -mov.valor)
+        : soma,
+    movimentacoes?.conteudo.resumo.saldoRealProjetado ?? 0,
+  );
   // soma das transações listadas: receitas menos despesas
   const saldoPeriodo = linhas.reduce(
     (soma, mov) => soma + (mov.tipo === 0 ? mov.valor : -mov.valor),
@@ -479,7 +487,7 @@ const Movimentacoes: React.FC = () => {
                 }}
               >
                 Real e projetado da conta:{" "}
-                {exibirMoeda(resumo?.saldoRealProjetado ?? 0, ocultos)}
+                {exibirMoeda(realProjetado, ocultos)}
               </Typography>
             </CardResumo>
 
