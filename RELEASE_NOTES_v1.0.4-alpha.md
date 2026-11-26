@@ -7,7 +7,7 @@
 
 ## Resumo
 
-Esta versão traz a opção de **copiar uma transação**: com dois cliques você cria uma nova transação igual a outra, na data que escolher. Também deixa a tela mais clara para quem só **visualiza** a conta.
+Esta versão traz a opção de **copiar uma transação**: com dois cliques você cria uma nova transação igual a outra, na data que escolher. No Dashboard, o detalhe dos gráficos de categoria em linhas fica mais limpo. Também deixa a tela mais clara para quem só **visualiza** a conta.
 
 ---
 
@@ -19,6 +19,10 @@ Esta versão traz a opção de **copiar uma transação**: com dois cliques voc�
 - A nova transação sai igual à original: título, valor, tipo (receita ou despesa), categorias e observação.
 - A cópia sempre entra **pendente**, mesmo que a original esteja concluída. Para concluir, clique nela ou use as ações em massa.
 - Disponível para quem pode editar a conta (**mestre** e **administrador**).
+
+### Dashboard: detalhe das categorias mais limpo
+- Nos gráficos **Saídas por categoria** e **Entradas por categoria**, no formato **Linhas**, ao passar o mouse sobre uma data, o detalhe mostra **só as categorias que têm valor naquele dia**. Antes apareciam todas, a maioria com R$ 0,00.
+- Categorias sem nenhum valor no período inteiro já não apareciam no gráfico, e continua assim.
 
 ---
 

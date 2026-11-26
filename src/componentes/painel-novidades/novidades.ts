@@ -16,6 +16,7 @@ export const NOVIDADES: Novidade[] = [
         icone: "auto_awesome",
         itens: [
           "Copiar uma transação: clique nela e escolha Copiar. Você escolhe a data e uma nova transação igual é criada, pendente. Disponível para quem pode editar a conta.",
+          "Dashboard: nos gráficos de categoria em linhas, ao passar o mouse numa data, aparecem só as categorias que têm valor naquele dia.",
         ],
       },
       {

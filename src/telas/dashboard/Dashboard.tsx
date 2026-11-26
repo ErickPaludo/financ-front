@@ -292,7 +292,9 @@ const PizzaCategorias: React.FC<PropPizzaCategorias> = ({
             dataKey: `c${c.id}`,
             label: c.label,
             color: c.color,
-            valueFormatter: (valor: number | null) => moeda(valor ?? 0),
+            // null tira a categoria do tooltip: só as que têm valor naquela data
+            valueFormatter: (valor: number | null) =>
+              valor ? moeda(valor) : null,
             showMark: noTempo.pontos.length <= 31,
           }))}
           grid={{ horizontal: true }}
