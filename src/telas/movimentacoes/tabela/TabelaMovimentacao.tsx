@@ -309,7 +309,8 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
             ? { selecionadas, setSelecionadas }
             : undefined
         }
-        onClicarLinha={setMovSelecionada}
+        // visualizador não altera nada: a linha nem abre
+        onClicarLinha={podeEditar ? setMovSelecionada : undefined}
         mensagemVazia="Nenhuma movimentação no período."
         barra={filtros}
         acoes={

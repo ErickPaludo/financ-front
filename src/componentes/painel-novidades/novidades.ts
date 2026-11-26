@@ -8,6 +8,26 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "1.0.4-alpha",
+    data: "26/11/2026",
+    grupos: [
+      {
+        titulo: "Novidades",
+        icone: "auto_awesome",
+        itens: [
+          "Copiar uma transação: clique nela e escolha Copiar. Você escolhe a data e uma nova transação igual é criada, pendente. Disponível para quem pode editar a conta.",
+        ],
+      },
+      {
+        titulo: "Correções",
+        icone: "build",
+        itens: [
+          "Quem só visualiza a conta não abre mais as opções ao clicar numa transação: antes apareciam botões que não podia usar.",
+        ],
+      },
+    ],
+  },
+  {
     versao: "1.0.3-alpha",
     data: "23/11/2026",
     grupos: [
