@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import type { Id } from "../utils/ordem";
 
-// shortcut: a ordem fica só neste navegador (localStorage) e é apagada no logout (localStorage.clear()).
+// shortcut: a ordem fica só neste navegador (localStorage; o logout guarda por e-mail).
 // Para valer em qualquer dispositivo, o backend precisa guardar a posição de cada item.
 function lerOrdem(chave: string): Id[] {
   try {

@@ -5,8 +5,12 @@ const moedaBRL = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
 });
 
+// Arredonda nos centavos: somas e subtrações de centavos sobram como -0,0000001, que o Intl
+// mostra "-R$ 0,00". O "|| 0" troca o -0 por 0.
+export const emCentavos = (valor: number) => Math.round(valor * 100) / 100 || 0;
+
 // sem valor (dados ainda não carregados) mostra R$ 0,00
-export const formatarMoeda = (valor = 0) => moedaBRL.format(valor);
+export const formatarMoeda = (valor = 0) => moedaBRL.format(emCentavos(valor));
 
 // Valor em R$ para exibir na tela; com os valores ocultos (botão de olho) mostra só a máscara.
 export const exibirMoeda = (valor: number, oculto: boolean) =>
@@ -14,7 +18,7 @@ export const exibirMoeda = (valor: number, oculto: boolean) =>
 
 // Sinal além da cor (acessibilidade): "+R$ 105,00" / "−R$ 145,00" (sinal de menos tipográfico).
 export const valorComSinal = (valor: number, oculto = false) =>
-  oculto ? "R$ ••••" : `${valor < 0 ? "−" : "+"}${formatarMoeda(Math.abs(valor))}`;
+  oculto ? "R$ ••••" : `${emCentavos(valor) < 0 ? "−" : "+"}${formatarMoeda(Math.abs(valor))}`;
 
 // Data e hora local no formato do <input type="datetime-local">, usado pelos campos de data (dayjs.format).
 export const FORMATO_DATA_HORA = "YYYY-MM-DDTHH:mm";

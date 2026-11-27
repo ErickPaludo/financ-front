@@ -1,7 +1,7 @@
 // com extensão: scripts/testa-agrupamento.ts roda este arquivo direto no Node
 import dayjs from "dayjs";
 
-import { dataHoraLocal } from "../../utils/formatacao.ts";
+import { dataHoraLocal, emCentavos } from "../../utils/formatacao.ts";
 import type { Movimentacao } from "../../models/movimentacoes/GetMovimentacoes";
 
 export type PontoGrafico = {
@@ -147,4 +147,69 @@ export function semCategoriasIgnoradas<T extends Pick<Movimentacao, "categorias"
     if (mov.categorias.length > 0 && categorias.length === 0) return [];
     return [{ ...mov, categorias }];
   });
+}
+
+// Linha de saldo do "Entradas e saídas": início e fim de cada ponto do eixo (o dia, ou o mês),
+// cortados no período do filtro. Os fins são FORMATO_DATA_HORA e comparam como texto.
+export function limitesDosPontos(inicio: string, fim: string) {
+  const { rotulos } = eixoDoPeriodo(inicio, fim);
+  const porMes = rotulos.length > 0 && rotulos[0].length > 5; // "MM/YYYY" x "DD/MM"
+  const unidade = porMes ? "month" : "day";
+  return {
+    porMes,
+    pontos: rotulos.map((_, i) => {
+      const base = dayjs(inicio).startOf(unidade).add(i, unidade);
+      const comeco = dataHoraLocal(base);
+      const final = dataHoraLocal(base.endOf(unidade));
+      return {
+        inicio: comeco < inicio ? inicio : comeco,
+        fim: final > fim ? fim : final,
+      };
+    }),
+  };
+}
+
+const comSinal = ({ tipo, valor }: Pick<Movimentacao, "tipo" | "valor">) =>
+  tipo === 0 ? valor : -valor;
+
+// Saldo ao fim de cada dia a partir do saldo do fim do período (o da API): volta tirando o que
+// aconteceu depois de cada dia. Vale porque a API dá o saldo até a data final do filtro.
+export function saldosDiarios(
+  fins: string[],
+  saldoFinal: number,
+  movimentacoes: Pick<Movimentacao, "tipo" | "valor" | "dthrMovimentacao">[],
+) {
+  return fins.map((fimDia) =>
+    movimentacoes
+      .filter((mov) => dataHoraLocal(mov.dthrMovimentacao) > fimDia)
+      .reduce((saldo, mov) => saldo - comSinal(mov), saldoFinal),
+  );
+}
+
+// Mês sem nenhuma movimentação: a API responde 404 e não manda saldo. Sem movimento o saldo não
+// muda, então repete o do ponto anterior (o primeiro, sem anterior, fica vazio).
+export function repetirSaldoAnterior(saldos: (number | null)[]) {
+  return saldos.reduce<(number | null)[]>(
+    (lista, saldo) => [...lista, saldo ?? lista.at(-1) ?? null],
+    [],
+  );
+}
+
+// "Ignorar categorias": cada ponto desconta as escondidas que aconteceram até o fim dele.
+// Último passo do saldo: arredonda nos centavos, senão um saldo zerado vira -0,0000001 e o
+// gráfico monta o eixo em torno desse resíduo em vez do eixo normal.
+export function saldosSemEscondidas(
+  fins: string[],
+  saldos: (number | null)[],
+  escondidas: Pick<Movimentacao, "tipo" | "valor" | "dthrMovimentacao">[],
+) {
+  return saldos.map((saldo, i) =>
+    saldo === null
+      ? null
+      : emCentavos(
+          escondidas
+            .filter((mov) => dataHoraLocal(mov.dthrMovimentacao) <= fins[i])
+            .reduce((s, mov) => s - comSinal(mov), saldo),
+        ),
+  );
 }

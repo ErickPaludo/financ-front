@@ -1,6 +1,6 @@
 // Rode com: node --experimental-strip-types scripts/testa-resumo.ts
 import assert from "node:assert/strict";
-import { resumoSem } from "../src/telas/movimentacoes/resumo.ts";
+import { realProjetadoSem, resumoSem } from "../src/telas/movimentacoes/resumo.ts";
 
 const resumo = {
   saldoReal: 1000,
@@ -28,6 +28,16 @@ assert.deepEqual(
     entrada: { concluidos: 500, pendentes: 0, projetado: 500 },
     saida: { concluidos: 150, pendentes: 150, projetado: 300 },
   },
+);
+
+// real e projetado: tira a receita (100) e devolve a despesa (50)
+assert.equal(realProjetadoSem(900, []), 900);
+assert.equal(
+  realProjetadoSem(900, [
+    { tipo: 0, valor: 100 },
+    { tipo: 1, valor: 50 },
+  ]),
+  850,
 );
 
 console.log("resumo: ok");

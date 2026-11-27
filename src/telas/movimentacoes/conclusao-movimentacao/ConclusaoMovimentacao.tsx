@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   Alert,
   Button,
@@ -23,8 +23,11 @@ import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import Modal from "../../../componentes/modal/Modal";
 import CadMov from "../cad-mov/CadMov";
+import CampoRepetir from "../../../props/campo-repetir/CampoRepetir";
+import { useRepeticao } from "../../../hooks/useRepeticao";
 import {
   dataHoraLocal,
+  datasMensais,
   formatarMoeda,
   paraIsoUtc,
 } from "../../../utils/formatacao";
@@ -96,21 +99,34 @@ const ConclusaoMovimentacao: React.FC<PropConclusaoMovimentacao> = ({
   const exclusao = useEnvioFormulario(() =>
     executar((id) => `/Contas/Movimentacoes/${id}/Remover`, "DELETE"),
   );
-  // cópia nova e pendente; a original (mesmo virtual) fica como está
+  // como no cadastro: uma cópia por mês, em sequência; se uma falhar, enviar de novo continua dela
+  const repeticao = useRepeticao(dataCopia);
+  const criadas = useRef(0);
+  // cópias novas e pendentes; a original (mesmo virtual) fica como está
   const copia = useEnvioFormulario(async () => {
+    if (repeticao.erro) return repeticao.erro;
     const m = movimentacaoSelecionada;
-    const resposta = await cadastrarMovimentacao(m.idConta, {
-      tipo: m.tipo,
-      valor: m.valor,
-      concluido: false,
-      titulo: m.titulo,
-      observacao: m.observacao ?? "",
-      dthrMovimentacao: paraIsoUtc(dataCopia),
-      dthrConclusao: null,
-      idsCategoria: m.categorias.map((c) => c.idCategoria),
-    });
-    if (!resposta.sucesso)
-      return resposta.erro ?? "Não foi possível copiar a movimentação.";
+    const datas = datasMensais(dataCopia, repeticao.vezes);
+    for (let i = criadas.current; i < datas.length; i++) {
+      const resposta = await cadastrarMovimentacao(m.idConta, {
+        tipo: m.tipo,
+        valor: m.valor,
+        concluido: false,
+        titulo: m.titulo,
+        observacao: m.observacao ?? "",
+        dthrMovimentacao: paraIsoUtc(datas[i]),
+        dthrConclusao: null,
+        idsCategoria: m.categorias.map((c) => c.idCategoria),
+      });
+      if (!resposta.sucesso) {
+        const motivo =
+          resposta.erro ?? "Não foi possível copiar a movimentação.";
+        return datas.length > 1
+          ? `${i} de ${datas.length} criadas. ${motivo} Crie de novo para criar as que faltam.`
+          : motivo;
+      }
+      criadas.current = i + 1;
+    }
     buscaMovimentacoes();
     onClose();
   });
@@ -146,11 +162,17 @@ const ConclusaoMovimentacao: React.FC<PropConclusaoMovimentacao> = ({
           <Stack spacing={2} sx={{ pt: 1 }}>
             {erro && <Alert severity="error">{erro}</Alert>}
             {copiando ? (
-              <CampoDataHora
-                rotulo="Data da cópia"
-                valor={dataCopia}
-                setValor={setDataCopia}
-              />
+              <>
+                <CampoDataHora
+                  rotulo="Data da cópia"
+                  valor={dataCopia}
+                  setValor={setDataCopia}
+                />
+                <CampoRepetir
+                  repeticao={repeticao}
+                  texto={(vezes) => `${vezes} cópias, uma por mês`}
+                />
+              </>
             ) : (
               !movAtual.concluido && (
                 <>

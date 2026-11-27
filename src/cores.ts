@@ -76,9 +76,12 @@ export type CoresTransacoes = Record<
   | "blocoReceita" // blocos de receita/despesa dos cards de conta
   | "rotuloReceita"
   | "blocoDespesa"
-  // séries dos gráficos: azul/laranja (verde/vermelho não se distinguem para daltônicos)
+  // séries do "Entradas e saídas": verde, vermelho e saldo azul (pedido do usuário, no lugar do
+  // azul/laranja que distinguia melhor para daltônicos)
   | "graficoEntrada"
-  | "graficoSaida",
+  | "graficoSaida"
+  | "graficoSaldo"
+  | "graficoSobra", // entradas − saídas de cada ponto: amarelo (pedido do usuário)
   string
 >;
 
@@ -204,8 +207,10 @@ export const CoresEscuro: Paleta = {
     blocoReceita: "rgba(74, 222, 128, 0.1)",
     rotuloReceita: "#86efac",
     blocoDespesa: "rgba(248, 113, 113, 0.1)",
-    graficoEntrada: "#3987e5",
-    graficoSaida: "#d95926",
+    graficoEntrada: "#22c55e",
+    graficoSaida: "#ef4444",
+    graficoSaldo: "#3b82f6",
+    graficoSobra: "#facc15",
   },
 };
 
@@ -304,8 +309,10 @@ export const CoresClaro: Paleta = {
     blocoReceita: "#f0fdf4",
     rotuloReceita: "#166534",
     blocoDespesa: "#fef2f2",
-    graficoEntrada: "#2a78d6",
-    graficoSaida: "#eb6834",
+    graficoEntrada: "#16a34a",
+    graficoSaida: "#dc2626",
+    graficoSaldo: "#155dfc",
+    graficoSobra: "#ca8a04", // amarelo mais escuro: o claro some no fundo branco
   },
 };
 

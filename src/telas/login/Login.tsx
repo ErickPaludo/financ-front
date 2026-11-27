@@ -3,6 +3,7 @@ import { Link as RouterLink, useNavigate } from "react-router-dom";
 import { Button, Divider, Link } from "@mui/material";
 
 import { AuthContext } from "../../contexts/AuthContext";
+import { restaurarPreferencias } from "../../utils/preferencias";
 import { autenticar } from "../../services/auth/tokenService";
 import { useEnvioFormulario } from "../../hooks/useEnvioFormulario";
 import LayoutAutenticacao from "../../componentes/layout-autenticacao/LayoutAutenticacao";
@@ -37,6 +38,8 @@ export const Login: React.FC = () => {
       return resposta.erro ?? "Não foi possível entrar. Confira seus dados e tente novamente.";
     }
 
+    // antes de abrir as telas: elas leem tema, ordens e filtros do localStorage ao montar
+    restaurarPreferencias(email);
     login({ token: resposta.dados.token, expiration: resposta.dados.expiracao });
     navigate("/");
   };

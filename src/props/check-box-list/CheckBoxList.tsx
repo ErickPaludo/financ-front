@@ -50,6 +50,13 @@ function CheckBoxList<T extends object>({
   const [ancora, setAncora] = useState<HTMLElement | null>(null);
   const [busca, setBusca] = useState("");
   const campoBusca = useRef<HTMLInputElement>(null);
+  // marcados no momento de abrir: ordenar pela seleção ao vivo faria o item pular a cada clique
+  const [marcadosAoAbrir, setMarcadosAoAbrir] = useState<number[]>([]);
+
+  const abrir = (e: React.MouseEvent<HTMLElement>) => {
+    setMarcadosAoAbrir(selecionados);
+    setAncora(e.currentTarget);
+  };
 
   const fechar = () => {
     setAncora(null);
@@ -86,7 +93,18 @@ function CheckBoxList<T extends object>({
       : `${nomes[0]}, ${nomes[1]} +${nomes.length - 2}`;
   };
 
-  const itensFiltrados = itens.filter((item) =>
+  // marcados primeiro, cada grupo na ordem original; o primeiro item fixo (ex.: "Sem categoria") não sai do topo
+  const fixos = ignorarPrimeiroItem ? itens.slice(0, 1) : [];
+  const marcadoAoAbrir = (item: T) =>
+    marcadosAoAbrir.includes(item[chaveId] as number) ? 0 : 1;
+  const ordenados = [
+    ...fixos,
+    ...itens
+      .slice(fixos.length)
+      .sort((a, b) => marcadoAoAbrir(a) - marcadoAoAbrir(b)),
+  ];
+
+  const itensFiltrados = ordenados.filter((item) =>
     String(item[chaveTexto]).toLowerCase().includes(busca.toLowerCase()),
   );
 
@@ -94,7 +112,7 @@ function CheckBoxList<T extends object>({
     <>
       {gatilho ? (
         gatilho({
-          abrir: (e) => setAncora(e.currentTarget),
+          abrir,
           aberto: !!ancora,
           resumo: resumo(),
         })
@@ -104,7 +122,7 @@ function CheckBoxList<T extends object>({
         placeholder={placeholder}
         valor={resumo()}
         setValor={() => {}} // só leitura: o valor vem da seleção
-        onClick={(e) => setAncora(e.currentTarget)}
+        onClick={abrir}
         slotProps={{
           input: {
             readOnly: true,

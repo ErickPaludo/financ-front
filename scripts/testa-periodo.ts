@@ -91,9 +91,14 @@ const noLimite = { inicio: "2126-11-01T00:00", fim: "2126-11-15T23:59" };
 assert.deepEqual(moverPeriodo(noLimite, 1, hoje), noLimite);
 assert.deepEqual(foraDosLimites(noLimite, hoje), false);
 
-const [esteMes, mesPassado, proximoMes, ultimos30, esteAno] = atalhosPeriodo(
+const [hojeAtalho, esteMes, mesPassado, proximoMes, ultimos7, ultimos30, esteAno] = atalhosPeriodo(
   dayjs("2026-11-18T14:00"),
 );
+assert.deepEqual(hojeAtalho.periodo, {
+  inicio: "2026-11-18T00:00",
+  fim: "2026-11-18T23:59",
+});
+assert.equal(diasDoPeriodo(hojeAtalho.periodo), 1);
 assert.deepEqual(esteMes.periodo, nov);
 assert.deepEqual(mesPassado.periodo, {
   inicio: "2026-10-01T00:00",
@@ -103,6 +108,11 @@ assert.deepEqual(proximoMes.periodo, {
   inicio: "2026-12-01T00:00",
   fim: "2026-12-31T23:59",
 });
+assert.deepEqual(ultimos7.periodo, {
+  inicio: "2026-11-12T00:00",
+  fim: "2026-11-18T23:59",
+});
+assert.equal(diasDoPeriodo(ultimos7.periodo), 7);
 assert.deepEqual(ultimos30.periodo, {
   inicio: "2026-10-20T00:00",
   fim: "2026-11-18T23:59",

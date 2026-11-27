@@ -7,13 +7,17 @@ const mesesAte = (data: string, ate: string) =>
   dayjs(ate).diff(dayjs(data).startOf("month"), "month") + 1;
 
 // "Repetir nos meses seguintes": uma movimentação por mês a partir da data, até o mês escolhido.
+// Guarda quantos meses, não o mês final: mudar a data leva o "Repetir até" junto (pedido do usuário).
 export function useRepeticao(dataMovimentacao: string) {
   const [repetir, setRepetir] = useState(false);
-  const [repetirAte, setRepetirAte] = useState(() =>
-    dayjs(dataMovimentacao).add(1, "month").format("YYYY-MM"),
-  );
+  const [meses, setMeses] = useState(2);
+  const repetirAte = dayjs(dataMovimentacao)
+    .add(meses - 1, "month")
+    .format("YYYY-MM");
+  const setRepetirAte = (ate: string) =>
+    setMeses(mesesAte(dataMovimentacao, ate));
   // repetir desligado = 1 vez (só a data da movimentação)
-  const vezes = repetir ? mesesAte(dataMovimentacao, repetirAte) : 1;
+  const vezes = repetir ? meses : 1;
   const erro = !repetir
     ? null
     : vezes < 2

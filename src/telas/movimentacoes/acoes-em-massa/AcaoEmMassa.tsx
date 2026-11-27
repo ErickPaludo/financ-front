@@ -8,29 +8,62 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Icon,
   LinearProgress,
   List,
   ListItem,
   ListItemText,
+  Stack,
   Typography,
 } from "@mui/material";
 
-import type { Movimentacao } from "../../../models/movimentacoes/GetMovimentacoes";
+import type {
+  Categoria,
+  Movimentacao,
+} from "../../../models/movimentacoes/GetMovimentacoes";
 import {
+  alterarCategorias,
   alterarDataMovimentacao,
+  alterarValorMovimentacao,
   concluirMovimentacao,
   extornarMovimentacao,
+  mesmasCategorias,
   removerMovimentacao,
 } from "../../../services/movimentacoes/movimentacaoService";
 import InputCheckBox from "../../../props/input-check-box/InputCheckBox";
 import CampoDataHora from "../../../props/campo-data-hora/CampoDataHora";
+import CheckBoxList from "../../../props/check-box-list/CheckBoxList";
+import InputSelect from "../../../props/input-select/InputSelect";
+import InputPrice from "../../../props/input-price/InputPrice";
+import { useCategorias } from "../../../hooks/useCategorias";
+import {
+  categoriasResultantes,
+  OPCOES_MODO_CATEGORIAS,
+  type ModoCategorias,
+} from "./categoriasEmMassa";
 import {
   dataHoraLocal,
   formatarData,
+  formatarDataHora,
+  formatarMoeda,
   paraIsoUtc,
 } from "../../../utils/formatacao";
+import MsgBox from "../../../props/msg-box/MsgBox";
+import { useFiltrosUrl } from "../useFiltrosUrl";
+import {
+  comDia,
+  OPCOES_DIA,
+  OPCOES_MODO_DATA,
+  type ModoData,
+} from "./dataEmMassa";
 
-export type TipoAcaoEmMassa = "concluir" | "extornar" | "excluir" | "data";
+export type TipoAcaoEmMassa =
+  | "concluir"
+  | "extornar"
+  | "excluir"
+  | "data"
+  | "valor"
+  | "categorias";
 
 // textos de cada ação; "feitas" completa "N de M ..."
 const TEXTOS: Record<
@@ -61,6 +94,37 @@ const TEXTOS: Record<
     feitas: "alteradas",
     falhou: "alterada",
   },
+  valor: {
+    verbo: "Alterar valor de",
+    andamento: "Alterando o valor das",
+    feitas: "alteradas",
+    falhou: "alterada",
+  },
+  categorias: {
+    verbo: "Alterar categorias de",
+    andamento: "Alterando as categorias das",
+    feitas: "alteradas",
+    falhou: "alterada",
+  },
+};
+
+// componente à parte: só busca as categorias da conta quando a ação é esta
+const EscolhaCategorias: React.FC<{
+  idConta: number;
+  escolhidas: number[];
+  setEscolhidas: (ids: number[]) => void;
+}> = ({ idConta, escolhidas, setEscolhidas }) => {
+  const { categorias } = useCategorias(idConta);
+  return (
+    <CheckBoxList<Categoria>
+      itens={categorias}
+      chaveId="idCategoria"
+      chaveTexto="nome"
+      selecionados={escolhidas}
+      setSelecionados={setEscolhidas}
+      rotulo="Categorias"
+    />
+  );
 };
 
 type Falha = { mov: Movimentacao; motivo: string };
@@ -86,20 +150,59 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
   // concluir: agora (como o popup da linha) ou a data de cada movimentação
   const [usarDataMov, setUsarDataMov] = useState(false);
   // alterar data: a mesma data para todas
-  const [novaData, setNovaData] = useState(() => dataHoraLocal());
+  // começa no dia do início do filtro, às 08:00 (pedido do usuário); o botão "Agora" troca pela hora atual
+  const { filtros } = useFiltrosUrl();
+  const [novaData, setNovaData] = useState(
+    () => `${filtros.inicio.slice(0, 10)}T08:00`,
+  );
+  // ou só o dia: cada uma mantém mês, ano e hora (pedido do usuário)
+  const [modoData, setModoData] = useState<ModoData>("inteira");
+  const [novoDia, setNovoDia] = useState(1);
+  const trocarData = (mov: Movimentacao) => {
+    if (modoData === "inteira")
+      return alterarDataMovimentacao(mov, paraIsoUtc(novaData));
+    const atual = dataHoraLocal(mov.dthrMovimentacao);
+    const nova = comDia(atual, novoDia);
+    // já está nesse dia: conta como feita, sem requisição
+    if (nova === atual) return Promise.resolve(undefined);
+    return alterarDataMovimentacao(mov, paraIsoUtc(nova));
+  };
+  // alterar categorias: o que fazer com as atuais e quais categorias
+  const [modo, setModo] = useState<ModoCategorias>("adicionar");
+  const [escolhidas, setEscolhidas] = useState<number[]>([]);
+  // substituir sem nenhuma escolhida é válido (todas ficam sem categoria); adicionar/remover nada, não
+  const faltaCategoria =
+    acao === "categorias" && modo !== "substituir" && escolhidas.length === 0;
+  // alterar valor: o mesmo valor para todas, substitui o atual (zerado não envia)
+  const [novoValor, setNovoValor] = useState(0);
+  const faltaValor = acao === "valor" && !(novoValor > 0);
   const [feitas, setFeitas] = useState(0);
   const [falhas, setFalhas] = useState<Falha[]>([]);
   const total = movimentacoes.length;
   const terminou = iniciado && feitas === total;
   const certas = feitas - falhas.length;
 
+  const trocarCategorias = async (mov: Movimentacao) => {
+    const atuais = mov.categorias.map((c) => c.idCategoria);
+    const novas = categoriasResultantes(atuais, escolhidas, modo);
+    // já está como pedido: conta como feita, sem requisição
+    if (mesmasCategorias(atuais, novas)) return undefined;
+    return alterarCategorias(mov, novas);
+  };
+
   const executar = (mov: Movimentacao, agora: string) =>
-    acao === "excluir"
+    acao === "categorias"
+      ? trocarCategorias(mov)
+      : acao === "valor"
+      ? mov.valor === novoValor
+        ? Promise.resolve(undefined) // já tem esse valor: conta como feita, sem requisição
+        : alterarValorMovimentacao(mov, novoValor)
+      : acao === "excluir"
       ? removerMovimentacao(mov)
       : acao === "extornar"
         ? extornarMovimentacao(mov)
         : acao === "data"
-          ? alterarDataMovimentacao(mov, paraIsoUtc(novaData))
+          ? trocarData(mov)
           : concluirMovimentacao(
               mov,
               usarDataMov
@@ -124,6 +227,18 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
       falhas.map((f) => f.mov),
     );
   const quantas = total === 1 ? "1 movimentação" : `${total} movimentações`;
+  // toda ação em massa pede um "Sim" antes de começar (pedido do usuário)
+  const [confirmando, setConfirmando] = useState(false);
+  const detalhe =
+    acao === "valor"
+      ? ` Todas ficam com ${formatarMoeda(novoValor)}.`
+      : acao === "data"
+        ? modoData === "dia"
+          ? ` Todas vão para o dia ${novoDia}, cada uma no seu mês (ou o último dia do mês, se ele não tiver o dia ${novoDia}).`
+          : ` Todas ficam com a data ${formatarDataHora(novaData)}.`
+        : acao === "excluir"
+          ? " Isso não pode ser desfeito."
+          : "";
 
   return (
     <Dialog
@@ -166,13 +281,72 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
             )}
             {acao === "data" && (
               // respiro: o rótulo do campo fica acima da borda e o DialogContent corta
-              <Box sx={{ pt: 1 }}>
-                <CampoDataHora
-                  rotulo="Nova data da movimentação"
-                  valor={novaData}
-                  setValor={setNovaData}
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <InputSelect
+                  rotulo="O que mudar"
+                  opcoes={OPCOES_MODO_DATA}
+                  valor={modoData}
+                  setValor={(valor) => setModoData(valor as ModoData)}
                 />
-              </Box>
+                {modoData === "dia" ? (
+                  <InputSelect
+                    rotulo="Novo dia"
+                    opcoes={OPCOES_DIA}
+                    valor={String(novoDia)}
+                    setValor={(valor) => setNovoDia(Number(valor))}
+                  />
+                ) : (
+                  <Stack direction="row" sx={{ gap: 1, alignItems: "center" }}>
+                    <Box sx={{ flex: 1 }}>
+                      <CampoDataHora
+                        rotulo="Nova data da movimentação"
+                        valor={novaData}
+                        setValor={setNovaData}
+                      />
+                    </Box>
+                    <Button
+                      color="inherit"
+                      startIcon={<Icon>schedule</Icon>}
+                      onClick={() => setNovaData(dataHoraLocal())}
+                    >
+                      Agora
+                    </Button>
+                  </Stack>
+                )}
+              </Stack>
+            )}
+            {acao === "valor" && (
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <InputPrice
+                  rotulo="Novo valor (R$)"
+                  valor={novoValor}
+                  setValor={setNovoValor}
+                />
+                <Alert severity="info">
+                  Todas as selecionadas ficam com este valor. Receitas continuam
+                  receitas e despesas continuam despesas.
+                </Alert>
+              </Stack>
+            )}
+            {acao === "categorias" && (
+              <Stack spacing={2} sx={{ pt: 1 }}>
+                <InputSelect
+                  rotulo="O que fazer"
+                  opcoes={OPCOES_MODO_CATEGORIAS}
+                  valor={modo}
+                  setValor={(valor) => setModo(valor as ModoCategorias)}
+                />
+                <EscolhaCategorias
+                  idConta={movimentacoes[0].idConta}
+                  escolhidas={escolhidas}
+                  setEscolhidas={setEscolhidas}
+                />
+                {modo === "substituir" && escolhidas.length === 0 && (
+                  <Alert severity="warning">
+                    Sem nenhuma categoria escolhida, todas ficam sem categoria.
+                  </Alert>
+                )}
+              </Stack>
             )}
           </>
         ) : (
@@ -220,7 +394,8 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
             <Button
               variant="contained"
               color={acao === "excluir" ? "error" : "primary"}
-              onClick={iniciar}
+              onClick={() => setConfirmando(true)}
+              disabled={faltaCategoria || faltaValor}
             >
               {textos.verbo}
             </Button>
@@ -231,6 +406,18 @@ const AcaoEmMassa: React.FC<PropAcaoEmMassa> = ({
           </Button>
         )}
       </DialogActions>
+
+      {confirmando && (
+        <MsgBox
+          tipo="pergunta"
+          titulo="Tem certeza?"
+          descricao={`${textos.verbo} ${quantas}.${detalhe}`}
+          aoResponder={(sim) => {
+            setConfirmando(false);
+            if (sim) iniciar();
+          }}
+        />
+      )}
     </Dialog>
   );
 };

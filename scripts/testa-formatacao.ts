@@ -29,6 +29,11 @@ const semEspacoEspecial = (texto: string) => texto.replace(/\s/g, " ");
 assert.equal(semEspacoEspecial(formatarMoeda()), "R$ 0,00");
 assert.equal(semEspacoEspecial(formatarMoeda(1234.5)), "R$ 1.234,50");
 assert.equal(semEspacoEspecial(valorComSinal(-145)), "−R$ 145,00");
+// sobra de conta com centavos e -0 viram R$ 0,00, sem sinal de menos
+assert.equal(semEspacoEspecial(formatarMoeda(-0.0000001)), "R$ 0,00");
+assert.equal(semEspacoEspecial(formatarMoeda(-0)), "R$ 0,00");
+assert.equal(semEspacoEspecial(formatarMoeda(0.1 + 0.2 - 0.3)), "R$ 0,00");
+assert.equal(semEspacoEspecial(valorComSinal(-0.0000001)), "+R$ 0,00");
 
 // período do mês: dia 1 00:00 até o último dia 23:59, inclusive fevereiro e virada de ano
 assert.deepEqual(periodoDoMes(dayjs("2026-02-10T08:00")), {

@@ -92,6 +92,25 @@ export const alterarDataMovimentacao = (
     "Não foi possível alterar a data da movimentação.",
   );
 
+// valor sempre positivo (o tipo, receita ou despesa, dá o sinal); os outros campos ficam como estão
+export const alterarValorMovimentacao = (mov: Movimentacao, valor: number) =>
+  naMovimentacao(
+    mov,
+    (id) =>
+      Conecta<string>(`Contas/Movimentacoes/${id}/Alterar`, "PATCH", {
+        valor,
+      } satisfies MovimentacaoPatch),
+    "Não foi possível alterar o valor da movimentação.",
+  );
+
+// troca a lista inteira de categorias (ids) da movimentação
+export const alterarCategorias = (mov: Movimentacao, categorias: number[]) =>
+  naMovimentacao(
+    mov,
+    (id) => alterarCategoriasMovimentacao(id, categorias),
+    "Não foi possível alterar as categorias da movimentação.",
+  );
+
 export const extornarMovimentacao = (mov: Movimentacao) =>
   naMovimentacao(
     mov,

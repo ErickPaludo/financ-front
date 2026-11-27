@@ -4,6 +4,10 @@ import {
   agruparCategoriasPorPeriodo,
   agruparPorCategoria,
   agruparPorPeriodo,
+  limitesDosPontos,
+  repetirSaldoAnterior,
+  saldosDiarios,
+  saldosSemEscondidas,
   semCategoriasIgnoradas,
 } from "../src/telas/dashboard/agrupamento.ts";
 
@@ -129,5 +133,48 @@ assert.deepEqual(
   ],
 );
 assert.equal(semCategoriasIgnoradas([comCats(1, 2)], []).length, 1); // nada ignorado: tudo igual
+
+// saldo: limites de cada ponto, cortados no período
+const ano = limitesDosPontos("2026-01-15T00:00", "2026-12-31T23:59");
+assert.equal(ano.porMes, true);
+assert.equal(ano.pontos.length, 12);
+assert.deepEqual(ano.pontos[0], { inicio: "2026-01-15T00:00", fim: "2026-01-31T23:59" });
+assert.deepEqual(ano.pontos[1], { inicio: "2026-02-01T00:00", fim: "2026-02-28T23:59" });
+assert.deepEqual(ano.pontos[11].fim, "2026-12-31T23:59");
+const semana = limitesDosPontos("2026-03-01T00:00", "2026-03-03T12:00");
+assert.equal(semana.porMes, false);
+assert.deepEqual(semana.pontos.map((p) => p.fim), ["2026-03-01T23:59", "2026-03-02T23:59", "2026-03-03T12:00"]);
+
+// saldo por dia: volta a partir do saldo final (1000) tirando o que veio depois de cada dia
+assert.deepEqual(
+  saldosDiarios(
+    semana.pontos.map((p) => p.fim),
+    1000,
+    [mov(0, 300, "2026-03-02T10:00"), mov(1, 100, "2026-03-03T09:00")],
+  ),
+  [800, 1100, 1000], // dia 1: 1000 + 100 − 300; dia 2: 1000 + 100; dia 3: o final
+);
+
+// mês sem movimento (404, sem saldo) repete o anterior; o primeiro sem anterior fica vazio
+assert.deepEqual(repetirSaldoAnterior([null, 10, null, null, 30]), [null, 10, 10, 10, 30]);
+
+// ignoradas: cada ponto desconta as escondidas até o fim dele
+assert.deepEqual(
+  saldosSemEscondidas(
+    ["2026-01-31T23:59", "2026-02-28T23:59"],
+    [500, null],
+    [mov(1, 50, "2026-01-10T08:00"), mov(0, 20, "2026-02-10T08:00")],
+  ),
+  [550, null], // a despesa escondida de janeiro volta ao saldo
+);
+assert.deepEqual(
+  saldosSemEscondidas(["2026-02-28T23:59"], [500], [mov(1, 50, "2026-01-10T08:00"), mov(0, 20, "2026-02-10T08:00")]),
+  [530],
+);
+
+// saldo zerado por conta com centavos sai 0 exato (não -0,0000001 nem -0)
+const zerado = saldosSemEscondidas(["2026-03-01T23:59"], [0.1 + 0.2 - 0.3 - 0.0000000000001], []);
+assert.ok(Object.is(zerado[0], 0));
+assert.deepEqual(saldosSemEscondidas(["2026-03-01T23:59"], [10.005], []), [10.01]);
 
 console.log("agrupamento: ok");

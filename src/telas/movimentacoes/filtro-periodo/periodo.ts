@@ -100,9 +100,23 @@ export const mesmoPeriodo = (a: Periodo, b: Periodo) =>
 
 // atalhos do painel; "hoje" é parâmetro para o teste
 export const atalhosPeriodo = (hoje = dayjs()) => [
+  {
+    rotulo: "Hoje",
+    periodo: {
+      inicio: dataHoraLocal(hoje.startOf("day")),
+      fim: dataHoraLocal(hoje.endOf("day")),
+    },
+  },
   { rotulo: "Este mês", periodo: periodoDoMes(hoje) },
   { rotulo: "Mês passado", periodo: periodoDoMes(hoje.subtract(1, "month")) },
   { rotulo: "Próximo mês", periodo: periodoDoMes(hoje.add(1, "month")) },
+  {
+    rotulo: "Últimos 7 dias",
+    periodo: {
+      inicio: dataHoraLocal(hoje.subtract(6, "day").startOf("day")),
+      fim: dataHoraLocal(hoje.endOf("day")),
+    },
+  },
   {
     rotulo: "Últimos 30 dias",
     periodo: {

@@ -29,3 +29,14 @@ export const resumoSem = (
       saida: receita ? r.saida : novoLado,
     };
   }, resumo);
+
+// "Real e projetado da conta" (saldoRealProjetado da API) sem as movimentações escondidas
+// pelas categorias ignoradas; cada tela decide quais ficam escondidas.
+export const realProjetadoSem = (
+  saldoRealProjetado: number,
+  escondidas: Pick<Movimentacao, "tipo" | "valor">[],
+) =>
+  escondidas.reduce(
+    (soma, { tipo, valor }) => soma - (tipo === 0 ? valor : -valor),
+    saldoRealProjetado,
+  );

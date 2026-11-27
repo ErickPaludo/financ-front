@@ -47,6 +47,10 @@ type PropFiltrosConta = {
   // categorias ignoradas (vale na hora, sem ir à API); sem setIgnoradas o campo não aparece
   ignoradas?: number[];
   setIgnoradas?: (ids: number[]) => void;
+  // com o setter, as ignoradas viram atalhos na barra: o clique liga/desliga e o chip fica;
+  // o X tira o atalho (pedido do usuário)
+  atalhosIgnoradas?: number[];
+  setAtalhosIgnoradas?: (ids: number[]) => void;
   rodape?: ReactNode; // fim do painel, depois de um Divider (ex.: "Ver detalhes" e botões da tela)
 };
 
@@ -157,13 +161,40 @@ const FiltrosConta: React.FC<PropFiltrosConta> = ({
 }) => {
   const [aberto, setAberto] = useState(false);
   const itensCategoria = [SEM_CATEGORIA, ...categorias];
+  const {
+    ignoradas = [],
+    setIgnoradas,
+    atalhosIgnoradas = [],
+    setAtalhosIgnoradas,
+  } = locais;
+  const comAtalhos = !!setIgnoradas && !!setAtalhosIgnoradas;
+  // com atalhos, os chips das ignoradas saem da lista comum e vão para os atalhos
   const aplicados = filtrosAplicados(
     filtros,
     alterarFiltros,
     itensCategoria,
-    locais,
+    comAtalhos ? { ...locais, ignoradas: [] } : locais,
   );
-  const ativos = aplicados.filter((f) => f.limpar);
+  const ativos = aplicados.filter((f) => f.limpar).length +
+    (comAtalhos ? ignoradas.length : 0);
+  // as ignoradas salvas antes dos atalhos também aparecem
+  const atalhos = [...new Set([...atalhosIgnoradas, ...ignoradas])];
+  // desmarcar no painel (ou "Limpar tudo") tira também o atalho; só o clique no chip o mantém
+  // (relato do usuário: desmarcou todas e os chips continuavam na barra)
+  const setIgnoradasPainel =
+    comAtalhos && setIgnoradas
+      ? (ids: number[]) => {
+          const removidas = ignoradas.filter((i) => !ids.includes(i));
+          setIgnoradas(ids);
+          setAtalhosIgnoradas(
+            [...new Set([...atalhos, ...ids])].filter(
+              (i) => !removidas.includes(i),
+            ),
+          );
+        }
+      : setIgnoradas;
+  const nomeCategoria = (id: number) =>
+    itensCategoria.find((c) => c.idCategoria === id)?.nome ?? `Categoria ${id}`;
 
   return (
     <>
@@ -192,7 +223,7 @@ const FiltrosConta: React.FC<PropFiltrosConta> = ({
             whiteSpace: "nowrap",
           }}
         >
-          Filtros{ativos.length > 0 && ` (${ativos.length})`}
+          Filtros{ativos > 0 && ` (${ativos})`}
         </Button>
         {/* mesmas setas do painel, mas valem na hora (sem "Pesquisar") */}
         <Stack direction="row" sx={{ flexShrink: 0 }}>
@@ -215,6 +246,45 @@ const FiltrosConta: React.FC<PropFiltrosConta> = ({
           ))}
         </Stack>
         {chips(aplicados)}
+        {comAtalhos &&
+          atalhos.map((id) => {
+            // ignorada = desabilitada: apagada e riscada; sem `disabled` do MUI, que bloquearia o clique
+            const ativo = ignoradas.includes(id);
+            const nome = nomeCategoria(id);
+            return (
+              <Chip
+                key={`atalho-ignorada-${id}`}
+                label={nome}
+                title={
+                  ativo
+                    ? `${nome}: ignorada. Clique para voltar a considerar.`
+                    : `${nome}: clique para ignorar.`
+                }
+                aria-label={`${nome}${ativo ? " (ignorada)" : ""}`}
+                size="small"
+                icon={<Icon>{ativo ? "visibility_off" : "visibility"}</Icon>}
+                aria-pressed={!ativo}
+                onClick={() =>
+                  setIgnoradas(
+                    ativo
+                      ? ignoradas.filter((i) => i !== id)
+                      : [...ignoradas, id],
+                  )
+                }
+                onDelete={() => {
+                  if (ativo) setIgnoradas(ignoradas.filter((i) => i !== id));
+                  setAtalhosIgnoradas(atalhos.filter((i) => i !== id));
+                }}
+                sx={{
+                  maxWidth: "100%",
+                  ...(ativo && {
+                    opacity: 0.5,
+                    "& .MuiChip-label": { textDecoration: "line-through" },
+                  }),
+                }}
+              />
+            );
+          })}
       </Stack>
 
       <Modal aberto={aberto} onClose={() => setAberto(false)} titulo="Filtros">
@@ -222,6 +292,7 @@ const FiltrosConta: React.FC<PropFiltrosConta> = ({
           itensCategoria={itensCategoria}
           filtros={filtros}
           {...locais}
+          setIgnoradas={setIgnoradasPainel}
           rodape={rodape}
           onPesquisar={(rascunho) => {
             // sem mudança, não busca de novo

@@ -284,11 +284,15 @@ const TabelaMovimentacao: React.FC<PropTabelaMovimentacao> = ({
     extornar: marcadas.filter((mov) => mov.concluido),
     excluir: marcadas,
     data: marcadas,
+    valor: marcadas,
+    categorias: marcadas,
   };
   const ACOES: { acao: TipoAcaoEmMassa; rotulo: string; icone: string }[] = [
     { acao: "concluir", rotulo: "Concluir", icone: "check_circle" },
     { acao: "extornar", rotulo: "Extornar", icone: "undo" },
     { acao: "data", rotulo: "Alterar data", icone: "edit_calendar" },
+    { acao: "valor", rotulo: "Alterar valor", icone: "attach_money" },
+    { acao: "categorias", rotulo: "Alterar categorias", icone: "sell" },
     { acao: "excluir", rotulo: "Excluir", icone: "delete" },
   ];
   const [movSelecionada, setMovSelecionada] = useState<Movimentacao | null>(

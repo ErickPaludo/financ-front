@@ -5,6 +5,7 @@ import {
   setAccessToken,
 } from "../services/api/api";
 import { useNavigate } from "react-router-dom";
+import { guardarPreferencias } from "../utils/preferencias";
 
 export interface TokenData {
   token: string;
@@ -53,14 +54,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setAccessToken(null);
     setTokenData(null);
     setUserObj(null);
-    try {
-      // a versão vista sobrevive: senão todo login destacaria as Novidades
-      const versaoVista = localStorage.getItem("versaoVista");
-      localStorage.clear();
-      if (versaoVista) localStorage.setItem("versaoVista", versaoVista);
-    } catch {
-      // storage bloqueado: nada salvo para limpar, o logout segue
-    }
+    // limpa o localStorage, mas guarda as preferências pelo e-mail para o próximo login
+    guardarPreferencias(user?.email);
 
     navigate("/login", { replace: true });
   }

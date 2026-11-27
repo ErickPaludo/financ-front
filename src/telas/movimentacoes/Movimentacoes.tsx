@@ -38,7 +38,7 @@ import CardResumo from "./card-resumo/CardResumo";
 import FiltrosConta from "./filtros/FiltrosConta";
 import { useFiltrosUrl } from "./useFiltrosUrl";
 import { rotaMovimentacoes } from "./filtrosUrl";
-import { resumoSem } from "./resumo";
+import { realProjetadoSem, resumoSem } from "./resumo";
 import {
   exportarCsv,
   exportarPdf,
@@ -278,12 +278,11 @@ const Movimentacoes: React.FC = () => {
       todas.filter((mov) => !linhas.includes(mov)),
     );
   // "Real e projetado da conta" desconta só as ignoradas (pedido do usuário), não a busca
-  const realProjetado = todas.reduce(
-    (soma, mov) =>
-      mov.categorias.some((c) => ignoradas.includes(c.idCategoria))
-        ? soma - (mov.tipo === 0 ? mov.valor : -mov.valor)
-        : soma,
+  const realProjetado = realProjetadoSem(
     movimentacoes?.conteudo.resumo.saldoRealProjetado ?? 0,
+    todas.filter((mov) =>
+      mov.categorias.some((c) => ignoradas.includes(c.idCategoria)),
+    ),
   );
   // soma das transações listadas: receitas menos despesas
   const saldoPeriodo = linhas.reduce(
