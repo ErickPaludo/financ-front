@@ -247,7 +247,8 @@ const SERIES_ENTRADAS_SAIDAS: OpcaoFormato<"ambas" | "entradas" | "saidas">[] =
     { valor: "entradas", rotulo: "Só entradas", icone: "trending_up" },
     { valor: "saidas", rotulo: "Só saídas", icone: "trending_down" },
   ];
-const FORMATOS_CATEGORIAS: OpcaoFormato<"pizza" | "linha">[] = [
+type FormatoCategorias = "pizza" | "linha";
+const FORMATOS_CATEGORIAS: OpcaoFormato<FormatoCategorias>[] = [
   { valor: "pizza", rotulo: "Pizza", icone: "donut_large" },
   { valor: "linha", rotulo: "Linhas no período", icone: "show_chart" },
 ];
@@ -262,6 +263,9 @@ type PropPizzaCategorias = {
   carregando: boolean;
   moeda: (valor: number) => string;
   marcaEixo: (valor: number) => string;
+  // no Dashboard: em pizza o card ocupa meia largura, em linhas a largura toda
+  formato: FormatoCategorias;
+  setFormato: (formato: FormatoCategorias) => void;
 };
 
 // Rosca com o total do tipo por categoria, cada fatia na cor da categoria (a mesma dos chips).
@@ -277,8 +281,9 @@ const PizzaCategorias: React.FC<PropPizzaCategorias> = ({
   carregando,
   moeda,
   marcaEixo,
+  formato,
+  setFormato,
 }) => {
-  const [formato, setFormato] = useState<"pizza" | "linha">("pizza");
   const { semCategoria } = useCoresGrafico();
   const noTempo = useMemo(
     () =>
@@ -315,7 +320,11 @@ const PizzaCategorias: React.FC<PropPizzaCategorias> = ({
       id={id}
       titulo={titulo}
       resumo={
-        <Stack direction="row" sx={{ alignItems: "center", gap: 1.5 }}>
+        <Stack
+              direction="row"
+              // em tela estreita os ícones descem em vez de vazar do card
+              sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5, minWidth: 0 }}
+            >
           <Typography sx={textoResumo}>Total {moeda(total)}</Typography>
           <SeletorFormato
             opcoes={FORMATOS_CATEGORIAS}
@@ -600,10 +609,22 @@ const Dashboard: React.FC = () => {
 
   // Gráficos na ordem que o usuário escolheu arrastando (salva por usuário). Com o filtro de
   // tipo, os escondidos mantêm o lugar: a troca de posição é feita na lista completa.
-  const graficos: { id: IdGrafico; visivel: boolean; elemento: ReactNode }[] = [
+  // Pizzas lado a lado (meia largura); em linhas, ou sozinha pelo filtro de tipo, largura toda
+  // (pedido do usuário). O formato fica aqui porque decide a largura do card na grade.
+  const [formatoSaidas, setFormatoSaidas] = useState<FormatoCategorias>("pizza");
+  const [formatoEntradas, setFormatoEntradas] =
+    useState<FormatoCategorias>("pizza");
+  const duasPizzas = mostraSaidas && mostraEntradas;
+  const graficos: {
+    id: IdGrafico;
+    visivel: boolean;
+    largo: boolean;
+    elemento: ReactNode;
+  }[] = [
     {
       id: "saidas",
       visivel: mostraSaidas,
+      largo: !duasPizzas || formatoSaidas === "linha",
       elemento: (
         <PizzaCategorias
           id="titulo-pizza-saidas"
@@ -615,12 +636,15 @@ const Dashboard: React.FC = () => {
           carregando={carregando}
           moeda={moeda}
           marcaEixo={marcaEixo}
+          formato={formatoSaidas}
+          setFormato={setFormatoSaidas}
         />
       ),
     },
     {
       id: "entradas",
       visivel: mostraEntradas,
+      largo: !duasPizzas || formatoEntradas === "linha",
       elemento: (
         <PizzaCategorias
           id="titulo-pizza-entradas"
@@ -632,18 +656,25 @@ const Dashboard: React.FC = () => {
           carregando={carregando}
           moeda={moeda}
           marcaEixo={marcaEixo}
+          formato={formatoEntradas}
+          setFormato={setFormatoEntradas}
         />
       ),
     },
     {
       id: "entradas-saidas",
       visivel: true,
+      largo: true,
       elemento: (
         <CardGrafico
           id="titulo-entradas-saidas"
           titulo="Entradas e saídas"
           resumo={
-            <Stack direction="row" sx={{ alignItems: "center", gap: 1.5 }}>
+            <Stack
+              direction="row"
+              // em tela estreita os ícones descem em vez de vazar do card
+              sx={{ alignItems: "center", flexWrap: "wrap", gap: 1.5, minWidth: 0 }}
+            >
               <Typography sx={textoResumo}>
                 {[
                   linhaEntradas && `Entradas ${moeda(total("entradas"))}`,
@@ -776,19 +807,26 @@ const Dashboard: React.FC = () => {
 
       {erro && <Alert severity="error">{erro}</Alert>}
 
-      {/* um gráfico por linha, na largura toda; arraste um card para mudar a ordem */}
+      {/* duas colunas: os largos ocupam as duas; no celular, uma. Arraste um card para mudar a
+          ordem. "dense" junta as duas pizzas lado a lado mesmo com um card largo entre elas */}
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr)", // o gráfico encolhe com a tela, sem estourar
+          // minmax(0, …): o gráfico encolhe com a tela, sem estourar
+          gridTemplateColumns: {
+            xs: "minmax(0, 1fr)",
+            md: "repeat(2, minmax(0, 1fr))",
+          },
+          gridAutoFlow: "dense",
           gap: 3,
         }}
       >
-        {graficosVisiveis.map(({ id, elemento }) => (
+        {graficosVisiveis.map(({ id, largo, elemento }) => (
           <Box
             key={id}
             {...propsArrastar(id)}
             sx={{
+              gridColumn: largo ? "1 / -1" : "auto",
               opacity: arrastando === id ? 0.4 : 1,
               transition: "opacity 0.15s ease",
             }}

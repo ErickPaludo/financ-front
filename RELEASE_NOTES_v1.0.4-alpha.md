@@ -53,6 +53,11 @@ Esta versão traz a opção de **copiar uma transação** (também repetindo nos
 - As categorias escolhidas no **Filtros** do Dashboard ficam lembradas para cada conta: ao abrir o Dashboard de novo, o filtro volta como você deixou. Para tirar, remova as categorias no Filtros ou no X do chip.
 - Se você chegar ao Dashboard por um link que já traz categorias (por exemplo, vindo da tela da conta com categorias filtradas), valem as do link.
 
+### Dashboard: pizzas lado a lado
+- Os gráficos **Saídas por categoria** e **Entradas por categoria** ficam **um ao lado do outro** quando estão em pizza. Ao trocar um deles para **Linhas**, ele passa a ocupar a largura toda, abaixo do outro.
+- No celular continuam um abaixo do outro.
+- Os cards continuam arrastáveis para mudar a ordem.
+
 ### Dashboard: botão Recarregar
 - Novo botão **Recarregar** (seta redonda) no topo do Dashboard, ao lado do botão de ocultar valores. Ele atualiza todos os gráficos com os dados mais recentes, sem precisar recarregar a página: útil quando outra pessoa lançou transações na conta ou você lançou em outra aba.
 
@@ -117,6 +122,7 @@ Esta versão traz a opção de **copiar uma transação** (também repetindo nos
 - **Visualizador via opções que não podia usar:** quem só visualiza a conta, ao clicar numa transação, via os botões Deletar, Alterar e Concluir, que davam erro ao usar. Agora clicar na transação não abre nada para quem só visualiza.
 - **Campo de data e hora não aceitava a digitação:** às vezes o campo ignorava o que se digitava. Agora é um campo de texto: digite só os números (por exemplo, 261120261430 vira 26/11/2026 14:30), as barras e os dois-pontos já estão no lugar. Cada número fica na sua posição: dá para selecionar só o ano (ou o dia, ou a hora) e digitar por cima, sem mexer no resto. Com a hora em branco, fica a que já estava. Data que não existe (como 31/02) ou fora do período permitido fica marcada em vermelho e não é salva; ao sair do campo ele volta à última data válida. O ícone de calendário ao lado escolhe o dia com o mouse.
 - **Valor "-R$ 0,00":** alguns valores zerados apareciam com sinal de menos (por exemplo, o saldo de um dia no Dashboard). Agora aparecem como R$ 0,00 em todo o app. No Dashboard, com o saldo da conta em zero, o eixo do gráfico também se mantém normal.
+- **Botões do Dashboard vazando no celular:** no celular, os botões do gráfico **Entradas e saídas** (formato, séries, sobra, saldo e só dias com movimentação) passavam da borda do card. Agora, quando falta espaço, eles descem para a linha de baixo, dentro do card. O mesmo vale para os gráficos de categoria.
 
 ---
 

@@ -177,4 +177,5 @@ const zerado = saldosSemEscondidas(["2026-03-01T23:59"], [0.1 + 0.2 - 0.3 - 0.00
 assert.ok(Object.is(zerado[0], 0));
 assert.deepEqual(saldosSemEscondidas(["2026-03-01T23:59"], [10.005], []), [10.01]);
 
+
 console.log("agrupamento: ok");
