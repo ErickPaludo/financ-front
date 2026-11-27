@@ -262,7 +262,12 @@ const ConclusaoMovimentacao: React.FC<PropConclusaoMovimentacao> = ({
 
       {/* o formulário de edição continua na gaveta, como os demais;
           fechar a gaveta sem salvar encerra tudo (não volta ao popup) */}
-      <Modal aberto={alterando} titulo="Editar transação" onClose={onClose}>
+      <Modal
+        aberto={alterando}
+        titulo="Editar transação"
+        onClose={onClose}
+        comCalculadora
+      >
         <CadMov
           // a original (id 0 se for virtual): o CadMov materializa antes do PATCH
           movimentacao={movimentacaoSelecionada}

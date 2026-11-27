@@ -20,6 +20,7 @@ import { ContaContext } from "../../contexts/ContaContext";
 import Carregamento from "../carregamento/Carregamento";
 import BarraLateral from "../barra-lateral/BarraLateral";
 import MsgBox from "../../props/msg-box/MsgBox";
+import Calculadora from "../calculadora/Calculadora";
 import { criarTema, tema as temaEscuro } from "../../tema";
 import { CoresClaro, CoresEscuro, variaveisTelas } from "../../cores";
 import { useModoCor } from "../../hooks/useModoCor";
@@ -126,6 +127,7 @@ const LayoutPrincipal: React.FC = () => {
             >
               <Outlet />
             </main>
+            <Calculadora />
           </div>
         </ThemeProvider>
       </div>

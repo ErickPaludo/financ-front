@@ -628,6 +628,7 @@ const Movimentacoes: React.FC = () => {
       <Modal
         aberto={cadMovAberto}
         titulo="Nova transação"
+        comCalculadora
         onClose={() => setCadMovAberto(false)}
       >
         <CadMov
@@ -642,6 +643,7 @@ const Movimentacoes: React.FC = () => {
       <Modal
         aberto={transferenciaAberta}
         titulo="Transferência entre contas"
+        comCalculadora
         onClose={() => setTransferenciaAberta(false)}
       >
         <CadTransferencia

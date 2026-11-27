@@ -287,7 +287,12 @@ const FiltrosConta: React.FC<PropFiltrosConta> = ({
           })}
       </Stack>
 
-      <Modal aberto={aberto} onClose={() => setAberto(false)} titulo="Filtros">
+      <Modal
+        aberto={aberto}
+        onClose={() => setAberto(false)}
+        titulo="Filtros"
+        comCalculadora
+      >
         <PainelFiltros
           itensCategoria={itensCategoria}
           filtros={filtros}

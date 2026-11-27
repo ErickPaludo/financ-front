@@ -8,6 +8,19 @@ export type Novidade = {
 
 export const NOVIDADES: Novidade[] = [
   {
+    versao: "1.0.5-alpha",
+    data: "27/11/2026",
+    grupos: [
+      {
+        titulo: "Novidades",
+        icone: "auto_awesome",
+        itens: [
+          "Calculadora: o item Calculadora do menu abre uma calculadora em qualquer tela, ao lado do menu, sem sair do que você está fazendo. Nos filtros e no cadastro, edição e transferência de transações, o ícone de calculadora no topo também abre. Para mudar de lugar, arraste pelo título. Faz somas, subtrações, multiplicações e divisões, e aceita o teclado (Enter dá o resultado, Esc fecha).",
+        ],
+      },
+    ],
+  },
+  {
     versao: "1.0.4-alpha",
     data: "26/11/2026",
     grupos: [

@@ -37,6 +37,7 @@ import PainelNovidades from "../painel-novidades/PainelNovidades";
 import PainelLateral from "../painel-lateral/PainelLateral";
 import { iniciais } from "../../utils/formatacao";
 import { useUltimaConta } from "../../hooks/useUltimaConta";
+import { useCalculadora } from "../../hooks/useCalculadora";
 import { CoresClaro, CoresEscuro, coresDaBarra } from "../../cores";
 import type { ModoCor } from "../../tema";
 import logoAzul from "../../assets/pldprojects-logo-azul.svg";
@@ -131,6 +132,7 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
   const nomeUsuario = user?.nomeCompleto || "Usuário";
   const { conta, setConta, versaoContas } = useContext(ContaContext);
   const ehCelular = useMediaQuery(CONSULTA_CELULAR);
+  const { calculadoraAberta, alternarCalculadora } = useCalculadora();
   const [recolhida, setRecolhida] = useState(false);
   const [mobileAberto, setMobileAberto] = useState(false);
   const [confirmarSaida, setConfirmarSaida] = useState(false);
@@ -447,6 +449,16 @@ const BarraLateral: React.FC<PropBarraLateral> = ({
         {botao("Convites", "mail", () => alternarPainel("convites"), {
           selecionado: painel === "convites",
         })}
+        {/* no celular a gaveta do menu fecha, senão cobriria a calculadora */}
+        {botao(
+          "Calculadora",
+          "calculate",
+          () => {
+            alternarCalculadora();
+            setMobileAberto(false);
+          },
+          { selecionado: calculadoraAberta },
+        )}
 
         {/* fora das telas da conta: atalho para voltar à última conta aberta */}
         {ultimaConta && !naConta && (
